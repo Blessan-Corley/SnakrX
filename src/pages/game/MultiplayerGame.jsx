@@ -25,6 +25,7 @@ import Modal from '@/components/ui/Modal';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { playClick } from '@/utils/sound';
 import { formatScore, formatTime, getSpeedMultiplier, isMobile, DIRECTIONS, GAME_STATES, SNAKE_COLORS } from '@/utils/gameUtils';
+import { useGameInput } from '@/hooks/useGameInput';
 
 /**
  * Local Multiplayer Game Page
@@ -147,44 +148,16 @@ const MultiplayerGame = () => {
     startGame();
   }, [initializeGame, navigate, numPlayers, mobile]);
 
-  // Handle keyboard controls for all players
-  useEffect(() => {
-    const handleKeyPress = (e) => {
-      if (!isGameActive && !isPaused) return;
-
-      const key = e.code;
-      
-      // Check each player's controls
-      for (let playerIndex = 0; playerIndex < numPlayers; playerIndex++) {
-        const controls = controlSchemes[playerIndex];
-        if (!controls) continue;
-
-        // Check movement for this player
-        if (controls.up.includes(key)) {
-          updateSnakeDirection(playerIndex, DIRECTIONS.UP);
-        } else if (controls.down.includes(key)) {
-          updateSnakeDirection(playerIndex, DIRECTIONS.DOWN);
-        } else if (controls.left.includes(key)) {
-          updateSnakeDirection(playerIndex, DIRECTIONS.LEFT);
-        } else if (controls.right.includes(key)) {
-          updateSnakeDirection(playerIndex, DIRECTIONS.RIGHT);
-        }
-      }
-      
-      // Game controls (global)
-      if (key === 'Space') {
-        e.preventDefault();
-        togglePause();
-      } else if (key === 'KeyR') {
-        handleRestart();
-      } else if (key === 'Escape') {
-        handleQuit();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [isGameActive, isPaused, updateSnakeDirection, togglePause, numPlayers]);
+  // ENHANCED: Use ultra-responsive input system for multiplayer
+  const gameInput = useGameInput({
+    playerCount: numPlayers,
+    isPlaying: isGameActive,
+    isPaused: isPaused,
+    onDirectionChange: updateSnakeDirection,
+    onPauseToggle: togglePause,
+    onRestart: handleRestart,
+    onQuit: handleQuit
+  });
 
   // Calculate winner and rankings when game ends
   useEffect(() => {

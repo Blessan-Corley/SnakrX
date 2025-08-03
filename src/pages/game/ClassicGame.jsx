@@ -15,10 +15,13 @@ import { useAuth } from '@/hooks/useAuth';
 import { useAchievementOperations } from '@/hooks/useAchievements';
 import { GameBoardWithOverlay } from '@/components/game/GameBoard';
 import GameControls, { FloatingGameHUD } from '@/components/game/GameControls';
+import GameLegend from '@/components/game/GameLegend';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import Modal from '@/components/ui/Modal';
+import GameModeModal from '@/components/ui/GameModeModal';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import GameTest from '@/components/game/GameTest';
 import { playClick } from '@/utils/sound';
 import { formatScore, formatTime, getSpeedMultiplier, isMobile, DIRECTIONS, GAME_STATES } from '@/utils/gameUtils';
 
@@ -66,55 +69,104 @@ const ClassicGame = () => {
 
   const mobile = isMobile();
 
-  // Initialize game on mount
-  useEffect(() => {
-    const startGame = async () => {
-      try {
-        setLoading(true);
-        await initializeGame('classic');
-      } catch (error) {
-        console.error('Failed to start classic game:', error);
-        navigate('/game');
-      } finally {
-        setLoading(false);
-      }
-    };
+  // State for mode selection
+  const [showModeSelect, setShowModeSelect] = useState(true);
 
-    startGame();
-  }, [initializeGame, navigate]);
+  // Initialize game on mount or mode selection
+  const initializeClassicGame = async (mode = 'classic') => {
+    try {
+      console.log('Starting classic game with mode:', mode);
+      setLoading(true);
+      await initializeGame(mode);
+      console.log('Classic game initialized successfully');
+      
+      // Game is ready - user must click or press key to start
+      
+    } catch (error) {
+      console.error('Failed to start classic game:', error);
+      navigate('/game');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle mode selection
+  const handleModeSelect = (mode) => {
+    console.log('Mode selected:', mode);
+    setShowModeSelect(false);
+    initializeClassicGame(mode);
+  };
 
   // Handle keyboard controls
   useEffect(() => {
     const handleKeyPress = (e) => {
-      if (!isGameActive && !isPaused) return;
-
       const key = e.code;
       
-      // Movement controls
-      if (key === 'ArrowUp' || key === 'KeyW') {
-        updateSnakeDirection(0, DIRECTIONS.UP);
-      } else if (key === 'ArrowDown' || key === 'KeyS') {
-        updateSnakeDirection(0, DIRECTIONS.DOWN);
-      } else if (key === 'ArrowLeft' || key === 'KeyA') {
-        updateSnakeDirection(0, DIRECTIONS.LEFT);
-      } else if (key === 'ArrowRight' || key === 'KeyD') {
-        updateSnakeDirection(0, DIRECTIONS.RIGHT);
-      }
-      
-      // Game controls
-      else if (key === 'Space') {
+      // Always handle game controls
+      if (key === 'Space') {
         e.preventDefault();
         togglePause();
+        return;
       } else if (key === 'KeyR') {
         handleRestart();
+        return;
       } else if (key === 'Escape') {
         handleQuit();
+        return;
+      }
+      
+      // Only handle movement when game is active
+      if (!isGameActive || isPaused) return;
+
+      // Movement controls
+      if (key === 'ArrowUp' || key === 'KeyW') {
+        e.preventDefault();
+        updateSnakeDirection(0, DIRECTIONS.UP);
+      } else if (key === 'ArrowDown' || key === 'KeyS') {
+        e.preventDefault();
+        updateSnakeDirection(0, DIRECTIONS.DOWN);
+      } else if (key === 'ArrowLeft' || key === 'KeyA') {
+        e.preventDefault();
+        updateSnakeDirection(0, DIRECTIONS.LEFT);
+      } else if (key === 'ArrowRight' || key === 'KeyD') {
+        e.preventDefault();
+        updateSnakeDirection(0, DIRECTIONS.RIGHT);
       }
     };
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [isGameActive, isPaused, updateSnakeDirection, togglePause]);
+  }, [isGameActive, isPaused, updateSnakeDirection, togglePause, handleRestart, handleQuit]);
+
+  // Add ready overlay and start logic
+  useEffect(() => {
+    if (gameState !== GAME_STATES.READY) return;
+    
+    console.log('Game is ready, waiting for user input...');
+    
+    const handleReadyKey = (e) => {
+      e.preventDefault();
+      console.log('Ready key pressed, starting game...');
+      startGame();
+      playClick();
+    };
+    
+    const handleReadyClick = () => {
+      console.log('Ready clicked, starting game...');
+      startGame();
+      playClick();
+    };
+
+    window.addEventListener('keydown', handleReadyKey);
+    document.addEventListener('click', handleReadyClick);
+    
+    // No auto-start - user must click or press key
+
+    return () => {
+      window.removeEventListener('keydown', handleReadyKey);
+      document.removeEventListener('click', handleReadyClick);
+    };
+  }, [gameState, startGame]);
 
   // Handle mobile touch controls
   const handleMobileControl = useCallback((direction) => {
@@ -151,9 +203,12 @@ const ClassicGame = () => {
 
   // Game actions
   const handleRestart = () => {
-    playClick();
+    setGameStats(null); // Clear game stats to hide match summary
     setShowGameOverModal(false);
+    setShowAchievementModal(false);
+    setNewAchievement(null);
     restartGame();
+    playClick();
   };
 
   const handleQuit = () => {
@@ -193,6 +248,26 @@ const ClassicGame = () => {
 
   return (
     <div className="min-h-screen relative overflow-hidden">
+      {/* Ready overlay */}
+      {gameState === GAME_STATES.READY && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md">
+          <div className="text-center">
+            <div className="text-6xl mb-6 animate-bounce">🐍</div>
+            <h2 className="text-3xl font-bold text-white mb-4">Get Ready!</h2>
+            <p className="text-lg text-white/80 mb-8">Press any key or click to start</p>
+            <button 
+              onClick={() => {
+                console.log('Start button clicked');
+                startGame();
+              }}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg text-lg"
+            >
+              Start Game
+            </button>
+          </div>
+        </div>
+      )}
+      
       {/* Background */}
       <div className="absolute inset-0 z-0">
         <motion.div
@@ -224,16 +299,21 @@ const ClassicGame = () => {
             )}
 
             {/* Main Game Board */}
-            <div className="h-full flex items-center justify-center">
-              <GameBoardWithOverlay
-                boardSize={boardSize}
-                snakes={snakes}
-                food={food}
-                isPaused={isPaused}
-                isGameOver={isGameOver}
-                showGrid={true}
-                className="shadow-2xl"
-              />
+            <div className="space-y-4">
+              <div className="h-full flex items-center justify-center">
+                <GameBoardWithOverlay
+                  boardSize={boardSize}
+                  snakes={snakes}
+                  food={food}
+                  isPaused={isPaused}
+                  isGameOver={isGameOver}
+                  showGrid={true}
+                  className="shadow-2xl"
+                />
+              </div>
+              
+              {/* Game Legend */}
+              <GameLegend gameMode={gameMode} className="mx-auto max-w-2xl" />
             </div>
           </div>
 
@@ -352,6 +432,19 @@ const ClassicGame = () => {
           </div>
         </div>
       </Modal>
+
+      {/* Mode Selection Modal */}
+      <AnimatePresence>
+        {showModeSelect && (
+          <GameModeModal
+            onSelect={handleModeSelect}
+            onClose={() => navigate('/')}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Game Debug Panel */}
+      <GameTest />
 
       {/* Achievement Modal */}
       <Modal

@@ -1,311 +1,347 @@
-import { Howl } from 'howler';
-
 /**
- * SnakrX Sound System
- * Soothing and satisfying sounds for game events
+ * SnakrX Sound System - Enhanced Audio Feedback
+ * Provides audio feedback without external dependencies
  */
 
-class SoundManager {
-  constructor() {
-    this.sounds = new Map();
-    this.isMuted = false;
-    this.volume = 0.7;
+// Audio context for web audio API
+let audioContext = null;
+
+/**
+ * Initialize audio context - FIXED to handle user gesture requirement
+ */
+const initAudioContext = async () => {
+  if (!audioContext && typeof window !== 'undefined') {
+    try {
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      
+      // Resume context if suspended (required by browsers for user gesture)
+      if (audioContext.state === 'suspended') {
+        await audioContext.resume();
+      }
+    } catch (error) {
+      console.warn('Audio not supported:', error);
+    }
+  }
+  return audioContext;
+};
+
+/**
+ * Create a tone using Web Audio API - FIXED with proper async handling
+ */
+const createTone = async (frequency, duration = 0.1, type = 'sine', volume = 0.1) => {
+  try {
+    if (isMuted) return;
     
-    // Load sound preferences from localStorage
-    this.loadSettings();
-    this.initializeSounds();
-  }
+    const ctx = await initAudioContext();
+    if (!ctx) return;
 
-  // Initialize all game sounds
-  initializeSounds() {
-    // Food eat sound - satisfying bite sound
-    this.sounds.set('food', new Howl({
-      src: ['/sounds/food-eat.mp3', '/sounds/food-eat.wav'],
-      volume: this.volume * 0.8,
-      rate: 1.0,
-      // Fallback: create programmatic sound if files don't exist
-      onloaderror: () => {
-        this.sounds.set('food', this.createTone(800, 0.1, 'sine'));
-      }
-    }));
-
-    // Death sound - gentle but clear indication of game over
-    this.sounds.set('death', new Howl({
-      src: ['/sounds/death.mp3', '/sounds/death.wav'],
-      volume: this.volume * 0.9,
-      rate: 1.0,
-      onloaderror: () => {
-        this.sounds.set('death', this.createTone(200, 0.5, 'sawtooth'));
-      }
-    }));
-
-    // Victory sound - triumphant but not overwhelming
-    this.sounds.set('victory', new Howl({
-      src: ['/sounds/victory.mp3', '/sounds/victory.wav'],
-      volume: this.volume * 0.8,
-      rate: 1.0,
-      onloaderror: () => {
-        this.sounds.set('victory', this.createChord([523, 659, 783], 1.0));
-      }
-    }));
-
-    // Achievement sound - special notification sound
-    this.sounds.set('achievement', new Howl({
-      src: ['/sounds/achievement.mp3', '/sounds/achievement.wav'],
-      volume: this.volume * 0.7,
-      rate: 1.0,
-      onloaderror: () => {
-        this.sounds.set('achievement', this.createChord([440, 554, 659], 0.8));
-      }
-    }));
-
-    // UI sounds
-    this.sounds.set('click', new Howl({
-      src: ['/sounds/click.mp3', '/sounds/click.wav'],
-      volume: this.volume * 0.5,
-      rate: 1.0,
-      onloaderror: () => {
-        this.sounds.set('click', this.createTone(600, 0.05, 'sine'));
-      }
-    }));
-
-    this.sounds.set('hover', new Howl({
-      src: ['/sounds/hover.mp3', '/sounds/hover.wav'],
-      volume: this.volume * 0.3,
-      rate: 1.0,
-      onloaderror: () => {
-        this.sounds.set('hover', this.createTone(400, 0.03, 'sine'));
-      }
-    }));
-
-    // Background music (optional)
-    this.sounds.set('bgMusic', new Howl({
-      src: ['/sounds/background.mp3', '/sounds/background.ogg'],
-      volume: this.volume * 0.3,
-      loop: true,
-      rate: 1.0,
-      onloaderror: () => {
-        // No fallback for background music
-      }
-    }));
-  }
-
-  // Create programmatic tones as fallback
-  createTone(frequency, duration, type = 'sine') {
-    if (typeof window === 'undefined' || !window.AudioContext) {
-      return { play: () => {} }; // Mock for SSR or browsers without Web Audio API
+    // Ensure context is running (handles user gesture requirement)
+    if (ctx.state === 'suspended') {
+      await ctx.resume();
     }
 
-    return {
-      play: () => {
-        if (this.isMuted) return;
+    const oscillator = ctx.createOscillator();
+    const gainNode = ctx.createGain();
 
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
+    oscillator.connect(gainNode);
+    gainNode.connect(ctx.destination);
 
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
+    oscillator.frequency.setValueAtTime(frequency, ctx.currentTime);
+    oscillator.type = type;
 
-        oscillator.frequency.value = frequency;
-        oscillator.type = type;
+    // Apply global volume
+    const finalVolume = volume * globalVolume;
 
-        gainNode.gain.setValueAtTime(this.volume * 0.5, audioContext.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + duration);
+    // Volume envelope
+    gainNode.gain.setValueAtTime(0, ctx.currentTime);
+    gainNode.gain.linearRampToValueAtTime(finalVolume, ctx.currentTime + 0.01);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
 
-        oscillator.start();
-        oscillator.stop(audioContext.currentTime + duration);
-      }
-    };
+    oscillator.start(ctx.currentTime);
+    oscillator.stop(ctx.currentTime + duration);
+  } catch (error) {
+    console.warn('Sound error:', error);
   }
+};
 
-  // Create chord sounds
-  createChord(frequencies, duration) {
-    return {
-      play: () => {
-        frequencies.forEach((freq, index) => {
+/**
+ * Create a chord (multiple tones)
+ */
+const createChord = (frequencies, duration = 0.3, volume = 0.08) => {
+  frequencies.forEach((freq, index) => {
+    setTimeout(() => {
+      createTone(freq, duration, 'sine', volume);
+    }, index * 20);
+  });
+};
+
+/**
+ * Play food eat sound - Ascending notes
+ */
+export const playFoodEat = (speedMultiplier = 1) => {
+  try {
+    const baseFreq = 400 + (speedMultiplier * 50);
+    const notes = [baseFreq, baseFreq * 1.25, baseFreq * 1.5];
+    
+    notes.forEach((freq, index) => {
+      setTimeout(() => {
+        createTone(freq, 0.15, 'triangle', 0.12);
+      }, index * 60);
+    });
+  } catch (error) {
+    console.warn('Food eat sound error:', error);
+  }
+};
+
+/**
+ * Play death sound based on cause
+ */
+export const playDeath = (cause = 'wall') => {
+  try {
+    if (cause === 'wall') {
+      // Sharp impact sound
+      createTone(150, 0.3, 'square', 0.15);
+      setTimeout(() => createTone(100, 0.2, 'square', 0.1), 150);
+    } else if (cause === 'self') {
+      // Descending disappointed sound
+      const notes = [300, 250, 200, 150];
+      notes.forEach((freq, index) => {
+        setTimeout(() => {
+          createTone(freq, 0.2, 'sawtooth', 0.1);
+        }, index * 100);
+      });
+    } else {
+      // Opponent collision - dramatic sound
+      createTone(200, 0.4, 'square', 0.12);
+      setTimeout(() => createTone(100, 0.3, 'triangle', 0.08), 200);
+    }
+  } catch (error) {
+    console.warn('Death sound error:', error);
+  }
+};
+
+/**
+ * Play victory sound
+ */
+export const playVictory = (gameMode = 'classic') => {
+  try {
+    if (gameMode === 'vsai') {
+      // Triumphant AI victory theme
+      const victoryChord = [262, 330, 392, 523]; // C major chord
+      createChord(victoryChord, 0.5, 0.1);
+      
+      setTimeout(() => {
+        const melody = [523, 587, 659, 698];
+        melody.forEach((freq, index) => {
           setTimeout(() => {
-            this.createTone(freq, duration * 0.8, 'sine').play();
-          }, index * 50);
+            createTone(freq, 0.3, 'sine', 0.12);
+          }, index * 200);
         });
-      }
+      }, 300);
+    } else if (gameMode === 'multiplayer') {
+      // Multiplayer victory fanfare
+      const fanfare = [392, 523, 659, 784];
+      fanfare.forEach((freq, index) => {
+        setTimeout(() => {
+          createTone(freq, 0.25, 'triangle', 0.1);
+        }, index * 150);
+      });
+    } else {
+      // Classic mode victory
+      const classicMelody = [262, 294, 330, 349, 392, 440, 494, 523];
+      classicMelody.forEach((freq, index) => {
+        setTimeout(() => {
+          createTone(freq, 0.2, 'sine', 0.08);
+        }, index * 120);
+      });
+    }
+  } catch (error) {
+    console.warn('Victory sound error:', error);
+  }
+};
+
+/**
+ * Play achievement unlock sound
+ */
+export const playAchievement = (tier = 'common') => {
+  try {
+    const tierSounds = {
+      common: [440, 554, 659],
+      uncommon: [440, 554, 659, 880],
+      rare: [523, 659, 784, 1047],
+      epic: [392, 523, 659, 784, 1047],
+      legendary: [262, 330, 392, 523, 659, 784, 1047]
     };
-  }
-
-  // Play a sound by name
-  play(soundName, options = {}) {
-    if (this.isMuted) return;
     
-    const sound = this.sounds.get(soundName);
-    if (sound && typeof sound.play === 'function') {
-      if (options.rate) {
-        sound.rate(options.rate);
-      }
-      if (options.volume) {
-        sound.volume(options.volume * this.volume);
-      }
-      sound.play();
-    }
-  }
-
-  // Stop a sound
-  stop(soundName) {
-    const sound = this.sounds.get(soundName);
-    if (sound && typeof sound.stop === 'function') {
-      sound.stop();
-    }
-  }
-
-  // Stop all sounds
-  stopAll() {
-    this.sounds.forEach(sound => {
-      if (sound && typeof sound.stop === 'function') {
-        sound.stop();
-      }
+    const notes = tierSounds[tier] || tierSounds.common;
+    
+    notes.forEach((freq, index) => {
+      setTimeout(() => {
+        createTone(freq, 0.3, 'sine', 0.1);
+      }, index * 100);
     });
-  }
-
-  // Toggle mute
-  toggleMute() {
-    this.isMuted = !this.isMuted;
-    this.saveSettings();
     
-    if (this.isMuted) {
-      this.stopAll();
+    // Special sparkle effect for rare+ achievements
+    if (['rare', 'epic', 'legendary'].includes(tier)) {
+      setTimeout(() => {
+        for (let i = 0; i < 5; i++) {
+          setTimeout(() => {
+            createTone(1568 + Math.random() * 400, 0.1, 'sine', 0.06);
+          }, i * 50);
+        }
+      }, notes.length * 100);
     }
-    
-    return this.isMuted;
+  } catch (error) {
+    console.warn('Achievement sound error:', error);
   }
+};
 
-  // Set volume (0.0 to 1.0)
-  setVolume(volume) {
-    this.volume = Math.max(0, Math.min(1, volume));
-    this.saveSettings();
-    
-    // Update volume for all sounds
-    this.sounds.forEach(sound => {
-      if (sound && typeof sound.volume === 'function') {
-        sound.volume(this.volume);
-      }
+/**
+ * Play button click sound
+ */
+export const playClick = () => {
+  try {
+    createTone(800, 0.08, 'square', 0.05);
+  } catch (error) {
+    console.warn('Click sound error:', error);
+  }
+};
+
+/**
+ * Play hover sound
+ */
+export const playHover = () => {
+  try {
+    createTone(600, 0.05, 'sine', 0.03);
+  } catch (error) {
+    console.warn('Hover sound error:', error);
+  }
+};
+
+/**
+ * Play pause sound
+ */
+export const playPause = () => {
+  try {
+    createTone(440, 0.2, 'triangle', 0.08);
+    setTimeout(() => createTone(330, 0.2, 'triangle', 0.08), 100);
+  } catch (error) {
+    console.warn('Pause sound error:', error);
+  }
+};
+
+/**
+ * Play resume sound
+ */
+export const playResume = () => {
+  try {
+    createTone(330, 0.2, 'triangle', 0.08);
+    setTimeout(() => createTone(440, 0.2, 'triangle', 0.08), 100);
+  } catch (error) {
+    console.warn('Resume sound error:', error);
+  }
+};
+
+/**
+ * Play game start sound
+ */
+export const playGameStart = () => {
+  try {
+    const startMelody = [262, 330, 392];
+    startMelody.forEach((freq, index) => {
+      setTimeout(() => {
+        createTone(freq, 0.2, 'sine', 0.1);
+      }, index * 100);
     });
+  } catch (error) {
+    console.warn('Game start sound error:', error);
   }
+};
 
-  // Get current volume
-  getVolume() {
-    return this.volume;
+/**
+ * Play countdown sound (3, 2, 1)
+ */
+export const playCountdown = (number) => {
+  try {
+    const frequencies = { 3: 440, 2: 554, 1: 659 };
+    const freq = frequencies[number] || 440;
+    createTone(freq, 0.3, 'square', 0.1);
+  } catch (error) {
+    console.warn('Countdown sound error:', error);
   }
+};
 
-  // Get mute status
-  getMuted() {
-    return this.isMuted;
+/**
+ * Mute/unmute and volume system
+ */
+let isMuted = false;
+let globalVolume = 0.5; // Default volume 50%
+
+export const setMuted = (muted) => {
+  isMuted = muted;
+  if (muted && audioContext) {
+    audioContext.suspend();
+  } else if (!muted && audioContext) {
+    audioContext.resume();
   }
+};
 
-  // Save settings to localStorage
-  saveSettings() {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('snakrx-sound-settings', JSON.stringify({
-        volume: this.volume,
-        isMuted: this.isMuted
-      }));
-    }
-  }
+export const getMuted = () => isMuted;
 
-  // Load settings from localStorage
-  loadSettings() {
-    if (typeof window !== 'undefined') {
-      try {
-        const settings = JSON.parse(localStorage.getItem('snakrx-sound-settings') || '{}');
-        this.volume = settings.volume ?? 0.7;
-        this.isMuted = settings.isMuted ?? false;
-      } catch (error) {
-        console.warn('Failed to load sound settings:', error);
-      }
-    }
-  }
+export const toggleMute = () => {
+  setMuted(!isMuted);
+  return !isMuted;
+};
 
-  // Play background music
-  playBackgroundMusic() {
-    if (!this.isMuted) {
-      this.play('bgMusic');
-    }
-  }
+export const setVolume = (volume) => {
+  globalVolume = Math.max(0, Math.min(1, volume)); // Clamp between 0 and 1
+};
 
-  // Stop background music
-  stopBackgroundMusic() {
-    this.stop('bgMusic');
-  }
+export const getVolume = () => globalVolume;
 
-  // Game-specific sound methods with appropriate variations
-  playFoodEat(speed = 1) {
-    // Slightly higher pitch for faster gameplay
-    this.play('food', { rate: 0.8 + (speed * 0.1) });
-  }
+// Initialize audio context on first user interaction - FIXED with better handling
+let audioInitialized = false;
 
-  playDeath(cause = 'wall') {
-    // Different variations based on death cause
-    const variations = {
-      wall: { rate: 1.0 },
-      self: { rate: 0.9 },
-      opponent: { rate: 1.1 }
-    };
+if (typeof window !== 'undefined') {
+  const initAudio = async (event) => {
+    if (audioInitialized) return;
     
-    this.play('death', variations[cause] || variations.wall);
-  }
-
-  playVictory(mode = 'classic') {
-    // Different victory sounds for different modes
-    const variations = {
-      classic: { rate: 1.0 },
-      vsai: { rate: 1.1 },
-      multiplayer: { rate: 1.2 }
-    };
-    
-    this.play('victory', variations[mode] || variations.classic);
-  }
-
-  playAchievement(tier = 'common') {
-    // Different achievement sounds based on tier
-    const variations = {
-      common: { rate: 1.0, volume: 0.7 },
-      uncommon: { rate: 1.1, volume: 0.8 },
-      rare: { rate: 1.2, volume: 0.9 },
-      epic: { rate: 1.3, volume: 1.0 },
-      legendary: { rate: 1.4, volume: 1.0 }
-    };
-    
-    this.play('achievement', variations[tier] || variations.common);
-  }
-
-  // UI sound methods
-  playClick() {
-    this.play('click');
-  }
-
-  playHover() {
-    this.play('hover');
-  }
+    try {
+      await initAudioContext();
+      audioInitialized = true;
+      console.log('Audio context initialized after user interaction');
+      
+      // Remove all listeners after successful initialization
+      document.removeEventListener('click', initAudio);
+      document.removeEventListener('touchstart', initAudio);
+      document.removeEventListener('keydown', initAudio);
+      document.removeEventListener('pointerdown', initAudio);
+    } catch (error) {
+      console.warn('Failed to initialize audio:', error);
+    }
+  };
+  
+  // Listen for various user interaction events
+  document.addEventListener('click', initAudio, { once: true });
+  document.addEventListener('touchstart', initAudio, { once: true });
+  document.addEventListener('keydown', initAudio, { once: true });
+  document.addEventListener('pointerdown', initAudio, { once: true });
 }
 
-// Create and export a singleton instance
-const soundManager = new SoundManager();
-
-// Export individual methods for convenience
-export const playSound = (soundName, options) => soundManager.play(soundName, options);
-export const stopSound = (soundName) => soundManager.stop(soundName);
-export const stopAllSounds = () => soundManager.stopAll();
-export const toggleMute = () => soundManager.toggleMute();
-export const setVolume = (volume) => soundManager.setVolume(volume);
-export const getVolume = () => soundManager.getVolume();
-export const getMuted = () => soundManager.getMuted();
-
-// Game-specific sound exports
-export const playFoodEat = (speed) => soundManager.playFoodEat(speed);
-export const playDeath = (cause) => soundManager.playDeath(cause);
-export const playVictory = (mode) => soundManager.playVictory(mode);
-export const playAchievement = (tier) => soundManager.playAchievement(tier);
-export const playClick = () => soundManager.playClick();
-export const playHover = () => soundManager.playHover();
-export const playBackgroundMusic = () => soundManager.playBackgroundMusic();
-export const stopBackgroundMusic = () => soundManager.stopBackgroundMusic();
-
-export default soundManager;
+export default {
+  playFoodEat,
+  playDeath,
+  playVictory,
+  playAchievement,
+  playClick,
+  playHover,
+  playPause,
+  playResume,
+  playGameStart,
+  playCountdown,
+  setMuted,
+  getMuted,
+  toggleMute,
+  setVolume,
+  getVolume
+};

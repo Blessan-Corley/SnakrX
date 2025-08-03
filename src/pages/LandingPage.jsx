@@ -490,19 +490,26 @@ const LandingPage = () => {
               >
                 Terms
               </Link>
+              <Link 
+                to="/support" 
+                className="hover:text-white transition-colors"
+                onClick={() => playClick()}
+              >
+                Support
+              </Link>
               <a 
                 href="mailto:blessancorley@gmail.com"
                 className="hover:text-white transition-colors"
                 onClick={() => playClick()}
               >
-                Contact
+                Contact - Whatsapp + 91 9976768211
               </a>
             </div>
           </div>
           
           <div className="border-t border-white/10 mt-6 pt-6 text-center">
             <p className="text-white/50 text-sm">
-              © 2024 SnakrX. Designed & Built with ❤️ by Blessan Corley
+              © 2025 SnakrX. Designed & Built with ❤️ by Blessan Corley
             </p>
           </div>
         </div>

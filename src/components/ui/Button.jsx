@@ -85,27 +85,39 @@ const Button = forwardRef(({
     className
   ].filter(Boolean).join(' ');
 
-  // Handle click with sound
-  const handleClick = (e) => {
-    if (disabled || loading) return;
-    
-    if (soundEnabled) {
-      playClick();
+  // Handle click with sound and debouncing to prevent rapid clicks
+  const handleClick = React.useCallback((e) => {
+    if (disabled || loading) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
     }
     
-    if (onClick) {
-      onClick(e);
+    try {
+      if (soundEnabled) {
+        playClick();
+      }
+      
+      if (onClick) {
+        onClick(e);
+      }
+    } catch (error) {
+      console.error('Button click error:', error);
     }
-  };
+  }, [disabled, loading, soundEnabled, onClick]);
 
-  // Handle hover with sound
-  const handleMouseEnter = () => {
+  // Handle hover with sound and error handling
+  const handleMouseEnter = React.useCallback(() => {
     if (disabled || loading) return;
     
-    if (soundEnabled) {
-      playHover();
+    try {
+      if (soundEnabled) {
+        playHover();
+      }
+    } catch (error) {
+      console.warn('Button hover sound error:', error);
     }
-  };
+  }, [disabled, loading, soundEnabled]);
 
   // Loading spinner component
   const LoadingSpinner = () => (

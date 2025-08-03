@@ -158,56 +158,68 @@ export class AIStrategy {
     this.difficulty = difficulty;
     this.pathfinder = new AStarPathfinder(boardWidth, boardHeight);
     
-    // Difficulty settings
+    // Enhanced difficulty settings with more precise control
     this.settings = {
       easy: {
-        optimality: 0.65,
-        lookAhead: 1,
-        avoidancePriority: 0.3,
-        randomness: 0.4
+        optimality: 0.65,        // 65% chance to make optimal move
+        lookAhead: 2,            // Look 2 steps ahead
+        avoidancePriority: 0.3,  // Low collision avoidance
+        randomness: 0.35,        // 35% random moves
+        reactionTime: 3,         // Slower reaction (3 game ticks)
+        safetyDistance: 1        // Minimum distance from obstacles
       },
       medium: {
-        optimality: 0.80,
-        lookAhead: 2,
-        avoidancePriority: 0.6,
-        randomness: 0.2
+        optimality: 0.80,        // 80% chance to make optimal move
+        lookAhead: 3,            // Look 3 steps ahead
+        avoidancePriority: 0.6,  // Good collision avoidance
+        randomness: 0.20,        // 20% random moves
+        reactionTime: 2,         // Medium reaction (2 game ticks)
+        safetyDistance: 2        // Better safety margin
       },
       impossible: {
-        optimality: 1.0,
-        lookAhead: 4,
-        avoidancePriority: 0.9,
-        randomness: 0.0
+        optimality: 1.0,         // 100% optimal moves
+        lookAhead: 5,            // Look 5 steps ahead
+        avoidancePriority: 0.95, // Near-perfect collision avoidance
+        randomness: 0.0,         // No random moves
+        reactionTime: 0,         // Instant reaction
+        safetyDistance: 3        // Large safety margin
       }
     };
   }
 
   /**
-   * Get next move for AI snake
+   * Get next move for AI snake with enhanced difficulty-based behavior
    */
   getNextMove(aiSnake, food, obstacles = [], otherSnakes = []) {
+    if (!aiSnake || aiSnake.length === 0) return this.getRandomDirection();
+    
     const currentSettings = this.settings[this.difficulty];
     const head = aiSnake[0];
     
-    // Get possible moves
-    const possibleMoves = this.getPossibleMoves(head, aiSnake, obstacles, otherSnakes);
+    // Get safe moves (moves that don't cause immediate death)
+    const safeMoves = this.getSafeMoves(head, aiSnake, obstacles, otherSnakes, currentSettings);
     
-    if (possibleMoves.length === 0) {
-      return this.getRandomDirection(); // Desperate move
+    if (safeMoves.length === 0) {
+      // No safe moves - try desperate escape
+      return this.getDesperateMove(head, aiSnake, obstacles, otherSnakes);
     }
     
-    // For impossible difficulty, use perfect pathfinding
-    if (this.difficulty === 'impossible') {
-      return this.getOptimalMove(head, food, aiSnake, obstacles, otherSnakes);
-    }
+    // Determine if AI should make optimal move based on difficulty
+    const shouldMakeOptimalMove = Math.random() < currentSettings.optimality;
     
-    // For other difficulties, use strategic decision making with some randomness
-    return this.getStrategicMove(head, food, possibleMoves, currentSettings, aiSnake, otherSnakes);
+    if (shouldMakeOptimalMove) {
+      // Make strategic/optimal move
+      return this.getOptimalMove(head, food, aiSnake, obstacles, otherSnakes, currentSettings);
+    } else {
+      // Make suboptimal move (simulate human-like mistakes)
+      return this.getSuboptimalMove(safeMoves, currentSettings);
+    }
   }
 
   /**
-   * Get all possible moves that don't result in immediate death
+   * Get safe moves with enhanced safety calculation
    */
-  getPossibleMoves(head, snake, obstacles, otherSnakes) {
+  getSafeMoves(head, snake, obstacles, otherSnakes, settings) {
     const moves = [];
     
     for (const direction of Object.values(DIRECTIONS)) {
@@ -216,17 +228,188 @@ export class AIStrategy {
         y: head.y + direction.y
       };
       
-      // Check if move is safe
-      if (this.isSafeMove(newPos, snake, obstacles, otherSnakes)) {
+      // Check if move is safe with difficulty-adjusted safety distance
+      if (this.isSafeMoveWithDistance(newPos, snake, obstacles, otherSnakes, settings.safetyDistance)) {
+        const safety = this.calculateAdvancedSafety(newPos, snake, obstacles, otherSnakes, settings);
+        const futureSpace = this.calculateFutureSpace(newPos, direction, snake, obstacles, otherSnakes, settings.lookAhead);
+        
         moves.push({
           direction,
           position: newPos,
-          safety: this.calculateSafety(newPos, snake, obstacles, otherSnakes)
+          safety,
+          futureSpace,
+          score: safety + futureSpace
         });
       }
     }
     
-    return moves.sort((a, b) => b.safety - a.safety);
+    return moves.sort((a, b) => b.score - a.score);
+  }
+
+  /**
+   * Enhanced safety check with distance consideration
+   */
+  isSafeMoveWithDistance(position, snake, obstacles, otherSnakes, minDistance = 1) {
+    // Basic boundary check
+    if (!isWithinBounds(position, this.boardWidth, this.boardHeight)) {
+      return false;
+    }
+    
+    // Check immediate collision with snake body (excluding tail)
+    const bodyWithoutTail = snake.slice(0, -1);
+    if (checkSelfCollision(position, bodyWithoutTail)) {
+      return false;
+    }
+    
+    // Check collision with obstacles
+    if (obstacles.some(obstacle => positionsEqual(position, obstacle))) {
+      return false;
+    }
+    
+    // Check collision with other snakes
+    for (const otherSnake of otherSnakes) {
+      if (checkSnakeCollision(position, otherSnake)) {
+        return false;
+      }
+    }
+    
+    // For higher difficulties, check safety distance
+    if (minDistance > 1) {
+      return this.checkSafetyDistance(position, snake, obstacles, otherSnakes, minDistance);
+    }
+    
+    return true;
+  }
+
+  /**
+   * Check if position maintains safe distance from dangers
+   */
+  checkSafetyDistance(position, snake, obstacles, otherSnakes, minDistance) {
+    // Check distance from walls
+    if (position.x < minDistance || position.x >= this.boardWidth - minDistance ||
+        position.y < minDistance || position.y >= this.boardHeight - minDistance) {
+      return false;
+    }
+    
+    // Check distance from own body
+    for (const segment of snake) {
+      if (manhattanDistance(position, segment) < minDistance) {
+        return false;
+      }
+    }
+    
+    // Check distance from other snakes
+    for (const otherSnake of otherSnakes) {
+      for (const segment of otherSnake) {
+        if (manhattanDistance(position, segment) < minDistance) {
+          return false;
+        }
+      }
+    }
+    
+    return true;
+  }
+
+  /**
+   * Calculate advanced safety score
+   */
+  calculateAdvancedSafety(position, snake, obstacles, otherSnakes, settings) {
+    let safety = 100;
+    
+    // Penalty for being near walls (scaled by difficulty)
+    const wallDistance = Math.min(
+      position.x,
+      position.y,
+      this.boardWidth - position.x - 1,
+      this.boardHeight - position.y - 1
+    );
+    safety -= Math.max(0, (settings.safetyDistance - wallDistance) * 15);
+    
+    // Penalty for being near own body
+    for (const segment of snake) {
+      const dist = manhattanDistance(position, segment);
+      if (dist <= settings.safetyDistance) {
+        safety -= (settings.safetyDistance - dist + 1) * 20;
+      }
+    }
+    
+    // Penalty for being near other snakes
+    for (const otherSnake of otherSnakes) {
+      for (const segment of otherSnake) {
+        const dist = manhattanDistance(position, segment);
+        if (dist <= settings.safetyDistance) {
+          safety -= (settings.safetyDistance - dist + 1) * 25;
+        }
+      }
+    }
+    
+    return Math.max(0, safety);
+  }
+
+  /**
+   * Calculate future space availability
+   */
+  calculateFutureSpace(position, direction, snake, obstacles, otherSnakes, depth) {
+    let space = 0;
+    let current = position;
+    
+    for (let i = 0; i < depth; i++) {
+      current = {
+        x: current.x + direction.x,
+        y: current.y + direction.y
+      };
+      
+      if (!isWithinBounds(current, this.boardWidth, this.boardHeight) ||
+          checkSelfCollision(current, snake) ||
+          otherSnakes.some(otherSnake => checkSnakeCollision(current, otherSnake))) {
+        break;
+      }
+      
+      space += (depth - i); // Weight closer spaces more
+    }
+    
+    return space;
+  }
+
+  /**
+   * Get desperate move when no safe moves available
+   */
+  getDesperateMove(head, snake, obstacles, otherSnakes) {
+    // Try to find any move that doesn't cause immediate death
+    for (const direction of Object.values(DIRECTIONS)) {
+      const newPos = {
+        x: head.x + direction.x,
+        y: head.y + direction.y
+      };
+      
+      if (this.isSafeMoveWithDistance(newPos, snake, obstacles, otherSnakes, 0)) {
+        return direction;
+      }
+    }
+    
+    // Last resort - return random direction
+    return this.getRandomDirection();
+  }
+
+  /**
+   * Make suboptimal move to simulate human-like behavior
+   */
+  getSuboptimalMove(safeMoves, settings) {
+    if (safeMoves.length === 0) return this.getRandomDirection();
+    
+    // For easy/medium, sometimes choose worse moves
+    const randomFactor = Math.random();
+    
+    if (randomFactor < settings.randomness) {
+      // Choose completely random safe move
+      const randomIndex = Math.floor(Math.random() * safeMoves.length);
+      return safeMoves[randomIndex].direction;
+    } else {
+      // Choose from top moves but not necessarily the best
+      const topMoves = safeMoves.slice(0, Math.min(3, safeMoves.length));
+      const randomIndex = Math.floor(Math.random() * topMoves.length);
+      return topMoves[randomIndex].direction;
+    }
   }
 
   /**
@@ -297,34 +480,89 @@ export class AIStrategy {
   }
 
   /**
-   * Get optimal move using A* pathfinding (impossible difficulty)
+   * Get optimal move using enhanced A* pathfinding
    */
-  getOptimalMove(head, food, snake, obstacles, otherSnakes) {
+  getOptimalMove(head, food, snake, obstacles, otherSnakes, settings) {
+    if (!food) return this.getRandomDirection();
+    
     const allObstacles = [...obstacles];
     
-    // Add other snakes as obstacles
+    // Add other snakes as obstacles (predict their movement for higher difficulties)
     otherSnakes.forEach(otherSnake => {
-      allObstacles.push(...otherSnake);
+      if (settings.lookAhead > 2) {
+        // For harder difficulties, predict where other snakes might move
+        allObstacles.push(...this.predictSnakeMovement(otherSnake, settings.lookAhead));
+      } else {
+        allObstacles.push(...otherSnake);
+      }
     });
     
     // Add own body (excluding tail) as obstacles
     allObstacles.push(...snake.slice(0, -1));
     
-    // Find path to food
-    const path = this.pathfinder.findPath(head, food, allObstacles);
+    // Find path to food using A*
+    const path = this.pathfinder.findPath(head, food, allObstacles, 500);
     
     if (path.length > 1) {
       const nextPos = path[1];
-      return this.getDirectionFromPositions(head, nextPos);
+      const direction = this.getDirectionFromPositions(head, nextPos);
+      
+      // Double-check the move is safe
+      if (this.isSafeMoveWithDistance(nextPos, snake, obstacles, otherSnakes, 0)) {
+        return direction;
+      }
     }
     
-    // If no path to food, find safest move
-    const possibleMoves = this.getPossibleMoves(head, snake, obstacles, otherSnakes);
-    if (possibleMoves.length > 0) {
-      return possibleMoves[0].direction;
+    // If no path to food or path is unsafe, prioritize survival
+    return this.getSurvivalMove(head, snake, obstacles, otherSnakes, settings);
+  }
+
+  /**
+   * Get survival move when can't reach food
+   */
+  getSurvivalMove(head, snake, obstacles, otherSnakes, settings) {
+    const safeMoves = this.getSafeMoves(head, snake, obstacles, otherSnakes, settings);
+    
+    if (safeMoves.length > 0) {
+      // Choose move that maximizes future space
+      return safeMoves[0].direction;
     }
     
-    return this.getRandomDirection();
+    // Last resort
+    return this.getDesperateMove(head, snake, obstacles, otherSnakes);
+  }
+
+  /**
+   * Predict where a snake might move (for advanced AI)
+   */
+  predictSnakeMovement(snake, steps) {
+    if (!snake || snake.length === 0) return [];
+    
+    const predictions = [...snake];
+    let currentHead = snake[0];
+    
+    // Simple prediction: assume snake continues in current direction
+    if (snake.length > 1) {
+      const direction = {
+        x: snake[0].x - snake[1].x,
+        y: snake[0].y - snake[1].y
+      };
+      
+      for (let i = 0; i < steps; i++) {
+        currentHead = {
+          x: currentHead.x + direction.x,
+          y: currentHead.y + direction.y
+        };
+        
+        if (isWithinBounds(currentHead, this.boardWidth, this.boardHeight)) {
+          predictions.unshift(currentHead);
+        } else {
+          break;
+        }
+      }
+    }
+    
+    return predictions;
   }
 
   /**
@@ -432,21 +670,38 @@ export class AIController {
     this.lastMove = null;
     this.moveHistory = [];
     this.stuckCounter = 0;
+    this.moveDelay = 0;
+    this.tickCounter = 0;
   }
 
   /**
-   * Get next move for AI snake
+   * Get next move for AI snake with reaction time simulation
    */
   getNextMove(aiSnake, food, obstacles = [], otherSnakes = []) {
+    this.tickCounter++;
+    
+    const settings = this.strategy.settings[this.strategy.difficulty];
+    
+    // Implement reaction time delay for easier difficulties
+    if (this.moveDelay < settings.reactionTime) {
+      this.moveDelay++;
+      // Return current direction or last move during delay
+      return this.lastMove || { x: 1, y: 0 }; // Default right
+    }
+    
+    this.moveDelay = 0; // Reset delay after making a move
+    
     const move = this.strategy.getNextMove(aiSnake, food, obstacles, otherSnakes);
     
-    // Anti-stuck mechanism
+    // Anti-stuck mechanism with difficulty-based tolerance
+    const stuckTolerance = settings.reactionTime + 2;
     if (this.lastMove && positionsEqual(move, this.lastMove)) {
       this.stuckCounter++;
-      if (this.stuckCounter > 3) {
-        // Try a different move
-        const possibleMoves = this.strategy.getPossibleMoves(aiSnake[0], aiSnake, obstacles, otherSnakes);
-        const alternativeMoves = possibleMoves.filter(m => !positionsEqual(m.direction, move));
+      if (this.stuckCounter > stuckTolerance) {
+        // Try alternative moves
+        const safeMoves = this.strategy.getSafeMoves(aiSnake[0], aiSnake, obstacles, otherSnakes, settings);
+        const alternativeMoves = safeMoves.filter(m => !positionsEqual(m.direction, move));
+        
         if (alternativeMoves.length > 0) {
           this.stuckCounter = 0;
           this.lastMove = alternativeMoves[0].direction;
@@ -482,6 +737,8 @@ export class AIController {
     this.lastMove = null;
     this.moveHistory = [];
     this.stuckCounter = 0;
+    this.moveDelay = 0;
+    this.tickCounter = 0;
   }
 }
 

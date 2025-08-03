@@ -27,6 +27,27 @@ export const AchievementProvider = ({ children }) => {
   const [recentUnlocks, setRecentUnlocks] = useState([]);
   const [loading, setLoading] = useState(false);
 
+  const { userProfile } = useAuth();
+
+  // Update unlocked achievements when user profile changes
+  useEffect(() => {
+    if (userProfile?.stats?.achievements) {
+      const unlocked = userProfile.stats.achievements.map(ach => ({
+        ...getAchievementById(ach.id),
+        unlockedAt: ach.unlockedAt,
+        timestamp: ach.timestamp
+      })).filter(Boolean);
+      
+      setUnlockedAchievements(unlocked);
+      
+      // Set recent unlocks (last 5)
+      const recent = unlocked
+        .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
+        .slice(0, 5);
+      setRecentUnlocks(recent);
+    }
+  }, [userProfile]);
+
   const value = {
     unlockedAchievements,
     achievementProgress,
@@ -75,99 +96,129 @@ export const useAchievementOperations = () => {
   const { unlockAchievement, updateUserStats } = useAuthOperations();
 
   /**
-   * Load user achievements from profile
+   * Check and unlock achievements based on current stats
    */
-  const loadUserAchievements = useCallback(() => {
-    if (!userProfile) return;
+  const checkAchievements = useCallback(async (currentStats) => {
+    if (!userProfile || !currentStats) return [];
 
     const userAchievements = userProfile.stats?.achievements || [];
     const unlockedIds = userAchievements.map(ach => ach.id);
+    const newlyUnlocked = [];
     
-    setUnlockedAchievements(unlockedIds);
-    
-    // Calculate progress for locked achievements
-    const progress = {};
-    const userStats = userProfile.stats || {};
-    
-    ACHIEVEMENTS.forEach(achievement => {
-      if (!unlockedIds.includes(achievement.id)) {
-        progress[achievement.id] = calculateAchievementProgress(achievement, userStats);
-      }
-    });
-    
-    setAchievementProgress(progress);
-  }, [userProfile, setUnlockedAchievements, setAchievementProgress]);
-
-  /**
-   * Calculate progress percentage for an achievement
-   */
-  const calculateAchievementProgress = useCallback((achievement, userStats) => {
-    const requirements = achievement.requirements;
-    let totalProgress = 0;
-    let completedRequirements = 0;
-    
-    Object.entries(requirements).forEach(([key, targetValue]) => {
-      const currentValue = userStats[key] || 0;
-      const progress = Math.min(100, (currentValue / targetValue) * 100);
-      totalProgress += progress;
+    // Check each achievement
+    for (const achievement of ACHIEVEMENTS) {
+      if (unlockedIds.includes(achievement.id)) continue;
       
-      if (currentValue >= targetValue) {
-        completedRequirements++;
-      }
-    });
-    
-    return Math.floor(totalProgress / Object.keys(requirements).length);
-  }, []);
-
-  /**
-   * Check and unlock achievements based on user stats
-   */
-  const checkAndUnlockAchievements = useCallback(async (gameStats) => {
-    if (!userProfile) return [];
-
-    setLoading(true);
-    const newUnlocks = [];
-    const userStats = { ...(userProfile.stats || {}), ...gameStats };
-    
-    try {
-      for (const achievement of ACHIEVEMENTS) {
-        // Skip if already unlocked
-        if (unlockedAchievements.includes(achievement.id)) continue;
-        
-        // Check if requirements are met
-        if (checkAchievementRequirements(achievement, userStats)) {
-          // Unlock achievement
+      const isUnlocked = checkAchievementRequirements(achievement, currentStats);
+      
+      if (isUnlocked) {
+        try {
           const success = await unlockAchievement(achievement.id);
-          
           if (success) {
-            newUnlocks.push(achievement);
-            setUnlockedAchievements(prev => [...prev, achievement.id]);
+            newlyUnlocked.push(achievement);
             
-            // Play sound and show notification
-            playAchievement(achievement.tier);
-            showAchievementNotification(achievement);
+            // Show achievement notification
+            toast.success(
+              `🏆 Achievement Unlocked: ${achievement.title}`,
+              { duration: 4000 }
+            );
             
-            // Update achievement points
-            await updateUserStats({
-              achievementPoints: (userProfile.stats?.achievementPoints || 0) + achievement.points
-            });
+            // Play achievement sound if available
+            try {
+              playAchievement?.();
+            } catch (e) {
+              console.warn('Achievement sound not available');
+            }
           }
+        } catch (error) {
+          console.error('Error unlocking achievement:', achievement.id, error);
         }
       }
-      
-      // Add to recent unlocks
-      if (newUnlocks.length > 0) {
-        setRecentUnlocks(prev => [...newUnlocks, ...prev].slice(0, 10));
-      }
-      
-    } catch (error) {
-      console.error('Error checking achievements:', error);
-    } finally {
-      setLoading(false);
     }
     
-    return newUnlocks;
-  }, [userProfile, unlockedAchievements, unlockAchievement, updateUserStats, setUnlockedAchievements, setRecentUnlocks, setLoading]);
+    if (newlyUnlocked.length > 0) {
+      // Update recent unlocks
+      setRecentUnlocks(prev => [...newlyUnlocked, ...prev].slice(0, 5));
+      
+      // Update achievement points
+      const pointsEarned = newlyUnlocked.reduce((sum, ach) => sum + ach.points, 0);
+      await updateUserStats({ achievementPoints: pointsEarned });
+    }
+    
+    return newlyUnlocked;
+  }, [userProfile, unlockAchievement, updateUserStats, setRecentUnlocks]);
+
+  /**
+   * Calculate progress percentage for an achievement with better mapping
+   */
+  const calculateAchievementProgress = useCallback((achievement, userStats) => {
+    if (!achievement.requirements || !userStats) return 0;
+    
+    const requirements = achievement.requirements;
+    const statMapping = {
+      // Direct mappings
+      games: 'totalGames',
+      wins: 'totalWins',
+      totalScore: 'totalScore',
+      singleScore: 'bestScore', // Use best score as proxy for single game score
+      foodEaten: 'foodEaten',
+      wallHits: 'wallHits',
+      selfHits: 'selfHits',
+      survivalTime: 'maxSurvivalTime',
+      maxSpeed: 'maxSpeed',
+      winStreak: 'bestWinStreak',
+      
+      // AI specific
+      aiWins: (stats) => {
+        return (stats.vsAIStats?.easyWins || 0) + 
+               (stats.vsAIStats?.mediumWins || 0) + 
+               (stats.vsAIStats?.impossibleWins || 0);
+      },
+      
+      // Multiplayer
+      multiplayerWins: 'multiplayerStats.wins',
+      multiplayerGames: 'multiplayerStats.gamesPlayed',
+      
+      // Special requirements
+      quickDeaths: 'quickDeaths', // Would need to track this
+      perfectGame: 'perfectGames', // Would need to track this
+      transparentScore: 'transparentModeScore' // Would need to track this
+    };
+    
+    let totalProgress = 0;
+    let requirementCount = 0;
+    
+    Object.entries(requirements).forEach(([key, targetValue]) => {
+      let currentValue = 0;
+      
+      if (typeof statMapping[key] === 'function') {
+        currentValue = statMapping[key](userStats);
+      } else if (statMapping[key]) {
+        // Handle nested properties
+        const statPath = statMapping[key];
+        if (statPath.includes('.')) {
+          const parts = statPath.split('.');
+          let value = userStats;
+          for (const part of parts) {
+            value = value?.[part];
+            if (value === undefined) break;
+          }
+          currentValue = value || 0;
+        } else {
+          currentValue = userStats[statPath] || 0;
+        }
+      } else {
+        // Fallback to direct key lookup
+        currentValue = userStats[key] || 0;
+      }
+      
+      const progress = Math.min(100, (currentValue / targetValue) * 100);
+      totalProgress += progress;
+      requirementCount++;
+    });
+    
+    return requirementCount > 0 ? Math.floor(totalProgress / requirementCount) : 0;
+  }, []);
 
   /**
    * Show achievement unlock notification
@@ -205,6 +256,64 @@ export const useAchievementOperations = () => {
   }, []);
 
   /**
+   * Check and unlock achievements based on game stats
+   */
+  const checkAndUnlockAchievements = useCallback(async (gameStats = {}) => {
+    if (!userProfile?.stats) return [];
+
+    const userAchievements = userProfile.stats.achievements || [];
+    const unlockedIds = userAchievements.map(ach => ach.id);
+    const newUnlocks = [];
+    const updatedStats = { ...userProfile.stats, ...gameStats };
+    
+    setLoading(true);
+    
+    try {
+      for (const achievement of ACHIEVEMENTS) {
+        // Skip if already unlocked
+        if (unlockedIds.includes(achievement.id)) continue;
+        
+        // Check if requirements are met
+        if (checkAchievementRequirements(achievement, updatedStats)) {
+          const success = await unlockAchievement(achievement.id);
+          
+          if (success) {
+            newUnlocks.push(achievement);
+            
+            // Show achievement notification
+            showAchievementNotification(achievement);
+            
+            // Play achievement sound
+            try {
+              playAchievement?.(achievement.tier);
+            } catch (e) {
+              console.warn('Achievement sound not available');
+            }
+          }
+        }
+      }
+      
+      // Update recent unlocks if any new achievements
+      if (newUnlocks.length > 0) {
+        setRecentUnlocks(prev => [...newUnlocks, ...prev].slice(0, 5));
+        
+        // Update achievement points
+        const pointsEarned = newUnlocks.reduce((sum, ach) => sum + ach.points, 0);
+        if (pointsEarned > 0) {
+          await updateUserStats({ achievementPoints: pointsEarned });
+        }
+      }
+      
+    } catch (error) {
+      console.error('Error checking achievements:', error);
+    } finally {
+      setLoading(false);
+    }
+    
+    return newUnlocks;
+  }, [userProfile, unlockAchievement, updateUserStats, showAchievementNotification, setRecentUnlocks, setLoading]);
+
+  /**
    * Get achievements by category
    */
   const getAchievementsByCategory = useCallback((category) => {
@@ -215,26 +324,35 @@ export const useAchievementOperations = () => {
    * Get unlocked achievements by category
    */
   const getUnlockedAchievementsByCategory = useCallback((category) => {
+    if (!userProfile?.stats?.achievements) return [];
+    
+    const unlockedIds = userProfile.stats.achievements.map(ach => ach.id);
     return ACHIEVEMENTS.filter(ach => 
-      ach.category === category && unlockedAchievements.includes(ach.id)
+      ach.category === category && unlockedIds.includes(ach.id)
     );
-  }, [unlockedAchievements]);
+  }, [userProfile]);
 
   /**
    * Get achievement completion percentage
    */
   const getCompletionPercentage = useCallback(() => {
-    return Math.floor((unlockedAchievements.length / ACHIEVEMENTS.length) * 100);
-  }, [unlockedAchievements]);
+    if (!userProfile?.stats?.achievements) return 0;
+    
+    const unlockedCount = userProfile.stats.achievements.length;
+    return Math.floor((unlockedCount / ACHIEVEMENTS.length) * 100);
+  }, [userProfile]);
 
   /**
    * Get total achievement points earned
    */
   const getTotalPointsEarned = useCallback(() => {
+    if (!userProfile?.stats?.achievements) return 0;
+    
+    const unlockedIds = userProfile.stats.achievements.map(ach => ach.id);
     return ACHIEVEMENTS
-      .filter(ach => unlockedAchievements.includes(ach.id))
+      .filter(ach => unlockedIds.includes(ach.id))
       .reduce((total, ach) => total + ach.points, 0);
-  }, [unlockedAchievements]);
+  }, [userProfile]);
 
   /**
    * Get achievements by tier
@@ -256,10 +374,13 @@ export const useAchievementOperations = () => {
    * Get achievement statistics
    */
   const getAchievementStats = useCallback(() => {
+    const unlockedCount = userProfile?.stats?.achievements?.length || 0;
+    const unlockedIds = userProfile?.stats?.achievements?.map(ach => ach.id) || [];
+    
     const stats = {
       total: ACHIEVEMENTS.length,
-      unlocked: unlockedAchievements.length,
-      locked: ACHIEVEMENTS.length - unlockedAchievements.length,
+      unlocked: unlockedCount,
+      locked: ACHIEVEMENTS.length - unlockedCount,
       completionPercentage: getCompletionPercentage(),
       totalPoints: getTotalPointsEarned(),
       byTier: {},
@@ -270,7 +391,7 @@ export const useAchievementOperations = () => {
     Object.keys(ACHIEVEMENT_TIERS).forEach(tier => {
       const tierAchievements = getAchievementsByTier(tier);
       const unlockedTier = tierAchievements.filter(ach => 
-        unlockedAchievements.includes(ach.id)
+        unlockedIds.includes(ach.id)
       );
       
       stats.byTier[tier] = {
@@ -286,7 +407,7 @@ export const useAchievementOperations = () => {
     Object.keys(ACHIEVEMENT_CATEGORIES).forEach(category => {
       const categoryAchievements = getAchievementsByCategory(category);
       const unlockedCategory = categoryAchievements.filter(ach => 
-        unlockedAchievements.includes(ach.id)
+        unlockedIds.includes(ach.id)
       );
       
       stats.byCategory[category] = {
@@ -299,14 +420,17 @@ export const useAchievementOperations = () => {
     });
 
     return stats;
-  }, [unlockedAchievements, getCompletionPercentage, getTotalPointsEarned, getAchievementsByTier, getAchievementsByCategory]);
+  }, [userProfile, getCompletionPercentage, getTotalPointsEarned, getAchievementsByTier, getAchievementsByCategory]);
 
   /**
    * Check if achievement is unlocked
    */
   const isAchievementUnlocked = useCallback((achievementId) => {
-    return unlockedAchievements.includes(achievementId);
-  }, [unlockedAchievements]);
+    if (!userProfile?.stats?.achievements) return false;
+    
+    const unlockedIds = userProfile.stats.achievements.map(ach => ach.id);
+    return unlockedIds.includes(achievementId);
+  }, [userProfile]);
 
   /**
    * Get achievement progress percentage
@@ -320,18 +444,21 @@ export const useAchievementOperations = () => {
    * Get next achievements to unlock (closest to completion)
    */
   const getNextAchievements = useCallback((limit = 5) => {
+    if (!userProfile?.stats) return [];
+    
+    const unlockedIds = userProfile.stats.achievements?.map(ach => ach.id) || [];
     const lockedAchievements = ACHIEVEMENTS.filter(ach => 
-      !unlockedAchievements.includes(ach.id)
+      !unlockedIds.includes(ach.id)
     );
     
     return lockedAchievements
       .map(ach => ({
         ...ach,
-        progress: achievementProgress[ach.id] || 0
+        progress: calculateAchievementProgress(ach, userProfile.stats)
       }))
       .sort((a, b) => b.progress - a.progress)
       .slice(0, limit);
-  }, [unlockedAchievements, achievementProgress]);
+  }, [userProfile, calculateAchievementProgress]);
 
   /**
    * Share achievement
@@ -354,6 +481,36 @@ export const useAchievementOperations = () => {
       toast.success('Achievement details copied to clipboard!');
     }
   }, []);
+
+  /**
+   * Load user achievements from profile
+   */
+  const loadUserAchievements = useCallback(async () => {
+    if (!userProfile?.stats) return;
+
+    setLoading(true);
+    try {
+      const userAchievements = userProfile.stats.achievements || [];
+      const achievementIds = userAchievements.map(ach => ach.id);
+      setUnlockedAchievements(achievementIds);
+      
+      // Calculate progress for locked achievements
+      const progress = {};
+      ACHIEVEMENTS.forEach(achievement => {
+        if (!achievementIds.includes(achievement.id)) {
+          progress[achievement.id] = calculateAchievementProgress(achievement, userProfile.stats);
+        } else {
+          progress[achievement.id] = 100;
+        }
+      });
+      setAchievementProgress(progress);
+      
+    } catch (error) {
+      console.error('Error loading achievements:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [userProfile, calculateAchievementProgress, setUnlockedAchievements, setAchievementProgress, setLoading]);
 
   /**
    * Clear recent unlocks
@@ -399,7 +556,7 @@ export const useAchievementOperations = () => {
     
     // Computed Values
     totalAchievements: ACHIEVEMENTS.length,
-    unlockedCount: unlockedAchievements.length,
+    unlockedCount: userProfile?.stats?.achievements?.length || 0,
     completionPercentage: getCompletionPercentage(),
     totalPointsEarned: getTotalPointsEarned()
   };

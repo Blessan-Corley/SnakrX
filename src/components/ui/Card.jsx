@@ -191,51 +191,179 @@ export const AchievementCard = ({
   achievement, 
   unlocked = false, 
   progress = null,
+  userStats = null,
   onClick,
   className = '',
+  showRequirements = false,
   ...props 
-}) => (
-  <Card
-    variant={unlocked ? "achievement" : "default"}
-    clickable={!!onClick}
-    glow={unlocked}
-    className={`${unlocked ? '' : 'opacity-60'} ${className}`}
-    onClick={onClick}
-    {...props}
-  >
-    <div className="flex items-start space-x-3">
-      <div className="text-2xl flex-shrink-0">{achievement.icon}</div>
-      <div className="flex-1 min-w-0">
-        <CardTitle className="text-sm mb-1">{achievement.title}</CardTitle>
-        <CardDescription className="text-xs mb-2">
-          {achievement.description}
-        </CardDescription>
-        <div className="flex items-center justify-between">
-          <span className={`text-xs px-2 py-1 rounded-full ${
-            achievement.tier === 'legendary' ? 'bg-amber-500/20 text-amber-300' :
-            achievement.tier === 'epic' ? 'bg-purple-500/20 text-purple-300' :
-            achievement.tier === 'rare' ? 'bg-blue-500/20 text-blue-300' :
-            achievement.tier === 'uncommon' ? 'bg-emerald-500/20 text-emerald-300' :
-            'bg-gray-500/20 text-gray-300'
-          }`}>
-            {achievement.tier}
-          </span>
-          <span className="text-xs text-primary-400">+{achievement.points}</span>
-        </div>
-        {progress && (
-          <div className="mt-2">
-            <div className="bg-white/10 rounded-full h-1.5">
-              <div 
-                className="bg-primary-500 h-1.5 rounded-full transition-all duration-300"
-                style={{ width: `${Math.min(100, progress)}%` }}
-              />
+}) => {
+  // Calculate detailed progress information
+  const getProgressDetails = () => {
+    if (unlocked || !achievement.requirements || !userStats) {
+      return null;
+    }
+
+    const requirements = achievement.requirements;
+    const reqKeys = Object.keys(requirements);
+    
+    if (reqKeys.length === 0) return null;
+
+    // For single requirement
+    if (reqKeys.length === 1) {
+      const key = reqKeys[0];
+      const current = userStats[key] || 0;
+      const target = requirements[key];
+      const percentage = Math.min(100, Math.round((current / target) * 100));
+      
+      return {
+        type: 'single',
+        current,
+        target,
+        percentage,
+        description: getRequirementDescription(key, current, target)
+      };
+    }
+
+    // For multiple requirements - show overall progress
+    let totalProgress = 0;
+    reqKeys.forEach(key => {
+      const current = userStats[key] || 0;
+      const target = requirements[key];
+      totalProgress += Math.min(100, (current / target) * 100);
+    });
+    
+    const overallPercentage = Math.round(totalProgress / reqKeys.length);
+    
+    return {
+      type: 'multiple',
+      percentage: overallPercentage,
+      requirements: reqKeys.map(key => ({
+        key,
+        current: userStats[key] || 0,
+        target: requirements[key],
+        percentage: Math.min(100, Math.round(((userStats[key] || 0) / requirements[key]) * 100))
+      }))
+    };
+  };
+
+  const getRequirementDescription = (key, current, target) => {
+    const mappings = {
+      games: 'games played',
+      wins: 'games won',
+      totalScore: 'total points',
+      singleScore: 'points in one game',
+      survivalTime: 'seconds survived',
+      maxSpeed: 'speed multiplier',
+      foodEaten: 'food consumed',
+      wallHits: 'wall collisions',
+      selfHits: 'self collisions',
+      aiWins: 'AI victories',
+      multiplayerWins: 'multiplayer wins',
+      winStreak: 'win streak'
+    };
+    
+    return mappings[key] || key;
+  };
+
+  const progressDetails = getProgressDetails();
+  const displayProgress = progress !== null ? progress : progressDetails?.percentage || 0;
+
+  return (
+    <Card
+      variant={unlocked ? "achievement" : "default"}
+      clickable={!!onClick}
+      glow={unlocked}
+      className={`${unlocked ? '' : 'opacity-70'} ${className} transition-all duration-300`}
+      onClick={onClick}
+      {...props}
+    >
+      <div className="flex items-start space-x-3">
+        <div className="text-2xl flex-shrink-0 relative">
+          {achievement.icon}
+          {unlocked && (
+            <div className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full flex items-center justify-center">
+              <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
             </div>
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <CardTitle className={`text-sm mb-1 ${unlocked ? 'text-emerald-300' : 'text-white'}`}>
+            {achievement.title}
+          </CardTitle>
+          <CardDescription className="text-xs mb-2 line-clamp-2">
+            {achievement.description}
+          </CardDescription>
+          
+          <div className="flex items-center justify-between mb-2">
+            <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+              achievement.tier === 'legendary' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' :
+              achievement.tier === 'epic' ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' :
+              achievement.tier === 'rare' ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' :
+              achievement.tier === 'uncommon' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' :
+              'bg-gray-500/20 text-gray-300 border border-gray-500/30'
+            }`}>
+              {achievement.tier}
+            </span>
+            <span className="text-xs text-primary-400 font-medium">+{achievement.points}pts</span>
           </div>
-        )}
+
+          {!unlocked && progressDetails && (
+            <div className="mt-2 space-y-2">
+              <div className="relative">
+                <div className="bg-white/10 rounded-full h-2 overflow-hidden">
+                  <motion.div 
+                    className={`h-2 rounded-full transition-all duration-500 ${
+                      displayProgress >= 100 ? 'bg-emerald-500' :
+                      displayProgress >= 75 ? 'bg-blue-500' :
+                      displayProgress >= 50 ? 'bg-yellow-500' :
+                      'bg-gray-500'
+                    }`}
+                    initial={{ width: 0 }}
+                    animate={{ width: `${Math.min(100, displayProgress)}%` }}
+                    transition={{ duration: 0.8, ease: "easeOut" }}
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-white/60">
+                  {progressDetails.type === 'single' ? (
+                    progressDetails.description
+                  ) : (
+                    'Overall Progress'
+                  )}
+                </span>
+                <span className={`font-medium ${
+                  displayProgress >= 100 ? 'text-emerald-400' :
+                  displayProgress >= 75 ? 'text-blue-400' :
+                  displayProgress >= 50 ? 'text-yellow-400' :
+                  'text-white/70'
+                }`}>
+                  {progressDetails.type === 'single' ? (
+                    `${progressDetails.current}/${progressDetails.target}`
+                  ) : (
+                    `${Math.round(displayProgress)}%`
+                  )}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {unlocked && (
+            <div className="mt-2 flex items-center text-xs text-emerald-400">
+              <span>✓ Unlocked</span>
+              {achievement.unlockedAt && (
+                <span className="ml-2 text-white/50">
+                  {new Date(achievement.unlockedAt).toLocaleDateString()}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
-  </Card>
-);
+    </Card>
+  );
+};
 
 // Stats Card - for displaying statistics
 export const StatsCard = ({ 

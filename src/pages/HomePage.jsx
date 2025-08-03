@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useAchievementOperations } from '@/hooks/useAchievements';
+import useLeaderboard from '@/hooks/useLeaderboard';
 import Button from '@/components/ui/Button';
 import { GameModeCard, StatsCard, AchievementCard, LeaderboardCard } from '@/components/ui/Card';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
@@ -32,11 +33,14 @@ import { formatScore, formatTime, isMobile } from '@/utils/gameUtils';
 const HomePage = () => {
   const { userProfile } = useAuth();
   const { recentUnlocks, getNextAchievements, getAchievementStats } = useAchievementOperations();
+  const { getLeaderboardSummary, topPlayers } = useLeaderboard();
   const navigate = useNavigate();
   
   const [typingComplete, setTypingComplete] = useState(false);
   const [showGameModes, setShowGameModes] = useState(false);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [leaderboardSummary, setLeaderboardSummary] = useState(null);
+  const [loadingLeaderboard, setLoadingLeaderboard] = useState(true);
 
   const isAdmin = userProfile?.role === 'admin' || userProfile?.username === 'admin';
   const mobile = isMobile();
@@ -65,6 +69,24 @@ const HomePage = () => {
     };
   }, []);
 
+  // Load leaderboard data
+  useEffect(() => {
+    const loadLeaderboard = async () => {
+      setLoadingLeaderboard(true);
+      try {
+        const summary = await getLeaderboardSummary();
+        setLeaderboardSummary(summary);
+      } catch (error) {
+        console.error('Error loading leaderboard summary:', error);
+        setLeaderboardSummary({ topThree: [], userBestRank: null, hasData: false });
+      } finally {
+        setLoadingLeaderboard(false);
+      }
+    };
+
+    loadLeaderboard();
+  }, [getLeaderboardSummary]);
+
   // Handle game mode selection
   const handleGameMode = (mode, difficulty = null, playerCount = 1) => {
     playClick();
@@ -74,13 +96,8 @@ const HomePage = () => {
       return;
     }
     
-    if (mode === 'classic') {
-      navigate('/game/classic');
-    } else if (mode === 'vsai') {
-      navigate(`/game/vsai/${difficulty || 'medium'}`);
-    } else if (mode === 'multiplayer') {
-      navigate(`/game/multiplayer/${playerCount}`);
-    }
+    // Navigate to game selection page to allow user to choose difficulty/players
+    navigate('/game');
   };
 
   // Get user stats
@@ -118,12 +135,43 @@ const HomePage = () => {
     }
   ];
 
-  // Recent leaderboard data (mock for now)
-  const recentLeaderboard = [
-    { rank: 1, player: "SnakeGod", score: "2,450", mode: "Classic", date: "Today" },
-    { rank: 2, player: "AISlayer", score: "2,380", mode: "VS AI", date: "Today" },
-    { rank: 3, player: userProfile?.displayName || "You", score: userStats.bestScore || 0, mode: "Classic", date: "Yesterday", highlighted: true }
-  ];
+  // Build leaderboard display data from real Firebase data
+  const recentLeaderboard = React.useMemo(() => {
+    if (loadingLeaderboard || !leaderboardSummary?.hasData) {
+      return [];
+    }
+
+    const { topThree, userBestRank } = leaderboardSummary;
+    const leaderboardEntries = [];
+
+    // Add top 3 players
+    topThree.forEach((entry, index) => {
+      leaderboardEntries.push({
+        rank: index + 1,
+        player: entry.username || 'Anonymous',
+        score: formatScore(entry.score),
+        mode: entry.mode === 'classic' ? 'Classic' : 
+              entry.mode === 'vsai' ? `VS AI ${entry.difficulty || ''}` : 
+              entry.mode === 'multiplayer' ? 'Multiplayer' : 'Classic',
+        date: entry.timestamp ? new Date(entry.timestamp.seconds * 1000).toLocaleDateString() : 'Recently',
+        highlighted: entry.userId === userProfile?.uid
+      });
+    });
+
+    // Add user's best rank if not in top 3
+    if (userBestRank && !topThree.some(entry => entry.userId === userProfile?.uid)) {
+      leaderboardEntries.push({
+        rank: userBestRank.rank,
+        player: userProfile?.displayName || userProfile?.username || 'You',
+        score: formatScore(userBestRank.score),
+        mode: 'Your Best',
+        date: 'Personal Record',
+        highlighted: true
+      });
+    }
+
+    return leaderboardEntries.slice(0, 3); // Limit to 3 entries for home page
+  }, [leaderboardSummary, loadingLeaderboard, userProfile]);
 
   return (
     <div className="min-h-screen relative overflow-hidden">
@@ -290,7 +338,11 @@ const HomePage = () => {
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.1 }}
                   >
-                    <AchievementCard achievement={achievement} unlocked={true} />
+                    <AchievementCard 
+                      achievement={achievement} 
+                      unlocked={true} 
+                      userStats={userStats}
+                    />
                   </motion.div>
                 ))
               ) : (
@@ -316,6 +368,8 @@ const HomePage = () => {
                         achievement={achievement} 
                         unlocked={false}
                         progress={achievement.progress}
+                        userStats={userStats}
+                        showRequirements={true}
                       />
                     </motion.div>
                   ))}
@@ -375,16 +429,29 @@ const HomePage = () => {
                 Top Players
               </h3>
               <div className="space-y-3">
-                {recentLeaderboard.map((entry, index) => (
-                  <motion.div
-                    key={entry.rank}
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                  >
-                    <LeaderboardCard {...entry} />
-                  </motion.div>
-                ))}
+                {loadingLeaderboard ? (
+                  <div className="text-center py-8">
+                    <LoadingSpinner size="sm" />
+                    <p className="text-white/70 text-sm mt-2">Loading leaderboard...</p>
+                  </div>
+                ) : recentLeaderboard.length > 0 ? (
+                  recentLeaderboard.map((entry, index) => (
+                    <motion.div
+                      key={`${entry.rank}-${entry.player}`}
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                    >
+                      <LeaderboardCard {...entry} />
+                    </motion.div>
+                  ))
+                ) : (
+                  <div className="text-center py-8">
+                    <div className="text-4xl mb-3">🏆</div>
+                    <p className="text-white/70">No leaderboard data yet!</p>
+                    <p className="text-white/50 text-sm mt-1">Be the first to set a record</p>
+                  </div>
+                )}
               </div>
               <Link to="/leaderboard" className="block mt-4">
                 <Button variant="ghost" fullWidth onClick={() => playClick()}>
@@ -403,7 +470,7 @@ const HomePage = () => {
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
                   <div className="text-center">
                     <div className="text-2xl font-bold text-white">
-                      {Math.floor((userStats.totalPlayTime || 0) / 60)}
+                      {Math.max(0, Math.floor((userStats.totalPlayTime || 0) / 60))}
                     </div>
                     <div className="text-white/70 text-sm">Minutes Played</div>
                   </div>
@@ -422,7 +489,21 @@ const HomePage = () => {
                 </div>
                 <div className="mt-4 pt-4 border-t border-white/10 text-center">
                   <p className="text-white/60 text-sm">
-                    Member since {new Date(userProfile?.createdAt?.toDate?.() || Date.now()).toLocaleDateString()}
+                    Member since {(() => {
+                      if (userProfile?.createdAt) {
+                        // Handle Firebase Timestamp
+                        if (typeof userProfile.createdAt.toDate === 'function') {
+                          return userProfile.createdAt.toDate().toLocaleDateString();
+                        }
+                        // Handle seconds-based timestamp
+                        if (userProfile.createdAt.seconds) {
+                          return new Date(userProfile.createdAt.seconds * 1000).toLocaleDateString();
+                        }
+                        // Handle regular Date or timestamp
+                        return new Date(userProfile.createdAt).toLocaleDateString();
+                      }
+                      return new Date().toLocaleDateString();
+                    })()}
                   </p>
                 </div>
               </div>

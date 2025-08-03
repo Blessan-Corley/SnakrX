@@ -8,7 +8,7 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner';
  * Redirects authenticated users away from auth pages (login, register, etc.)
  */
 const PublicRoute = ({ children }) => {
-  const { user, loading, initialized } = useAuth();
+  const { user, loading, initialized } = useAuth(); // Use initialized state
 
   // Show loading spinner while authentication is being checked
   if (!initialized || loading) {

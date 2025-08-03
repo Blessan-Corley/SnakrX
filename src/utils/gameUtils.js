@@ -1,6 +1,6 @@
 /**
  * SnakrX Game Utilities
- * Core game logic and helper functions
+ * Core game logic and helper functions - ENHANCED
  */
 
 // Game constants
@@ -13,8 +13,27 @@ export const DIRECTIONS = {
 
 export const GAME_MODES = {
   CLASSIC: 'classic',
+  CLASSIC_TRANSPARENT: 'classic_transparent',
   VS_AI: 'vsai',
   MULTIPLAYER: 'multiplayer'
+};
+
+export const MODE_DESCRIPTIONS = {
+  [GAME_MODES.CLASSIC]: {
+    title: 'Classic Mode',
+    description: 'Traditional snake game - hitting walls or yourself ends the game.',
+    rules: ['Hit wall = Game Over', 'Self collision = Game Over', 'Collect food to grow']
+  },
+  [GAME_MODES.CLASSIC_TRANSPARENT]: {
+    title: 'Transparent Mode',
+    description: 'Snake can pass through walls and appear on the opposite side.',
+    rules: ['Pass through walls', 'Self collision = Game Over', 'Collect food to grow']
+  },
+  [GAME_MODES.VS_AI]: {
+    title: 'VS AI Mode',
+    description: 'Challenge computer-controlled opponents of varying difficulty.',
+    rules: ['Easy: 65% optimal moves', 'Medium: 80% optimal moves', 'Impossible: 100% optimal moves']
+  }
 };
 
 export const AI_DIFFICULTIES = {
@@ -25,35 +44,37 @@ export const AI_DIFFICULTIES = {
 
 export const GAME_STATES = {
   MENU: 'menu',
+  READY: 'ready',
   PLAYING: 'playing',
   PAUSED: 'paused',
   GAME_OVER: 'game_over',
   VICTORY: 'victory'
 };
 
-// Board size configurations
+// ENHANCED: Better board size configurations for improved gameplay
 export const BOARD_CONFIGS = {
   [GAME_MODES.CLASSIC]: {
-    desktop: { width: 20, height: 20 },
-    mobile: { width: 16, height: 16 }
+    desktop: { width: 35, height: 30 }, // Increased size for better gameplay
+    mobile: { width: 24, height: 20 }   // Larger mobile size for better control
   },
   [GAME_MODES.VS_AI]: {
-    desktop: { width: 22, height: 22 },
-    mobile: { width: 16, height: 16 }
+    desktop: { width: 32, height: 26 }, // Much larger for VS AI
+    mobile: { width: 20, height: 18 }   // Larger mobile size
   },
   [GAME_MODES.MULTIPLAYER]: {
-    2: { width: 24, height: 24 },
-    3: { width: 26, height: 26 },
-    4: { width: 28, height: 28 }
+    2: { width: 34, height: 28 },       // Much larger for multiplayer
+    3: { width: 36, height: 30 },       // Even larger
+    4: { width: 38, height: 32 }        // Largest for 4 players
   }
 };
 
-// Speed configurations
+// Speed configurations - ENHANCED for longer, more enjoyable gameplay
 export const SPEED_CONFIGS = {
-  INITIAL: 150, // milliseconds
-  INCREMENT: 10, // speed increase per food
-  MIN_SPEED: 50, // fastest possible speed
-  MAX_MULTIPLIER: 15 // maximum speed multiplier
+  INITIAL: 250, // Much slower start for better control and longer games
+  INCREMENT: 3, // Very gentle progression for longer gameplay
+  MIN_SPEED: 80, // Faster maximum speed for advanced players
+  MAX_MULTIPLIER: 8, // Higher max speed multiplier for achievements
+  FOOD_THRESHOLD: 1 // Increase speed every food eaten for better progression feel
 };
 
 // Points system
@@ -65,333 +86,562 @@ export const POINTS = {
   [GAME_MODES.MULTIPLAYER]: 10
 };
 
-// Snake colors for multiplayer
+// Snake colors for multiplayer - ENHANCED
 export const SNAKE_COLORS = {
-  player: '#10b981',
-  ai: '#6b7280',
-  player2: '#3b82f6',
-  player3: '#f59e0b',
-  player4: '#ef4444',
-  dead: '#4b5563' // Gray for dead snakes
+  player: '#10b981',    // Emerald
+  ai: '#6b7280',        // Gray
+  player2: '#3b82f6',   // Blue
+  player3: '#f59e0b',   // Amber
+  player4: '#ef4444',   // Red
+  dead: '#4b5563'       // Dark gray for dead snakes
 };
 
 // Utility Functions
 
 /**
- * Get board dimensions based on game mode and device
+ * Get board dimensions based on game mode and device - ENHANCED
  */
 export const getBoardSize = (mode, playerCount = 1, isMobile = false) => {
-  if (mode === GAME_MODES.MULTIPLAYER) {
-    return BOARD_CONFIGS[GAME_MODES.MULTIPLAYER][playerCount] || BOARD_CONFIGS[GAME_MODES.MULTIPLAYER][4];
+  try {
+    if (mode === GAME_MODES.MULTIPLAYER) {
+      const config = BOARD_CONFIGS[GAME_MODES.MULTIPLAYER][playerCount];
+      if (!config) {
+        console.warn(`No config for ${playerCount} players, using 4-player config`);
+        return BOARD_CONFIGS[GAME_MODES.MULTIPLAYER][4];
+      }
+      return config;
+    }
+    
+    const config = BOARD_CONFIGS[mode];
+    if (!config) {
+      console.warn(`No config for mode ${mode}, using classic`);
+      return BOARD_CONFIGS[GAME_MODES.CLASSIC].desktop;
+    }
+    
+    return isMobile ? config.mobile : config.desktop;
+  } catch (error) {
+    console.error('Error getting board size:', error);
+    return { width: 20, height: 18 }; // Safe fallback
   }
-  
-  const config = BOARD_CONFIGS[mode];
-  return isMobile ? config.mobile : config.desktop;
 };
 
 /**
  * Calculate points based on game mode and difficulty
  */
 export const calculatePoints = (mode, difficulty = null, foodCount = 1) => {
-  let basePoints;
-  
-  if (mode === GAME_MODES.VS_AI && difficulty) {
-    basePoints = POINTS[`${mode}_${difficulty}`];
-  } else {
-    basePoints = POINTS[mode];
+  try {
+    let basePoints;
+    
+    if (mode === GAME_MODES.VS_AI && difficulty) {
+      basePoints = POINTS[`${mode}_${difficulty}`];
+    } else {
+      basePoints = POINTS[mode];
+    }
+    
+    return (basePoints || 5) * foodCount; // Fallback to 5 points
+  } catch (error) {
+    console.error('Error calculating points:', error);
+    return 5; // Safe fallback
   }
-  
-  return basePoints * foodCount;
 };
 
 /**
- * Calculate current game speed based on food eaten
+ * Calculate current game speed based on food eaten - ENHANCED with threshold system
  */
 export const calculateSpeed = (foodEaten) => {
-  const speedDecrease = Math.min(foodEaten * SPEED_CONFIGS.INCREMENT, SPEED_CONFIGS.INITIAL - SPEED_CONFIGS.MIN_SPEED);
-  return Math.max(SPEED_CONFIGS.INITIAL - speedDecrease, SPEED_CONFIGS.MIN_SPEED);
+  try {
+    // Only increase speed every FOOD_THRESHOLD food eaten
+    const speedIncreases = Math.floor(foodEaten / SPEED_CONFIGS.FOOD_THRESHOLD);
+    const speedDecrease = Math.min(
+      speedIncreases * SPEED_CONFIGS.INCREMENT, 
+      SPEED_CONFIGS.INITIAL - SPEED_CONFIGS.MIN_SPEED
+    );
+    return Math.max(SPEED_CONFIGS.INITIAL - speedDecrease, SPEED_CONFIGS.MIN_SPEED);
+  } catch (error) {
+    console.error('Error calculating speed:', error);
+    return SPEED_CONFIGS.INITIAL; // Safe fallback
+  }
 };
 
 /**
- * Get speed multiplier for display
+ * Get speed multiplier for display - Enhanced with better precision
  */
 export const getSpeedMultiplier = (currentSpeed) => {
-  return Math.round((SPEED_CONFIGS.INITIAL / currentSpeed) * 10) / 10;
+  try {
+    if (!currentSpeed || currentSpeed <= 0) return 1.0;
+    const multiplier = SPEED_CONFIGS.INITIAL / currentSpeed;
+    // Round to 1 decimal place for clean display
+    return Math.round(multiplier * 10) / 10;
+  } catch (error) {
+    console.error('Error getting speed multiplier:', error);
+    return 1.0;
+  }
 };
 
 /**
- * Check if two positions are equal
+ * Get speed level based on food eaten (for achievements and display)
+ */
+export const getSpeedLevel = (foodEaten) => {
+  try {
+    return Math.floor(foodEaten / SPEED_CONFIGS.FOOD_THRESHOLD) + 1;
+  } catch (error) {
+    console.error('Error getting speed level:', error);
+    return 1;
+  }
+};
+
+/**
+ * Get next speed milestone (how much food needed for next speed increase)
+ */
+export const getNextSpeedMilestone = (foodEaten) => {
+  try {
+    const currentLevel = Math.floor(foodEaten / SPEED_CONFIGS.FOOD_THRESHOLD);
+    const nextLevelFood = (currentLevel + 1) * SPEED_CONFIGS.FOOD_THRESHOLD;
+    return nextLevelFood - foodEaten;
+  } catch (error) {
+    console.error('Error getting next speed milestone:', error);
+    return 1;
+  }
+};
+
+/**
+ * Check if two positions are equal - ENHANCED with null safety
  */
 export const positionsEqual = (pos1, pos2) => {
-  return pos1.x === pos2.x && pos1.y === pos2.y;
+  try {
+    if (!pos1 || !pos2) return false;
+    if (typeof pos1.x !== 'number' || typeof pos1.y !== 'number') return false;
+    if (typeof pos2.x !== 'number' || typeof pos2.y !== 'number') return false;
+    return pos1.x === pos2.x && pos1.y === pos2.y;
+  } catch (error) {
+    console.error('Error comparing positions:', error);
+    return false;
+  }
 };
 
 /**
- * Check if position is within bounds
+ * Check if position is within bounds - ENHANCED
  */
-export const isWithinBounds = (position, boardWidth, boardHeight) => {
-  return position.x >= 0 && position.x < boardWidth && 
-         position.y >= 0 && position.y < boardHeight;
+export const isWithinBounds = (position, boardWidth, boardHeight, isTransparent = false) => {
+  try {
+    if (!position || typeof position.x !== 'number' || typeof position.y !== 'number') {
+      return false;
+    }
+    
+    if (isTransparent) {
+      // In transparent mode, always return true as we'll wrap the position
+      return true;
+    }
+    
+    return position.x >= 0 && position.x < boardWidth && 
+           position.y >= 0 && position.y < boardHeight;
+  } catch (error) {
+    console.error('Error checking bounds:', error);
+    return false;
+  }
 };
 
 /**
- * Check if position collides with snake body
+ * Check if position collides with snake body - ENHANCED
  */
 export const checkSelfCollision = (head, body) => {
-  return body.some(segment => positionsEqual(head, segment));
+  try {
+    if (!head || !Array.isArray(body)) return false;
+    return body.some(segment => {
+      if (!segment) return false;
+      return positionsEqual(head, segment);
+    });
+  } catch (error) {
+    console.error('Error checking self collision:', error);
+    return false;
+  }
 };
 
 /**
  * Check collision between two snake heads
  */
 export const checkHeadCollision = (snake1Head, snake2Head) => {
-  return positionsEqual(snake1Head, snake2Head);
+  try {
+    return positionsEqual(snake1Head, snake2Head);
+  } catch (error) {
+    console.error('Error checking head collision:', error);
+    return false;
+  }
 };
 
 /**
- * Check if snake head collides with another snake's body
+ * Check if snake head collides with another snake's body - ENHANCED
  */
 export const checkSnakeCollision = (head, otherSnake) => {
-  return otherSnake.some(segment => positionsEqual(head, segment));
+  try {
+    if (!head || !Array.isArray(otherSnake)) return false;
+    return otherSnake.some(segment => {
+      if (!segment) return false;
+      return positionsEqual(head, segment);
+    });
+  } catch (error) {
+    console.error('Error checking snake collision:', error);
+    return false;
+  }
 };
 
 /**
- * Generate random food position that doesn't collide with snakes
+ * Generate random food position that doesn't collide with snakes - ENHANCED
  */
 export const generateFoodPosition = (boardWidth, boardHeight, snakes = []) => {
-  const occupiedPositions = new Set();
-  
-  // Add all snake segments to occupied positions
-  snakes.forEach(snake => {
-    snake.forEach(segment => {
-      occupiedPositions.add(`${segment.x},${segment.y}`);
-    });
-  });
-  
-  let attempts = 0;
-  const maxAttempts = boardWidth * boardHeight;
-  
-  while (attempts < maxAttempts) {
-    const x = Math.floor(Math.random() * boardWidth);
-    const y = Math.floor(Math.random() * boardHeight);
-    const posKey = `${x},${y}`;
+  try {
+    const occupiedPositions = new Set();
     
-    if (!occupiedPositions.has(posKey)) {
-      return { x, y };
+    // Add all snake segments to occupied positions
+    if (Array.isArray(snakes)) {
+      snakes.forEach(snake => {
+        if (Array.isArray(snake)) {
+          snake.forEach(segment => {
+            if (segment && typeof segment.x === 'number' && typeof segment.y === 'number') {
+              occupiedPositions.add(`${segment.x},${segment.y}`);
+            }
+          });
+        }
+      });
     }
     
-    attempts++;
-  }
-  
-  // Fallback: return any available position
-  for (let x = 0; x < boardWidth; x++) {
-    for (let y = 0; y < boardHeight; y++) {
+    let attempts = 0;
+    const maxAttempts = Math.min(boardWidth * boardHeight, 1000); // Safety limit
+    
+    while (attempts < maxAttempts) {
+      const x = Math.floor(Math.random() * boardWidth);
+      const y = Math.floor(Math.random() * boardHeight);
       const posKey = `${x},${y}`;
+      
       if (!occupiedPositions.has(posKey)) {
         return { x, y };
       }
+      
+      attempts++;
     }
+    
+    // Fallback: find any available position
+    for (let x = 0; x < boardWidth; x++) {
+      for (let y = 0; y < boardHeight; y++) {
+        const posKey = `${x},${y}`;
+        if (!occupiedPositions.has(posKey)) {
+          return { x, y };
+        }
+      }
+    }
+    
+    // Last resort fallback
+    console.warn('No available food position found, using center');
+    return { 
+      x: Math.floor(boardWidth / 2), 
+      y: Math.floor(boardHeight / 2) 
+    };
+  } catch (error) {
+    console.error('Error generating food position:', error);
+    return { x: 5, y: 5 }; // Safe fallback
   }
-  
-  // This should never happen unless the board is completely filled
-  return { x: 0, y: 0 };
 };
 
 /**
  * Get opposite direction
  */
+/**
+ * Wrap position around board edges for transparent mode
+ */
+export const wrapPosition = (position, boardWidth, boardHeight, isTransparent = false) => {
+  try {
+    if (!position || typeof position.x !== 'number' || typeof position.y !== 'number') {
+      return position;
+    }
+    
+    if (!isTransparent) {
+      return position;
+    }
+    
+    // Wrap around walls in transparent mode
+    return {
+      x: ((position.x % boardWidth) + boardWidth) % boardWidth,
+      y: ((position.y % boardHeight) + boardHeight) % boardHeight
+    };
+  } catch (error) {
+    console.error('Error wrapping position:', error);
+    return position;
+  }
+};
+
+export const handleCollisions = (head, snakes, boardWidth, boardHeight, isTransparent = false) => {
+  try {
+    // Wall collision (only in classic mode)
+    if (!isTransparent && !isWithinBounds(head, boardWidth, boardHeight)) {
+      return { collision: true, type: 'wall' };
+    }
+
+    // Self collision
+    for (const snake of snakes) {
+      if (!snake || !Array.isArray(snake.body)) continue;
+      
+      // Check self collision (skip head)
+      for (let i = 1; i < snake.body.length; i++) {
+        if (positionsEqual(head, snake.body[i])) {
+          return { collision: true, type: 'self' };
+        }
+      }
+    }
+
+    // Head-to-head collision
+    for (let i = 0; i < snakes.length; i++) {
+      for (let j = i + 1; j < snakes.length; j++) {
+        if (positionsEqual(snakes[i].body[0], snakes[j].body[0])) {
+          return { collision: true, type: 'head' };
+        }
+      }
+    }
+
+    return { collision: false };
+  } catch (error) {
+    console.error('Error checking collisions:', error);
+    return { collision: false };
+  }
+};
+
 export const getOppositeDirection = (direction) => {
-  const opposites = {
-    [DIRECTIONS.UP]: DIRECTIONS.DOWN,
-    [DIRECTIONS.DOWN]: DIRECTIONS.UP,
-    [DIRECTIONS.LEFT]: DIRECTIONS.RIGHT,
-    [DIRECTIONS.RIGHT]: DIRECTIONS.LEFT
-  };
-  
-  return opposites[direction] || direction;
+  try {
+    const opposites = {
+      [DIRECTIONS.UP]: DIRECTIONS.DOWN,
+      [DIRECTIONS.DOWN]: DIRECTIONS.UP,
+      [DIRECTIONS.LEFT]: DIRECTIONS.RIGHT,
+      [DIRECTIONS.RIGHT]: DIRECTIONS.LEFT
+    };
+    
+    return opposites[direction] || direction;
+  } catch (error) {
+    console.error('Error getting opposite direction:', error);
+    return DIRECTIONS.RIGHT;
+  }
 };
 
 /**
- * Check if direction change is valid (prevent 180-degree turns)
+ * Check if direction change is valid (prevent 180-degree turns) - ENHANCED
  */
 export const isValidDirectionChange = (currentDirection, newDirection) => {
-  if (!currentDirection) return true;
-  
-  const opposite = getOppositeDirection(currentDirection);
-  return !positionsEqual(newDirection, opposite);
+  try {
+    if (!currentDirection || !newDirection) return true;
+    
+    const opposite = getOppositeDirection(currentDirection);
+    return !positionsEqual(newDirection, opposite);
+  } catch (error) {
+    console.error('Error validating direction change:', error);
+    return true; // Allow movement on error
+  }
 };
 
 /**
  * Calculate manhattan distance between two points
  */
 export const manhattanDistance = (pos1, pos2) => {
-  return Math.abs(pos1.x - pos2.x) + Math.abs(pos1.y - pos2.y);
+  try {
+    if (!pos1 || !pos2) return Infinity;
+    if (typeof pos1.x !== 'number' || typeof pos1.y !== 'number') return Infinity;
+    if (typeof pos2.x !== 'number' || typeof pos2.y !== 'number') return Infinity;
+    return Math.abs(pos1.x - pos2.x) + Math.abs(pos1.y - pos2.y);
+  } catch (error) {
+    console.error('Error calculating manhattan distance:', error);
+    return Infinity;
+  }
 };
 
 /**
  * Format time in MM:SS format
  */
 export const formatTime = (seconds) => {
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
-  return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+  try {
+    if (typeof seconds !== 'number' || seconds < 0) return '00:00';
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+  } catch (error) {
+    console.error('Error formatting time:', error);
+    return '00:00';
+  }
 };
 
 /**
  * Format score with commas
  */
 export const formatScore = (score) => {
-  return score.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  try {
+    if (typeof score !== 'number') return '0';
+    return score.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  } catch (error) {
+    console.error('Error formatting score:', error);
+    return '0';
+  }
 };
 
 /**
- * Get snake starting positions for multiplayer
+ * Get snake starting positions for multiplayer - ENHANCED
  */
 export const getStartingPositions = (playerCount, boardWidth, boardHeight) => {
-  const positions = [];
-  const margin = 3;
-  
-  switch (playerCount) {
-    case 2:
-      positions.push(
-        { x: margin, y: Math.floor(boardHeight / 2) },
-        { x: boardWidth - margin - 1, y: Math.floor(boardHeight / 2) }
-      );
-      break;
-    case 3:
-      positions.push(
-        { x: margin, y: margin },
-        { x: boardWidth - margin - 1, y: margin },
-        { x: Math.floor(boardWidth / 2), y: boardHeight - margin - 1 }
-      );
-      break;
-    case 4:
-      positions.push(
-        { x: margin, y: margin },
-        { x: boardWidth - margin - 1, y: margin },
-        { x: margin, y: boardHeight - margin - 1 },
-        { x: boardWidth - margin - 1, y: boardHeight - margin - 1 }
-      );
-      break;
-    default:
-      positions.push({ x: Math.floor(boardWidth / 2), y: Math.floor(boardHeight / 2) });
+  try {
+    const positions = [];
+    const margin = Math.max(3, Math.floor(Math.min(boardWidth, boardHeight) * 0.1));
+    
+    switch (playerCount) {
+      case 1:
+        positions.push({ 
+          x: Math.floor(boardWidth / 2), 
+          y: Math.floor(boardHeight / 2) 
+        });
+        break;
+      case 2:
+        positions.push(
+          { x: margin, y: Math.floor(boardHeight / 2) },
+          { x: boardWidth - margin - 1, y: Math.floor(boardHeight / 2) }
+        );
+        break;
+      case 3:
+        positions.push(
+          { x: margin, y: margin },
+          { x: boardWidth - margin - 1, y: margin },
+          { x: Math.floor(boardWidth / 2), y: boardHeight - margin - 1 }
+        );
+        break;
+      case 4:
+        positions.push(
+          { x: margin, y: margin },
+          { x: boardWidth - margin - 1, y: margin },
+          { x: margin, y: boardHeight - margin - 1 },
+          { x: boardWidth - margin - 1, y: boardHeight - margin - 1 }
+        );
+        break;
+      default:
+        console.warn(`Unsupported player count: ${playerCount}`);
+        positions.push({ x: Math.floor(boardWidth / 2), y: Math.floor(boardHeight / 2) });
+    }
+    
+    return positions;
+  } catch (error) {
+    console.error('Error getting starting positions:', error);
+    return [{ x: 5, y: 5 }]; // Safe fallback
   }
-  
-  return positions;
 };
 
 /**
  * Get starting directions for multiplayer
  */
 export const getStartingDirections = (playerCount) => {
-  switch (playerCount) {
-    case 2:
-      return [DIRECTIONS.RIGHT, DIRECTIONS.LEFT];
-    case 3:
-      return [DIRECTIONS.RIGHT, DIRECTIONS.LEFT, DIRECTIONS.UP];
-    case 4:
-      return [DIRECTIONS.RIGHT, DIRECTIONS.LEFT, DIRECTIONS.RIGHT, DIRECTIONS.LEFT];
-    default:
-      return [DIRECTIONS.RIGHT];
+  try {
+    switch (playerCount) {
+      case 1:
+        return [DIRECTIONS.RIGHT];
+      case 2:
+        return [DIRECTIONS.RIGHT, DIRECTIONS.LEFT];
+      case 3:
+        return [DIRECTIONS.RIGHT, DIRECTIONS.LEFT, DIRECTIONS.UP];
+      case 4:
+        return [DIRECTIONS.RIGHT, DIRECTIONS.LEFT, DIRECTIONS.RIGHT, DIRECTIONS.LEFT];
+      default:
+        return [DIRECTIONS.RIGHT];
+    }
+  } catch (error) {
+    console.error('Error getting starting directions:', error);
+    return [DIRECTIONS.RIGHT];
   }
 };
 
 /**
- * Check if device is mobile
+ * Check if device is mobile - ENHANCED
  */
 export const isMobile = () => {
-  if (typeof window === 'undefined') return false;
-  
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
-         (navigator.maxTouchPoints && navigator.maxTouchPoints > 2 && /MacIntel/.test(navigator.platform));
-};
-
-/**
- * Get available keyboard keys based on game mode
- */
-export const getControlKeys = (mode, playerIndex = 0) => {
-  const singlePlayerKeys = {
-    up: ['ArrowUp', 'KeyW'],
-    down: ['ArrowDown', 'KeyS'],
-    left: ['ArrowLeft', 'KeyA'],
-    right: ['ArrowRight', 'KeyD'],
-    pause: ['Space', 'KeyP'],
-    restart: ['KeyR']
-  };
-  
-  if (mode !== GAME_MODES.MULTIPLAYER) {
-    return singlePlayerKeys;
+  try {
+    if (typeof window === 'undefined') return false;
+    
+    // Check user agent
+    const userAgentCheck = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    // Check for touch support and screen size
+    const touchCheck = navigator.maxTouchPoints && navigator.maxTouchPoints > 2 && /MacIntel/.test(navigator.platform);
+    
+    // Check screen width
+    const screenCheck = window.innerWidth <= 768;
+    
+    return userAgentCheck || touchCheck || screenCheck;
+  } catch (error) {
+    console.error('Error detecting mobile:', error);
+    return false;
   }
-  
-  const multiPlayerKeys = [
-    {
-      up: ['KeyW'],
-      down: ['KeyS'],
-      left: ['KeyA'],
-      right: ['KeyD']
-    },
-    {
-      up: ['ArrowUp'],
-      down: ['ArrowDown'],
-      left: ['ArrowLeft'],
-      right: ['ArrowRight']
-    },
-    {
-      up: ['KeyI'],
-      down: ['KeyK'],
-      left: ['KeyJ'],
-      right: ['KeyL']
-    },
-    {
-      up: ['Digit8'],
-      down: ['Digit5'],
-      left: ['Digit4'],
-      right: ['Digit6']
-    }
-  ];
-  
-  return multiPlayerKeys[playerIndex] || multiPlayerKeys[0];
 };
 
 /**
  * Validate email format
  */
 export const isValidEmail = (email) => {
-  const allowedDomains = ['gmail.com', 'outlook.com', 'yahoo.com', 'mail.com'];
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  
-  if (!emailRegex.test(email)) return false;
-  
-  const domain = email.split('@')[1];
-  return allowedDomains.includes(domain);
+  try {
+    if (!email || typeof email !== 'string') return false;
+    
+    const allowedDomains = ['gmail.com', 'outlook.com', 'yahoo.com', 'mail.com'];
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    
+    if (!emailRegex.test(email)) return false;
+    
+    const domain = email.split('@')[1];
+    return allowedDomains.includes(domain);
+  } catch (error) {
+    console.error('Error validating email:', error);
+    return false;
+  }
 };
 
 /**
  * Validate username format
  */
 export const isValidUsername = (username) => {
-  return username && username.length >= 3 && /^[a-zA-Z0-9_]+$/.test(username);
+  try {
+    return username && 
+           typeof username === 'string' && 
+           username.length >= 3 && 
+           username.length <= 20 &&
+           /^[a-zA-Z0-9_]+$/.test(username);
+  } catch (error) {
+    console.error('Error validating username:', error);
+    return false;
+  }
 };
 
 /**
  * Validate password format
  */
 export const isValidPassword = (password) => {
-  return password && password.length >= 6;
+  try {
+    return password && typeof password === 'string' && password.length >= 6;
+  } catch (error) {
+    console.error('Error validating password:', error);
+    return false;
+  }
 };
 
 /**
  * Generate unique game ID
  */
 export const generateGameId = () => {
-  return `game_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  try {
+    return `game_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  } catch (error) {
+    console.error('Error generating game ID:', error);
+    return `game_${Date.now()}_fallback`;
+  }
 };
 
 /**
- * Deep clone object
+ * Deep clone object safely
  */
 export const deepClone = (obj) => {
-  return JSON.parse(JSON.stringify(obj));
+  try {
+    return JSON.parse(JSON.stringify(obj));
+  } catch (error) {
+    console.error('Error deep cloning object:', error);
+    return obj; // Return original on error
+  }
 };
 
 /**
@@ -452,7 +702,6 @@ export default {
   getStartingPositions,
   getStartingDirections,
   isMobile,
-  getControlKeys,
   isValidEmail,
   isValidUsername,
   isValidPassword,

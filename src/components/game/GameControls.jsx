@@ -33,7 +33,7 @@ const GameControls = ({
   foodEaten = 0,
   gameMode = 'classic',
   difficulty = null,
-  showMobileControls = false,
+  showMobileControls = true,
   onMobileControl = () => {},
   onPause = () => {},
   onResume = () => {},
@@ -42,7 +42,7 @@ const GameControls = ({
 }) => {
   
   const speedMultiplier = getSpeedMultiplier(speed);
-  const formattedTime = Math.floor(gameTime / 1000);
+  const formattedTime = Math.floor(gameTime); // gameTime is already in seconds
 
   // Difficulty display configuration
   const difficultyConfig = {
@@ -120,7 +120,17 @@ const GameControls = ({
           <Button
             variant="primary"
             fullWidth
-            onClick={isPaused ? onResume : onPause}
+            onClick={() => {
+              try {
+                if (isPaused) {
+                  onResume();
+                } else {
+                  onPause();
+                }
+              } catch (error) {
+                console.error('Pause/Resume error:', error);
+              }
+            }}
             disabled={isGameOver}
             icon={isPaused ? <Play size={18} /> : <Pause size={18} />}
           >
@@ -131,7 +141,13 @@ const GameControls = ({
           <Button
             variant="ghost"
             fullWidth
-            onClick={onRestart}
+            onClick={() => {
+              try {
+                onRestart();
+              } catch (error) {
+                console.error('Restart error:', error);
+              }
+            }}
             icon={<RotateCcw size={18} />}
           >
             Restart
@@ -141,7 +157,13 @@ const GameControls = ({
           <Button
             variant="ghost"
             fullWidth
-            onClick={onQuit}
+            onClick={() => {
+              try {
+                onQuit();
+              } catch (error) {
+                console.error('Quit error:', error);
+              }
+            }}
             icon={<Home size={18} />}
           >
             Main Menu
@@ -160,12 +182,17 @@ const GameControls = ({
               variant="ghost"
               size="icon"
               onClick={() => {
-                onMobileControl(DIRECTIONS.UP);
-                playClick();
+                try {
+                  onMobileControl(DIRECTIONS.UP);
+                  playClick();
+                } catch (error) {
+                  console.error('Mobile control error:', error);
+                }
               }}
               disabled={!isPlaying || isPaused}
               icon={<ArrowUp size={20} />}
               className="aspect-square"
+              soundEnabled={false}
             />
             <div />
             
@@ -173,24 +200,34 @@ const GameControls = ({
               variant="ghost"
               size="icon"
               onClick={() => {
-                onMobileControl(DIRECTIONS.LEFT);
-                playClick();
+                try {
+                  onMobileControl(DIRECTIONS.LEFT);
+                  playClick();
+                } catch (error) {
+                  console.error('Mobile control error:', error);
+                }
               }}
               disabled={!isPlaying || isPaused}
               icon={<ArrowLeft size={20} />}
               className="aspect-square"
+              soundEnabled={false}
             />
             <div />
             <Button
               variant="ghost"
               size="icon"
               onClick={() => {
-                onMobileControl(DIRECTIONS.RIGHT);
-                playClick();
+                try {
+                  onMobileControl(DIRECTIONS.RIGHT);
+                  playClick();
+                } catch (error) {
+                  console.error('Mobile control error:', error);
+                }
               }}
               disabled={!isPlaying || isPaused}
               icon={<ArrowRight size={20} />}
               className="aspect-square"
+              soundEnabled={false}
             />
             
             <div />
@@ -198,12 +235,17 @@ const GameControls = ({
               variant="ghost"
               size="icon"
               onClick={() => {
-                onMobileControl(DIRECTIONS.DOWN);
-                playClick();
+                try {
+                  onMobileControl(DIRECTIONS.DOWN);
+                  playClick();
+                } catch (error) {
+                  console.error('Mobile control error:', error);
+                }
               }}
               disabled={!isPlaying || isPaused}
               icon={<ArrowDown size={20} />}
               className="aspect-square"
+              soundEnabled={false}
             />
             <div />
           </div>
@@ -235,7 +277,7 @@ export const FloatingGameHUD = ({
   onPause = () => {},
   onResume = () => {}
 }) => {
-  const formattedTime = Math.floor(gameTime / 1000);
+  const formattedTime = Math.floor(gameTime); // gameTime is already in seconds
   
   return (
     <motion.div
@@ -301,7 +343,7 @@ export const GameOverOverlay = ({
         </div>
         
         <p className="text-white/70 mb-6">
-          Survived for {formatTime(Math.floor(gameTime / 1000))}
+          Survived for {formatTime(Math.floor(gameTime))}
         </p>
         
         <div className="flex space-x-3">

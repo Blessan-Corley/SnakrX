@@ -1,285 +1,288 @@
-import React, { useRef, useEffect, useMemo } from 'react';
+import React, { useRef, useEffect, useMemo, useCallback, memo } from 'react';
 import { motion } from 'framer-motion';
 import { positionsEqual } from '@/utils/gameUtils';
 
 /**
- * Core Game Board Component
- * Renders the game board with snakes, food, and visual effects
+ * Enhanced Game Board Component - OPTIMIZED PERFORMANCE
+ * Better sizing, optimized rendering, improved visibility
  */
-const GameBoard = ({
+const GameBoard = memo(({
   boardSize,
   snakes = [],
   food,
   deadPlayers = new Set(),
   showGrid = true,
   highlightCollision = null,
-  className = ''
+  className = '',
+  onSwipe = () => {}
 }) => {
   const boardRef = useRef(null);
-  const animationFrameRef = useRef(null);
 
-  // Calculate cell size based on container size
-  const cellSize = 20; // Fixed cell size for consistency
+  // OPTIMIZED: Responsive cell size calculation
+  const cellSize = useMemo(() => {
+    if (typeof window === 'undefined') return 24;
+    
+    const screenWidth = window.innerWidth;
+    const screenHeight = window.innerHeight;
+    
+    // Dynamic cell size based on device pixel ratio for sharper rendering
+    const pixelRatio = window.devicePixelRatio || 1;
+    const timestamp = performance.now();
+    
+    // Optimize size for different screen densities
+    const baseSize = Math.floor(Math.min(
+      screenWidth / (boardSize.width * pixelRatio),
+      screenHeight / (boardSize.height * pixelRatio)
+    ) * pixelRatio);
+    
+    // Calculate optimal cell size based on screen and board dimensions
+    const maxBoardWidth = Math.min(screenWidth * 0.85, 1200); // Increased max width
+    const maxBoardHeight = Math.min(screenHeight * 0.8, 900); // Increased max height
+    
+    const cellWidthLimit = Math.floor(maxBoardWidth / boardSize.width);
+    const cellHeightLimit = Math.floor(maxBoardHeight / boardSize.height);
+    
+    const optimalSize = Math.min(cellWidthLimit, cellHeightLimit);
+    
+    // Adjusted clamp bounds for larger cells while maintaining grid
+    return Math.max(20, Math.min(48, optimalSize));
+  }, [boardSize.width, boardSize.height]);
+
   const boardWidth = boardSize.width * cellSize;
   const boardHeight = boardSize.height * cellSize;
 
-  // Memoize grid lines for performance
-  const gridLines = useMemo(() => {
+  // OPTIMIZED: High-contrast snake colors for better visibility
+  const SNAKE_COLORS = useMemo(() => ({
+    player: '#00ff00',      // Bright green - highly visible
+    ai: '#ff6b00',          // Orange - distinct from player
+    player2: '#0099ff',     // Bright blue - good contrast
+    player3: '#ff3366',     // Pink-red - vibrant
+    player4: '#9933ff',     // Purple - distinct
+    dead: '#666666'         // Medium gray for dead snakes
+  }), []);
+
+  // OPTIMIZED: Simplified grid with better performance
+  const gridPattern = useMemo(() => {
     if (!showGrid) return null;
 
-    const lines = [];
-    
-    // Vertical lines
-    for (let x = 0; x <= boardSize.width; x++) {
-      lines.push(
-        <line
-          key={`v-${x}`}
-          x1={x * cellSize}
-          y1={0}
-          x2={x * cellSize}
-          y2={boardHeight}
-          stroke="rgba(255, 255, 255, 0.1)"
-          strokeWidth="1"
-        />
-      );
-    }
-    
-    // Horizontal lines
-    for (let y = 0; y <= boardSize.height; y++) {
-      lines.push(
-        <line
-          key={`h-${y}`}
-          x1={0}
-          y1={y * cellSize}
-          x2={boardWidth}
-          y2={y * cellSize}
-          stroke="rgba(255, 255, 255, 0.1)"
-          strokeWidth="1"
-        />
-      );
-    }
-    
-    return lines;
-  }, [boardSize, cellSize, boardWidth, boardHeight, showGrid]);
+    return (
+      <defs>
+        <pattern 
+          id="gameGrid" 
+          width={cellSize} 
+          height={cellSize} 
+          patternUnits="userSpaceOnUse"
+        >
+          <path 
+            d={`M ${cellSize} 0 L 0 0 0 ${cellSize}`} 
+            fill="none" 
+            stroke="rgba(255, 255, 255, 0.1)" 
+            strokeWidth="1"
+          />
+        </pattern>
+      </defs>
+    );
+  }, [cellSize, showGrid]);
 
-  // Render snake segments
-  const renderSnake = (snake, snakeIndex) => {
-    if (!snake.body || snake.body.length === 0) return null;
+  const gridOverlay = useMemo(() => {
+    if (!showGrid) return null;
+
+    return (
+      <rect 
+        width={boardWidth} 
+        height={boardHeight} 
+        fill="url(#gameGrid)"
+        opacity="0.6"
+      />
+    );
+  }, [boardWidth, boardHeight, showGrid]);
+
+  // OPTIMIZED: Simplified snake rendering for better performance
+  const renderSnake = useCallback((snake, snakeIndex) => {
+    if (!snake || !Array.isArray(snake.body) || snake.body.length === 0) {
+      console.warn('Invalid snake data:', snake);
+      return null;
+    }
 
     const isDead = deadPlayers.has(snakeIndex);
-    const opacity = isDead ? 0.3 : 1;
-    const color = isDead ? '#6b7280' : snake.color;
+    const isAI = snake.isAI;
+    
+    // Use snake color or default based on player index
+    const colorKey = snake.isAI ? 'ai' : `player${snakeIndex === 0 ? '' : snakeIndex + 1}`;
+    const baseColor = SNAKE_COLORS[colorKey] || SNAKE_COLORS.player;
+    const displayColor = isDead ? SNAKE_COLORS.dead : baseColor;
 
     return snake.body.map((segment, segmentIndex) => {
+      if (!segment || typeof segment.x !== 'number' || typeof segment.y !== 'number') {
+        return null;
+      }
+
       const isHead = segmentIndex === 0;
       const x = segment.x * cellSize;
       const y = segment.y * cellSize;
       
-      // Collision highlight
-      const isCollisionPoint = highlightCollision && 
-        positionsEqual(segment, highlightCollision) && 
-        isHead;
+      // Simpler size calculation
+      const segmentSize = isHead ? cellSize - 2 : cellSize - 4;
+      const offset = (cellSize - segmentSize) / 2;
 
       return (
-        <motion.g key={`snake-${snakeIndex}-${segmentIndex}`}>
+        <g key={`snake-${snakeIndex}-${segmentIndex}`}>
           {/* Main segment */}
-          <motion.rect
-            x={x + 1}
-            y={y + 1}
-            width={cellSize - 2}
-            height={cellSize - 2}
-            fill={color}
-            opacity={opacity}
-            rx={isHead ? cellSize * 0.3 : cellSize * 0.2}
-            ry={isHead ? cellSize * 0.3 : cellSize * 0.2}
-            initial={{ scale: 0 }}
-            animate={{ 
-              scale: 1,
-              boxShadow: isHead ? `0 0 10px ${color}` : 'none'
-            }}
-            transition={{ 
-              type: "spring", 
-              stiffness: 500, 
-              damping: 30,
-              duration: 0.1 
-            }}
+          <rect
+            x={x + offset}
+            y={y + offset}
+            width={segmentSize}
+            height={segmentSize}
+            fill={displayColor}
+            rx={isHead ? segmentSize * 0.3 : segmentSize * 0.2}
+            ry={isHead ? segmentSize * 0.3 : segmentSize * 0.2}
+            opacity={isDead ? 0.5 : 1}
+            stroke={isHead ? '#ffffff' : 'none'}
+            strokeWidth={isHead ? 1 : 0}
           />
           
-          {/* Head details */}
+          {/* Simple head indicator */}
           {isHead && !isDead && (
             <>
               {/* Eyes */}
-              <motion.circle
-                cx={x + cellSize * 0.3}
+              <circle
+                cx={x + cellSize * 0.35}
                 cy={y + cellSize * 0.3}
-                r={cellSize * 0.08}
-                fill="white"
-                opacity={0.9}
-                animate={{ scale: [1, 1.2, 1] }}
-                transition={{ duration: 2, repeat: Infinity }}
+                r={Math.max(1, cellSize * 0.08)}
+                fill="#ffffff"
               />
-              <motion.circle
-                cx={x + cellSize * 0.7}
+              <circle
+                cx={x + cellSize * 0.65}
                 cy={y + cellSize * 0.3}
-                r={cellSize * 0.08}
-                fill="white"
-                opacity={0.9}
-                animate={{ scale: [1, 1.2, 1] }}
-                transition={{ duration: 2, repeat: Infinity, delay: 0.1 }}
+                r={Math.max(1, cellSize * 0.08)}
+                fill="#ffffff"
               />
+              
+              {/* AI indicator */}
+              {isAI && (
+                <rect
+                  x={x + cellSize * 0.35}
+                  y={y + cellSize * 0.7}
+                  width={cellSize * 0.3}
+                  height={cellSize * 0.1}
+                  fill="#ffffff"
+                  rx={1}
+                />
+              )}
             </>
           )}
           
           {/* Collision effect */}
-          {isCollisionPoint && (
-            <motion.circle
+          {highlightCollision && positionsEqual(segment, highlightCollision) && isHead && (
+            <circle
               cx={x + cellSize / 2}
               cy={y + cellSize / 2}
-              r={cellSize}
+              r={cellSize * 0.6}
               fill="none"
-              stroke="#ef4444"
+              stroke="#ff0000"
               strokeWidth="3"
-              opacity={0.8}
-              initial={{ scale: 0, opacity: 1 }}
-              animate={{ scale: 2, opacity: 0 }}
-              transition={{ duration: 0.5 }}
+              opacity="0.8"
             />
           )}
-        </motion.g>
+        </g>
       );
-    });
-  };
+    }).filter(Boolean);
+  }, [cellSize, deadPlayers, SNAKE_COLORS, highlightCollision]);
 
-  // Render food
-  const renderFood = () => {
-    if (!food) return null;
+  // OPTIMIZED: Simplified food rendering
+  const renderFood = useCallback(() => {
+    if (!food || typeof food.x !== 'number' || typeof food.y !== 'number') {
+      console.warn('Invalid food data:', food);
+      return null;
+    }
 
     const x = food.x * cellSize;
     const y = food.y * cellSize;
+    const foodSize = cellSize - 4;
+    const offset = 2;
 
     return (
-      <motion.g key={`food-${food.x}-${food.y}`}>
-        {/* Food glow effect */}
-        <motion.circle
+      <g key={`food-${food.x}-${food.y}`}>
+        {/* Simple glow effect */}
+        <circle
           cx={x + cellSize / 2}
           cy={y + cellSize / 2}
           r={cellSize * 0.6}
           fill="none"
-          stroke="#dc2626"
+          stroke="#ff4444"
           strokeWidth="2"
-          opacity={0.3}
-          animate={{ 
-            scale: [1, 1.3, 1],
-            opacity: [0.3, 0.6, 0.3]
-          }}
-          transition={{ 
-            duration: 1.5, 
-            repeat: Infinity,
-            ease: "easeInOut"
-          }}
+          opacity="0.4"
         />
         
         {/* Main food */}
-        <motion.rect
-          x={x + 2}
-          y={y + 2}
-          width={cellSize - 4}
-          height={cellSize - 4}
-          fill="#dc2626"
-          rx={cellSize * 0.25}
-          ry={cellSize * 0.25}
-          initial={{ scale: 0, rotate: 0 }}
-          animate={{ 
-            scale: 1,
-            rotate: [0, 5, -5, 0]
-          }}
-          transition={{
-            scale: { type: "spring", stiffness: 500, damping: 30 },
-            rotate: { duration: 2, repeat: Infinity, ease: "easeInOut" }
-          }}
+        <rect
+          x={x + offset}
+          y={y + offset}
+          width={foodSize}
+          height={foodSize}
+          fill="#ff0000"
+          rx={foodSize * 0.3}
+          ry={foodSize * 0.3}
         />
         
-        {/* Food sparkle effect */}
-        <motion.circle
-          cx={x + cellSize * 0.7}
-          cy={y + cellSize * 0.3}
-          r={2}
-          fill="white"
-          opacity={0.8}
-          animate={{ 
-            opacity: [0, 1, 0],
-            scale: [0.5, 1, 0.5]
-          }}
-          transition={{ 
-            duration: 1, 
-            repeat: Infinity,
-            delay: 0.5
-          }}
+        {/* Simple shine */}
+        <circle
+          cx={x + cellSize * 0.6}
+          cy={y + cellSize * 0.4}
+          r={Math.max(1, cellSize * 0.1)}
+          fill="#ffffff"
+          opacity="0.8"
         />
-      </motion.g>
+      </g>
     );
-  };
+  }, [food, cellSize]);
 
   return (
-    <motion.div
+    <div
       ref={boardRef}
-      className={`relative mx-auto bg-dark-surface/50 border border-white/20 rounded-xl overflow-hidden ${className}`}
+      className={`relative mx-auto rounded-lg overflow-hidden ${className}`}
       style={{
-        width: boardWidth + 4, // +4 for border
-        height: boardHeight + 4
+        width: boardWidth + 8,
+        height: boardHeight + 8,
+        background: '#1a1a2e',
+        border: '3px solid rgba(255, 255, 255, 0.8)',
+        boxShadow: '0 0 20px rgba(255, 255, 255, 0.4), 0 4px 20px rgba(0, 0, 0, 0.3)'
       }}
-      initial={{ scale: 0.9, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
-      transition={{ duration: 0.5, type: "spring", stiffness: 200 }}
     >
-      {/* Board background */}
-      <div 
-        className="absolute inset-0 bg-gradient-to-br from-dark-bg to-dark-surface"
-        style={{
-          backgroundImage: 'radial-gradient(circle at 25% 25%, rgba(249, 115, 22, 0.05) 0%, transparent 50%)'
-        }}
-      />
-      
       {/* Main game SVG */}
       <svg
         width={boardWidth}
         height={boardHeight}
-        className="relative z-10"
-        style={{ display: 'block' }}
+        className="mx-auto mt-1"
+        style={{ 
+          display: 'block', 
+          background: '#0f0f23'
+        }}
       >
-        {/* Grid lines */}
-        {gridLines}
+        {/* Simplified definitions */}
+        <defs>
+          {gridPattern}
+        </defs>
+        
+        {/* Grid */}
+        {gridOverlay}
         
         {/* Food */}
         {renderFood()}
         
         {/* Snakes */}
-        {snakes.map((snake, index) => (
-          <g key={`snake-${index}`}>
-            {renderSnake(snake, index)}
-          </g>
+        {Array.isArray(snakes) && snakes.map((snake, index) => (
+          <g key={`snake-container-${index}`}>{renderSnake(snake, index)}</g>
         ))}
       </svg>
-      
-      {/* Overlay effects */}
-      <div className="absolute inset-0 pointer-events-none">
-        {/* Ambient glow */}
-        <div className="absolute inset-0 bg-gradient-to-br from-transparent via-primary-500/5 to-transparent animate-pulse" />
-        
-        {/* Corner decorations */}
-        <div className="absolute top-2 left-2 w-4 h-4 border-l-2 border-t-2 border-primary-500/30 rounded-tl" />
-        <div className="absolute top-2 right-2 w-4 h-4 border-r-2 border-t-2 border-primary-500/30 rounded-tr" />
-        <div className="absolute bottom-2 left-2 w-4 h-4 border-l-2 border-b-2 border-primary-500/30 rounded-bl" />
-        <div className="absolute bottom-2 right-2 w-4 h-4 border-r-2 border-b-2 border-primary-500/30 rounded-br" />
-      </div>
-    </motion.div>
+    </div>
   );
-};
+});
 
 /**
- * Game Board Container with responsive sizing
+ * Responsive Game Board
  */
-export const ResponsiveGameBoard = (props) => {
+export const ResponsiveGameBoard = memo((props) => {
   const containerRef = useRef(null);
   const [scale, setScale] = React.useState(1);
 
@@ -291,66 +294,68 @@ export const ResponsiveGameBoard = (props) => {
       const containerWidth = container.clientWidth;
       const containerHeight = container.clientHeight;
       
-      const boardWidth = props.boardSize.width * 20; // 20px cell size
-      const boardHeight = props.boardSize.height * 20;
+      // Simple scaling calculation
+      const maxWidth = containerWidth - 40;
+      const maxHeight = containerHeight - 40;
       
-      const scaleX = (containerWidth - 40) / boardWidth; // 40px padding
-      const scaleY = (containerHeight - 40) / boardHeight;
-      const newScale = Math.min(scaleX, scaleY, 1); // Don't scale up
+      // Calculate based on current board dimensions
+      const boardWidth = props.boardSize.width * 24 + 8; // Base cell size
+      const boardHeight = props.boardSize.height * 24 + 8;
       
-      setScale(newScale);
+      const scaleX = maxWidth / boardWidth;
+      const scaleY = maxHeight / boardHeight;
+      const newScale = Math.min(scaleX, scaleY, 1.2);
+      
+      setScale(Math.max(newScale, 0.6));
     };
 
     updateScale();
     window.addEventListener('resize', updateScale);
-    return () => window.removeEventListener('resize', updateScale);
+    
+    return () => {
+      window.removeEventListener('resize', updateScale);
+    };
   }, [props.boardSize]);
 
   return (
     <div 
       ref={containerRef}
-      className="flex items-center justify-center w-full h-full min-h-[400px]"
+      className="flex items-center justify-center w-full h-full min-h-[400px] p-4"
     >
-      <div style={{ transform: `scale(${scale})` }}>
+      <div 
+        style={{ 
+          transform: `scale(${scale})`,
+          transformOrigin: 'center'
+        }}
+      >
         <GameBoard {...props} />
       </div>
     </div>
   );
-};
+});
 
 /**
- * Game Board with pause overlay
+ * Game Board with overlays
  */
-export const GameBoardWithOverlay = ({ isPaused, isGameOver, children, ...props }) => {
+export const GameBoardWithOverlay = memo(({ isPaused, isGameOver, children, ...props }) => {
   return (
     <div className="relative">
       <ResponsiveGameBoard {...props} />
       
-      {/* Pause Overlay */}
+      {/* Pause overlay */}
       {isPaused && !isGameOver && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center rounded-xl"
-        >
+        <div className="absolute inset-0 bg-black/80 flex items-center justify-center rounded-lg z-30">
           <div className="text-center">
-            <motion.div
-              animate={{ scale: [1, 1.1, 1] }}
-              transition={{ duration: 1, repeat: Infinity }}
-              className="text-6xl mb-4"
-            >
-              ⏸️
-            </motion.div>
-            <h3 className="text-2xl font-bold text-white mb-2">Game Paused</h3>
-            <p className="text-white/70">Press Space to continue</p>
+            <div className="text-6xl mb-6">⏸️</div>
+            <h3 className="text-3xl font-bold text-white mb-4">Game Paused</h3>
+            <p className="text-white/80 text-lg">Press Space to continue</p>
           </div>
-        </motion.div>
+        </div>
       )}
       
-      {/* Additional overlays */}
       {children}
     </div>
   );
-};
+});
 
 export default GameBoard;
