@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { gameOperations } from '@/services/firebase';
+import { gameOperations } from '../services/firebase.js';
 import { useAuth } from './useAuth';
 
 export const useLeaderboard = () => {

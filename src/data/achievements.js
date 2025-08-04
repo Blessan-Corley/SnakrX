@@ -215,12 +215,12 @@ export const ACHIEVEMENTS = [
   {
     id: 'hyperspeed',
     title: 'Hyperspeed',
-    description: 'Reach 6x speed in classic mode',
+    description: 'Reach 5x speed in classic mode',
     icon: '🚀',
     category: 'speed',
     tier: 'legendary',
     points: 150,
-    requirements: { maxSpeed: 6 }
+    requirements: { maxSpeed: 5 }
   },
   
   // Funny/Failure Achievements

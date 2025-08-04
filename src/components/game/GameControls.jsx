@@ -30,6 +30,7 @@ const GameControls = ({
   score = 0,
   gameTime = 0,
   speed = 150,
+  speedMultiplier = 1.0,
   foodEaten = 0,
   gameMode = 'classic',
   difficulty = null,
@@ -41,7 +42,6 @@ const GameControls = ({
   onQuit = () => {}
 }) => {
   
-  const speedMultiplier = getSpeedMultiplier(speed);
   const formattedTime = Math.floor(gameTime); // gameTime is already in seconds
 
   // Difficulty display configuration

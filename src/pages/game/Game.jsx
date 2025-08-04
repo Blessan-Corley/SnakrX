@@ -8,6 +8,7 @@ import { useAchievementOperations } from '@/hooks/useAchievements';
 import useGameInput from '@/hooks/useGameInput';
 import { GameBoardWithOverlay } from '@/components/game/GameBoard';
 import GameControls from '@/components/game/GameControls';
+import InputPerformanceMonitor from '@/components/game/InputPerformanceMonitor';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
@@ -28,18 +29,25 @@ const Game = () => {
   const [newAchievement, setNewAchievement] = useState(null);
   const [gameStats, setGameStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showPerformanceMonitor, setShowPerformanceMonitor] = useState(false);
+  const [inputWarning, setInputWarning] = useState(null);
 
   const mobile = isMobile();
   // Fix player count: VS AI always needs 2 players (human + AI)
   const numPlayers = mode === 'vsai' ? 2 : (parseInt(playerCount) || 1);
 
-  // Enhanced input system
+  // Ultra-responsive input system with performance monitoring
   const {
     onTouchStart,
     onTouchMove,
     onTouchEnd,
     handleTouchControl,
-    getCurrentKeyMappings
+    getCurrentKeyMappings,
+    getInputPerformance,
+    resetPerformanceMetrics,
+    clearInputQueue,
+    isHighLatency,
+    getSuccessRate
   } = useGameInput({
     playerCount: numPlayers,
     isPlaying: isGameActive,
@@ -100,15 +108,61 @@ const Game = () => {
     };
   }, [gameState, startGame]);
 
-  // The new input system handles all keyboard controls
+  // Input performance monitoring
+  useEffect(() => {
+    if (!isGameActive) return;
+
+    const checkInputPerformance = () => {
+      const successRate = getSuccessRate();
+      const highLatency = isHighLatency();
+      
+      // Show performance monitor if issues detected
+      if (successRate < 0.95 || highLatency) {
+        setShowPerformanceMonitor(true);
+        
+        if (successRate < 0.90) {
+          setInputWarning('High input loss detected! Consider reducing graphics settings.');
+        } else if (highLatency) {
+          setInputWarning('High input latency detected! Game may feel less responsive.');
+        }
+      } else {
+        setInputWarning(null);
+      }
+    };
+
+    // Check performance every 5 seconds during gameplay
+    const performanceInterval = setInterval(checkInputPerformance, 5000);
+    
+    return () => {
+      clearInterval(performanceInterval);
+    };
+  }, [isGameActive, getSuccessRate, isHighLatency]);
+
+  // Toggle performance monitor with key combination
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Ctrl + Shift + P to toggle performance monitor
+      if (e.ctrlKey && e.shiftKey && e.key === 'P') {
+        setShowPerformanceMonitor(prev => !prev);
+        playClick();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   useEffect(() => {
     if (isGameOver || isVictory) {
       const finalStats = { mode, score, time: Math.floor(gameTime / 1000), foodEaten, speedReached: speedMultiplier };
       setGameStats(finalStats);
       setShowGameOverModal(true);
+      
+      // Reset performance metrics on game end
+      resetPerformanceMetrics();
+      setInputWarning(null);
     }
-  }, [isGameOver, isVictory, mode, score, gameTime, foodEaten, speedMultiplier]);
+  }, [isGameOver, isVictory, mode, score, gameTime, foodEaten, speedMultiplier, resetPerformanceMetrics]);
 
   useEffect(() => {
     if (recentUnlocks.length > 0) {
@@ -200,6 +254,7 @@ const Game = () => {
               score={score} 
               gameTime={gameTime} 
               speed={speed} 
+              speedMultiplier={speedMultiplier}
               foodEaten={foodEaten} 
               gameMode={mode} 
               difficulty={difficulty}
@@ -271,6 +326,29 @@ const Game = () => {
           </div>
         )}
       </Modal>
+
+      {/* Input Performance Monitor - Development only */}
+      {process.env.NODE_ENV === 'development' && (
+        <InputPerformanceMonitor
+          getInputPerformance={getInputPerformance}
+          isVisible={showPerformanceMonitor}
+          position="top-left"
+        />
+      )}
+
+      {/* Input performance warning */}
+      {inputWarning && (
+        <motion.div
+          className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+        >
+          <div className="bg-yellow-500/90 text-black px-4 py-2 rounded-lg text-sm font-semibold">
+            ⚠️ {inputWarning}
+          </div>
+        </motion.div>
+      )}
     </div>
   );
 };

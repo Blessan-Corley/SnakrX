@@ -87,6 +87,22 @@ const HomePage = () => {
     loadLeaderboard();
   }, [getLeaderboardSummary]);
 
+  // Reload data when user profile updates
+  useEffect(() => {
+    // Re-fetch leaderboard when user profile changes (e.g., after game completion)
+    if (userProfile?.stats?.totalGames > 0) {
+      const loadLeaderboard = async () => {
+        try {
+          const summary = await getLeaderboardSummary();
+          setLeaderboardSummary(summary);
+        } catch (error) {
+          console.error('Error refreshing leaderboard summary:', error);
+        }
+      };
+      loadLeaderboard();
+    }
+  }, [userProfile, getLeaderboardSummary]);
+
   // Handle game mode selection
   const handleGameMode = (mode, difficulty = null, playerCount = 1) => {
     playClick();
@@ -102,6 +118,7 @@ const HomePage = () => {
 
   // Get user stats
   const userStats = userProfile?.stats || {};
+  
   const achievementStats = getAchievementStats();
   const nextAchievements = getNextAchievements(3);
 

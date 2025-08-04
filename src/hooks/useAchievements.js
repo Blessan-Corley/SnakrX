@@ -488,14 +488,21 @@ export const useAchievementOperations = () => {
   const loadUserAchievements = useCallback(async () => {
     if (!userProfile?.stats) return;
 
-    setLoading(true);
     try {
       const userAchievements = userProfile.stats.achievements || [];
-      const achievementIds = userAchievements.map(ach => ach.id);
-      setUnlockedAchievements(achievementIds);
+      const unlockedData = userAchievements.map(ach => ({
+        ...getAchievementById(ach.id),
+        unlockedAt: ach.unlockedAt,
+        timestamp: ach.timestamp
+      })).filter(Boolean);
+      
+      if (setUnlockedAchievements) {
+        setUnlockedAchievements(unlockedData);
+      }
       
       // Calculate progress for locked achievements
       const progress = {};
+      const achievementIds = userAchievements.map(ach => ach.id);
       ACHIEVEMENTS.forEach(achievement => {
         if (!achievementIds.includes(achievement.id)) {
           progress[achievement.id] = calculateAchievementProgress(achievement, userProfile.stats);
@@ -503,14 +510,15 @@ export const useAchievementOperations = () => {
           progress[achievement.id] = 100;
         }
       });
-      setAchievementProgress(progress);
+      
+      if (setAchievementProgress) {
+        setAchievementProgress(progress);
+      }
       
     } catch (error) {
       console.error('Error loading achievements:', error);
-    } finally {
-      setLoading(false);
     }
-  }, [userProfile, calculateAchievementProgress, setUnlockedAchievements, setAchievementProgress, setLoading]);
+  }, [userProfile, calculateAchievementProgress, setUnlockedAchievements, setAchievementProgress]);
 
   /**
    * Clear recent unlocks

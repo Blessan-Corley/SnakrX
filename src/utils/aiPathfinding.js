@@ -158,31 +158,35 @@ export class AIStrategy {
     this.difficulty = difficulty;
     this.pathfinder = new AStarPathfinder(boardWidth, boardHeight);
     
-    // Enhanced difficulty settings with more precise control
+    // Enhanced difficulty settings with precise control per user requirements
     this.settings = {
       easy: {
-        optimality: 0.65,        // 65% chance to make optimal move
+        optimality: 0.70,        // 70% optimal pathfinding to food
         lookAhead: 2,            // Look 2 steps ahead
-        avoidancePriority: 0.3,  // Low collision avoidance
-        randomness: 0.35,        // 35% random moves
-        reactionTime: 3,         // Slower reaction (3 game ticks)
-        safetyDistance: 1        // Minimum distance from obstacles
+        avoidancePriority: 0.4,  // Moderate collision avoidance
+        randomness: 0.30,        // 30% sub-optimal moves
+        reactionTime: 2,         // Slightly slower reaction
+        safetyDistance: 1,       // Minimum safety distance
+        selfCollisionAvoidance: 1.0  // Always avoid self-collision
       },
       medium: {
-        optimality: 0.80,        // 80% chance to make optimal move
+        optimality: 0.80,        // 80% optimal pathfinding to food
         lookAhead: 3,            // Look 3 steps ahead
-        avoidancePriority: 0.6,  // Good collision avoidance
-        randomness: 0.20,        // 20% random moves
-        reactionTime: 2,         // Medium reaction (2 game ticks)
-        safetyDistance: 2        // Better safety margin
+        avoidancePriority: 0.7,  // Good collision avoidance
+        randomness: 0.20,        // 20% sub-optimal moves
+        reactionTime: 1,         // Good reaction time
+        safetyDistance: 2,       // Better safety margin
+        selfCollisionAvoidance: 1.0  // Always avoid self-collision
       },
       impossible: {
-        optimality: 1.0,         // 100% optimal moves
-        lookAhead: 5,            // Look 5 steps ahead
-        avoidancePriority: 0.95, // Near-perfect collision avoidance
-        randomness: 0.0,         // No random moves
+        optimality: 0.95,        // 95% optimal - very competitive but not perfect
+        lookAhead: 5,            // Look far ahead
+        avoidancePriority: 0.98, // Near-perfect collision avoidance
+        randomness: 0.05,        // 5% calculated sub-optimal moves for unpredictability
         reactionTime: 0,         // Instant reaction
-        safetyDistance: 3        // Large safety margin
+        safetyDistance: 3,       // Large safety margin
+        selfCollisionAvoidance: 1.0,  // Always avoid self-collision
+        aggressiveness: 0.8      // 80% chance to take aggressive moves
       }
     };
   }

@@ -27,9 +27,8 @@ import {
   arrayUnion,
   increment,
   COLLECTIONS,
-  firestoreOperations,
-  gameOperations,
-} from '@/services/firebase';
+  firestoreOperations
+} from '../services/firebase.js';
 import { isValidEmail, isValidUsername, isValidPassword } from '@/utils/gameUtils';
 import toast from 'react-hot-toast';
 
@@ -108,6 +107,13 @@ export const AuthProvider = ({ children }) => {
   const [userProfile, setUserProfile] = useState(null); // Holds the user profile data from Firestore
   const [loading, setLoading] = useState(true); // General loading state for async operations
   const [initialized, setInitialized] = useState(false); // Tracks if the initial auth check has completed
+  
+  // Refresh user profile manually
+  const refreshProfile = useCallback(async () => {
+    if (user) {
+      await refreshUserProfile(user, setUserProfile);
+    }
+  }, [user]);
 
   // This effect runs once on mount to set up the Firebase auth state listener.
   useEffect(() => {
@@ -139,6 +145,7 @@ export const AuthProvider = ({ children }) => {
               console.warn(`User ${firebaseUser.uid} exists in Auth but not in Firestore. Creating profile...`);
               const newProfile = createDefaultUserProfile(firebaseUser);
               await firestoreOperations.setDocument(userDocRef, newProfile);
+              console.log('✅ New user profile created:', newProfile);
               setUserProfile({ uid: firebaseUser.uid, ...newProfile });
             }
           } catch (error) {
@@ -186,7 +193,8 @@ export const AuthProvider = ({ children }) => {
     user,
     userProfile,
     loading,
-    initialized // This is used by ProtectedRoute and PublicRoute
+    initialized, // This is used by ProtectedRoute and PublicRoute
+    refreshProfile // Function to manually refresh user profile
   };
 
   return (
@@ -206,6 +214,32 @@ export const useAuth = () => {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
+};
+
+/**
+ * Refresh user profile from Firestore
+ */
+export const refreshUserProfile = async (user, setUserProfile) => {
+  if (!user) return;
+  
+  try {
+    const userDocRef = doc(db, COLLECTIONS.USERS, user.uid);
+    const userDoc = await firestoreOperations.getDocument(userDocRef);
+    
+    if (userDoc.exists()) {
+      const userData = userDoc.data();
+      console.log('🔄 User profile refreshed:', userData?.stats);
+      setUserProfile({ 
+        uid: user.uid, 
+        email: user.email, 
+        ...userData 
+      });
+      return userData;
+    }
+  } catch (error) {
+    console.warn('Error refreshing user profile:', error);
+  }
+  return null;
 };
 
 /**
@@ -570,7 +604,20 @@ export const useAuthOperations = () => {
         validatedUpdates['lastActiveAt'] = serverTimestamp();
         
         await firestoreOperations.updateDocument(userDocRef, validatedUpdates);
-        console.log('Stats updated successfully:', validatedUpdates);
+        console.log('✅ Stats updated successfully:', validatedUpdates);
+        
+        // Trigger profile refresh after successful stats update
+        setTimeout(async () => {
+          try {
+            await refreshUserProfile(auth.currentUser, (profile) => {
+              // This will be handled by the auth context
+              console.log('🔄 Profile refresh triggered after stats update');
+            });
+          } catch (error) {
+            console.warn('Could not refresh user profile after stats update:', error);
+          }
+        }, 500); // Small delay to ensure Firestore consistency
+        
         return true;
       }
       

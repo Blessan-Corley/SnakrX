@@ -192,8 +192,7 @@ const GameBoard = memo(({
   // OPTIMIZED: Simplified food rendering
   const renderFood = useCallback(() => {
     if (!food || typeof food.x !== 'number' || typeof food.y !== 'number') {
-      console.warn('Invalid food data:', food);
-      return null;
+      return null; // Silently skip rendering when game is ended
     }
 
     const x = food.x * cellSize;

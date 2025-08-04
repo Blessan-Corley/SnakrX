@@ -36,6 +36,8 @@ import {
 import { AIController } from '@/utils/aiPathfinding';
 import { playFoodEat, playDeath, playVictory } from '@/utils/sound';
 import { useAuth, useAuthOperations } from './useAuth';
+import { useAchievementOperations } from './useAchievements';
+import { gameOperations } from '../services/firebase.js';
 
 const GameContext = createContext({});
 
@@ -68,17 +70,24 @@ const createInitialGameState = () => ({
 });
 
 export const GameProvider = ({ children }) => {
-  const { user, userProfile } = useAuth();
+  const { user, userProfile, refreshProfile } = useAuth();
   const { updateUserStats } = useAuthOperations();
+  const { checkAndUnlockAchievements } = useAchievementOperations();
   
   const [gameState, setGameState] = useState(createInitialGameState);
+  const gameStateRef = useRef(gameState); // Keep current state in ref for animation loop
   
-  // Game loop refs
+  // Game loop refs  
   const gameLoopRef = useRef(null);
   const lastUpdateTimeRef = useRef(0);
   const gameStartTimeRef = useRef(0);
   const pausedTimeRef = useRef(0); // Total time spent paused
   const pauseStartRef = useRef(0); // When current pause started
+  
+  // Update ref whenever state changes
+  useEffect(() => {
+    gameStateRef.current = gameState;
+  }, [gameState]);
 
   // Computed values
   const isGameActive = gameState.gameState === GAME_STATES.PLAYING;
@@ -92,7 +101,8 @@ export const GameProvider = ({ children }) => {
    * FIXED: Proper timer update that stops when paused
    */
   const updateTimer = useCallback(() => {
-    if (!isGameActive || gameState.isPaused || !gameStartTimeRef.current) {
+    const currentGameState = gameStateRef.current;
+    if (currentGameState.gameState !== GAME_STATES.PLAYING || currentGameState.isPaused || !gameStartTimeRef.current) {
       return;
     }
     
@@ -103,20 +113,24 @@ export const GameProvider = ({ children }) => {
       ...prev,
       gameTime: elapsed
     }));
-  }, [isGameActive, gameState.isPaused]);
+  }, []);
 
   /**
    * FIXED: Simplified game update function 
    */
   const updateGame = useCallback(() => {
-    if (!isGameActive || gameState.isPaused) {
+    const currentGameState = gameStateRef.current;
+    
+    if (currentGameState.gameState !== GAME_STATES.PLAYING || currentGameState.isPaused) {
+      // Continue the animation loop even when not updating
+      gameLoopRef.current = requestAnimationFrame(updateGame);
       return;
     }
 
     const now = performance.now();
     
     // Control game speed
-    if (now - lastUpdateTimeRef.current < gameState.speed) {
+    if (now - lastUpdateTimeRef.current < currentGameState.speed) {
       gameLoopRef.current = requestAnimationFrame(updateGame);
       return;
     }
@@ -127,9 +141,9 @@ export const GameProvider = ({ children }) => {
     updateTimer();
 
     // Update snakes with enhanced validation
-    const newSnakes = [...gameState.snakes];
+    const newSnakes = [...currentGameState.snakes];
     let foodConsumed = false;
-    let newFood = gameState.food;
+    let newFood = currentGameState.food;
     let gameEnded = false;
 
     for (let i = 0; i < newSnakes.length; i++) {
@@ -145,13 +159,13 @@ export const GameProvider = ({ children }) => {
       }
 
       // AI logic
-      if (snake.isAI && gameState.aiController) {
+      if (snake.isAI && currentGameState.aiController) {
         try {
           const obstacles = newSnakes
             .filter((s, idx) => idx !== i && s && s.isAlive && Array.isArray(s.body))
             .flatMap(s => s.body);
           
-          const aiDirection = gameState.aiController.getNextMove(
+          const aiDirection = currentGameState.aiController.getNextMove(
             snake.body,
             newFood,
             obstacles,
@@ -181,16 +195,16 @@ export const GameProvider = ({ children }) => {
       };
 
       // Wall collision check
-      if (gameState.gameMode === GAME_MODES.CLASSIC_TRANSPARENT) {
+      if (currentGameState.gameMode === GAME_MODES.CLASSIC_TRANSPARENT) {
         // Wrap around in transparent mode
-        if (newHead.x < 0) newHead.x = gameState.boardSize.width - 1;
-        if (newHead.x >= gameState.boardSize.width) newHead.x = 0;
-        if (newHead.y < 0) newHead.y = gameState.boardSize.height - 1;
-        if (newHead.y >= gameState.boardSize.height) newHead.y = 0;
+        if (newHead.x < 0) newHead.x = currentGameState.boardSize.width - 1;
+        if (newHead.x >= currentGameState.boardSize.width) newHead.x = 0;
+        if (newHead.y < 0) newHead.y = currentGameState.boardSize.height - 1;
+        if (newHead.y >= currentGameState.boardSize.height) newHead.y = 0;
       } else {
         // Normal collision with tracking
-        if (newHead.x < 0 || newHead.x >= gameState.boardSize.width || 
-            newHead.y < 0 || newHead.y >= gameState.boardSize.height) {
+        if (newHead.x < 0 || newHead.x >= currentGameState.boardSize.width || 
+            newHead.y < 0 || newHead.y >= currentGameState.boardSize.height) {
           newSnakes[i] = { ...snake, isAlive: false };
           playDeath();
           
@@ -216,7 +230,6 @@ export const GameProvider = ({ children }) => {
         if (newHead.x === segment.x && newHead.y === segment.y) {
           newSnakes[i] = { ...snake, isAlive: false };
           playDeath();
-          console.log(`Snake ${i} died from self collision at:`, newHead);
           
           // Track self hits for player
           if (i === 0) {
@@ -233,20 +246,20 @@ export const GameProvider = ({ children }) => {
       if (!newSnakes[i].isAlive) continue;
 
       // Check collision with other snakes (multiplayer)
-      if (gameState.playerCount > 1) {
+      if (currentGameState.playerCount > 1) {
         for (let k = 0; k < newSnakes.length; k++) {
           if (k === i) continue; // Skip self
           const otherSnake = newSnakes[k];
           if (!otherSnake || !otherSnake.isAlive || !Array.isArray(otherSnake.body)) continue;
           
-          // Check collision with other snake's body
-          for (const segment of otherSnake.body) {
-            if (segment && segment.x === newHead.x && segment.y === newHead.y) {
-              newSnakes[i] = { ...snake, isAlive: false };
-              playDeath();
-              console.log(`Snake ${i} died from collision with snake ${k} at:`, newHead);
-              break;
-            }
+          // Check collision with other snake's HEAD only (snakes can pass through bodies)
+          const otherHead = otherSnake.body[0];
+          if (otherHead && otherHead.x === newHead.x && otherHead.y === newHead.y) {
+            // Head-to-head collision - both snakes die
+            newSnakes[i] = { ...snake, isAlive: false };
+            newSnakes[k] = { ...otherSnake, isAlive: false };
+            playDeath();
+            break;
           }
           
           if (!newSnakes[i].isAlive) break;
@@ -319,11 +332,11 @@ export const GameProvider = ({ children }) => {
       const allBodies = newSnakes
         .filter(s => s.isAlive)
         .flatMap(s => s.body);
-      newFood = generateFoodPosition(gameState.boardSize.width, gameState.boardSize.height, allBodies);
+      newFood = generateFoodPosition(currentGameState.boardSize.width, currentGameState.boardSize.height, allBodies);
       
       // Update score and speed - ENHANCED PROGRESSION
-      const points = calculatePoints(gameState.gameMode, gameState.difficulty);
-      const newFoodEaten = gameState.foodEaten + 1;
+      const points = calculatePoints(currentGameState.gameMode, currentGameState.difficulty);
+      const newFoodEaten = currentGameState.foodEaten + 1;
       const newSpeed = calculateSpeed(newFoodEaten);
       
       setGameState(prev => ({
@@ -334,27 +347,31 @@ export const GameProvider = ({ children }) => {
       }));
     }
 
-    // Check end conditions with validation
-    const aliveSnakes = newSnakes.filter(s => s && s.isAlive);
-    console.log(`Alive snakes: ${aliveSnakes.length}, Game mode: ${gameState.gameMode}`);
+    // Check end conditions with validation - FIXED AI logic
+    const aliveSnakes = newSnakes.filter(s => s && s.isAlive && Array.isArray(s.body) && s.body.length > 0);
     
-    if (gameState.gameMode === GAME_MODES.CLASSIC && aliveSnakes.length === 0) {
-      gameEnded = true;
-      console.log('Game ended: No snakes alive in classic mode');
-    } else if (gameState.gameMode === GAME_MODES.VS_AI && aliveSnakes.length <= 1) {
-      const humanAlive = aliveSnakes.find(s => !s.isAI);
-      const aiAlive = aliveSnakes.find(s => s.isAI);
-      
-      if (!humanAlive && !aiAlive) {
+    if (currentGameState.gameMode === GAME_MODES.CLASSIC) {
+      // Classic mode - game ends when player dies
+      const playerSnake = aliveSnakes.find(s => s.id === 0);
+      if (!playerSnake) {
         gameEnded = true;
-        console.log('Game ended: Both players dead in VS AI mode');
-      } else if (aliveSnakes.length === 1) {
-        gameEnded = true;
-        console.log('Game ended: Only one player alive in VS AI mode');
       }
-    } else if (gameState.gameMode === GAME_MODES.MULTIPLAYER && aliveSnakes.length <= 1) {
+    } else if (currentGameState.gameMode === GAME_MODES.VS_AI) {
+      // VS AI mode - check who's alive more carefully
+      const humanSnake = aliveSnakes.find(s => !s.isAI && s.id === 0);
+      const aiSnake = aliveSnakes.find(s => s.isAI && s.id === 1);
+      
+      // Game ends only if both are dead OR only one snake remains
+      if (aliveSnakes.length === 0) {
+        // Both dead - draw
+        gameEnded = true;
+      } else if (aliveSnakes.length === 1) {
+        // Only one survivor - someone won
+        gameEnded = true;
+      }
+      // If both are still alive, continue the game
+    } else if (currentGameState.gameMode === GAME_MODES.MULTIPLAYER && aliveSnakes.length <= 1) {
       gameEnded = true;
-      console.log('Game ended: Only one or no players alive in multiplayer mode');
     }
 
     // Update state with validation
@@ -366,8 +383,22 @@ export const GameProvider = ({ children }) => {
       }));
 
       if (gameEnded) {
-        const victory = aliveSnakes.length > 0 && aliveSnakes[0].id === 0;
-        console.log(`Ending game - Victory: ${victory}`);
+        // Determine victory based on game mode
+        let victory = false;
+        
+        if (currentGameState.gameMode === GAME_MODES.CLASSIC) {
+          // In classic mode, no victory - player just survives or dies
+          victory = false;
+        } else if (currentGameState.gameMode === GAME_MODES.VS_AI) {
+          // In VS AI mode, victory if human player is the sole survivor
+          const humanAlive = aliveSnakes.find(s => !s.isAI && s.id === 0);
+          const aiAlive = aliveSnakes.find(s => s.isAI && s.id === 1);
+          victory = humanAlive && !aiAlive; // Human wins if AI is dead and human is alive
+        } else if (currentGameState.gameMode === GAME_MODES.MULTIPLAYER) {
+          // In multiplayer, victory if player 0 is the survivor
+          victory = aliveSnakes.length === 1 && aliveSnakes[0].id === 0;
+        }
+        
         // Stop game loop
         if (gameLoopRef.current) {
           cancelAnimationFrame(gameLoopRef.current);
@@ -395,7 +426,7 @@ export const GameProvider = ({ children }) => {
         isPaused: true
       }));
     }
-  }, [isGameActive, gameState, updateTimer]);
+  }, []); // Keep empty to prevent recreation, access current state via setGameState callback
 
   /**
    * FIXED: Initialize game with proper state reset
@@ -505,11 +536,15 @@ export const GameProvider = ({ children }) => {
    * ENHANCED: Safe direction update with improved 180-degree turn prevention
    */
   const updateSnakeDirection = useCallback((playerId, newDirection) => {
-    console.log(`Direction change requested: Player ${playerId}, Direction:`, newDirection);
-    
     // Validate input parameters
     if (typeof playerId !== 'number' || !newDirection || typeof newDirection.x !== 'number' || typeof newDirection.y !== 'number') {
       console.warn('Invalid direction change parameters:', { playerId, newDirection });
+      return;
+    }
+
+    // Prevent player input from controlling AI snakes
+    const targetSnake = gameState.snakes[playerId];
+    if (targetSnake && targetSnake.isAI) {
       return;
     }
     
@@ -541,8 +576,7 @@ export const GameProvider = ({ children }) => {
           } else {
             // Allow any direction change for single-segment snakes
             newSnakes[playerId] = { ...snake, direction: newDirection };
-            console.log(`Direction changed for player ${playerId} (single segment):`, newDirection);
-          }
+              }
         }
         return { ...prev, snakes: newSnakes };
       });
@@ -581,8 +615,7 @@ export const GameProvider = ({ children }) => {
         } else {
           // Allow any direction change for single-segment snakes (game start)
           newSnakes[playerId] = { ...snake, direction: newDirection };
-          console.log(`Direction changed for player ${playerId} (single segment):`, newDirection);
-        }
+          }
       }
       return { ...prev, snakes: newSnakes };
     });
@@ -679,120 +712,111 @@ export const GameProvider = ({ children }) => {
     try {
       console.log('Saving game data to Firebase...');
       
-      // Complete game session data
+      // Clean MVP game session data - only essential fields
       const gameSessionData = {
         gameId: gameState.gameId,
         userId: user.uid,
         username: userProfile?.username || userProfile?.displayName || user.email.split('@')[0],
         mode: gameState.gameMode,
-        difficulty: gameState.difficulty,
-        playerCount: gameState.playerCount,
         score: gameState.score,
-        duration: Math.max(0, Math.floor(gameState.gameTime)), // Ensure positive duration
+        duration: Math.max(0, Math.floor(gameState.gameTime)),
         foodEaten: gameState.foodEaten,
         speedReached: getSpeedMultiplier(gameState.speed),
         result: victory ? 'won' : 'lost',
-        startedAt: gameState.startTime || Date.now(), // Fallback to current time
-        endedAt: Date.now(),
-        stats: {
-          moves: gameState.moves || 0,
-          wallHits: gameState.wallHits || 0,
-          selfHits: gameState.selfHits || 0,
-          maxLength: gameState.snakes[0]?.body?.length || 1,
-          averageSpeed: getSpeedMultiplier(gameState.speed),
-          efficiency: gameState.gameTime > 0 ? gameState.score / gameState.gameTime : 0,
-          timeToFirstFood: gameState.timeToFirstFood || 0,
-          timeToMaxLength: gameState.timeToMaxLength || 0
-        },
-        performance: {
-          fps: 60, // Could be tracked if needed
-          inputLag: 0,
-          renderTime: 0,
-          memoryUsage: 0
-        }
+        maxLength: gameState.snakes[0]?.body?.length || 1,
+        endedAt: Date.now()
       };
 
       // Save game session to Firebase
       try {
-        const { gameOperations } = await import('@/services/firebase');
-        await gameOperations.saveGameSession(user.uid, gameSessionData);
-        console.log('Game session saved to Firebase');
+        console.log('Attempting to save game session with data:', gameSessionData);
+        const gameId = await gameOperations.saveGameSession(user.uid, gameSessionData);
+        if (gameId) {
+          console.log('Game session saved to Firebase with ID:', gameId);
+        } else {
+          console.error('Game session save returned null - save failed');
+        }
       } catch (error) {
-        console.warn('Failed to save game session:', error);
+        console.error('Failed to save game session:', error);
+        console.error('Error details:', error.message, error.code);
       }
 
-      // Update user statistics
+      // Clean MVP user statistics - only essential stats
       const statUpdates = {
         totalGames: 1,
         totalScore: gameState.score,
-        totalPlayTime: Math.max(0, Math.floor(gameState.gameTime)), // Ensure positive time
-        foodEaten: gameState.foodEaten,
         bestScore: gameState.score,
-        maxSurvivalTime: Math.max(0, Math.floor(gameState.gameTime)), // Ensure positive time
-        maxSpeed: getSpeedMultiplier(gameState.speed)
+        foodEaten: gameState.foodEaten,
+        maxSpeed: getSpeedMultiplier(gameState.speed),
+        maxLength: gameState.snakes[0]?.body?.length || 1
       };
 
-      // Win-specific stats
+      // Win tracking
       if (victory) {
         statUpdates.totalWins = 1;
-        statUpdates.currentWinStreak = (userProfile?.stats?.currentWinStreak || 0) + 1;
-        statUpdates.bestWinStreak = Math.max(statUpdates.currentWinStreak, userProfile?.stats?.bestWinStreak || 0);
-      } else {
-        statUpdates.currentWinStreak = 0;
-      }
-
-      // Mode-specific statistics  
-      switch (gameState.gameMode) {
-        case 'classic':
-          statUpdates.classicGames = 1;
-          statUpdates.classicBestScore = gameState.score;
-          if (victory) statUpdates.classicWins = 1;
-          break;
-        case 'vsai':
-          statUpdates.vsAIGames = 1;
-          statUpdates.vsAIBestScore = gameState.score;
-          if (victory) {
-            statUpdates.vsAIWins = 1;
-            switch (gameState.difficulty) {
-              case 'easy': statUpdates.aiEasyWins = 1; break;
-              case 'medium': statUpdates.aiMediumWins = 1; break;
-              case 'impossible': statUpdates.aiImpossibleWins = 1; break;
-            }
-          }
-          break;
-        case 'multiplayer':
-          statUpdates.multiplayerGames = 1;
-          statUpdates.multiplayerBestScore = gameState.score;
-          if (victory) statUpdates.multiplayerWins = 1;
-          break;
       }
 
       console.log('Updating user stats:', statUpdates);
       const success = await updateUserStats(statUpdates);
       if (success) {
         console.log('User stats updated successfully');
+        
+        // Force refresh of user profile to update UI
+        if (refreshProfile) {
+          setTimeout(() => {
+            console.log('🔄 Forcing profile refresh after game save...');
+            refreshProfile();
+          }, 1000);
+        }
       } else {
         console.warn('Failed to update user stats (offline mode)');
+      }
+
+      // Check and unlock achievements based on game performance
+      try {
+        const achievementGameStats = {
+          // Map to achievement property names
+          games: (userProfile?.stats?.totalGames || 0) + 1,
+          wins: victory ? (userProfile?.stats?.totalWins || 0) + 1 : (userProfile?.stats?.totalWins || 0),
+          score: Math.max(userProfile?.stats?.bestScore || 0, gameState.score),
+          maxSpeed: Math.max(userProfile?.stats?.maxSpeed || 1, getSpeedMultiplier(gameState.speed)),
+          foodEaten: (userProfile?.stats?.foodEaten || 0) + gameState.foodEaten,
+          maxLength: Math.max(userProfile?.stats?.maxLength || 1, gameState.snakes[0]?.body?.length || 1),
+          // Current game specific
+          currentScore: gameState.score,
+          currentSpeed: getSpeedMultiplier(gameState.speed),
+          singleGameFood: gameState.foodEaten
+        };
+        
+        console.log('Checking achievements with stats:', achievementGameStats);
+        await checkAndUnlockAchievements(achievementGameStats);
+      } catch (error) {
+        console.error('Error checking achievements:', error);
       }
 
       // Update leaderboard if score is significant
       if (gameState.score > 0) {
         try {
-          const { gameOperations } = await import('@/services/firebase');
-          await gameOperations.updateLeaderboard(user.uid, {
+          console.log('Attempting to update leaderboard for user:', user.uid);
+          const leaderboardData = {
             ...gameSessionData,
-            username: userProfile?.username || user.email.split('@')[0]
-          });
-          console.log('Leaderboard updated');
+            username: userProfile?.username || userProfile?.displayName || user.email.split('@')[0]
+          };
+          console.log('Leaderboard data being sent:', leaderboardData);
+          await gameOperations.updateLeaderboard(user.uid, leaderboardData);
+          console.log('Leaderboard updated successfully');
         } catch (error) {
-          console.warn('Failed to update leaderboard:', error);
+          console.error('Failed to update leaderboard:', error);
+          console.error('Leaderboard error details:', error.message, error.code);
         }
+      } else {
+        console.log('Score is 0, skipping leaderboard update');
       }
 
     } catch (error) {
       console.error('Error saving game data:', error);
     }
-  }, [user, userProfile, gameState, updateUserStats, getSpeedMultiplier]);
+  }, [user, userProfile, gameState, updateUserStats, getSpeedMultiplier, checkAndUnlockAchievements]);
 
   /**
    * Quit to menu
@@ -810,17 +834,17 @@ export const GameProvider = ({ children }) => {
    * Start game loop when playing and not paused - FIXED DEPENDENCIES
    */
   useEffect(() => {
-    console.log('Game loop effect triggered:', { isGameActive, isPaused: gameState.isPaused, hasLoop: !!gameLoopRef.current });
+    console.log('🔄 Game loop effect - isGameActive:', isGameActive, 'isPaused:', gameState.isPaused, 'hasLoop:', !!gameLoopRef.current);
     
     if (isGameActive && !gameState.isPaused) {
       if (!gameLoopRef.current) {
-        console.log('Starting game loop...');
+        console.log('🚀 Starting game loop...');
         gameLoopRef.current = requestAnimationFrame(updateGame);
       }
     } else {
       // Stop game loop if not active or paused
       if (gameLoopRef.current) {
-        console.log('Stopping game loop due to pause/inactive...');
+        console.log('⏹️ Stopping game loop...');
         cancelAnimationFrame(gameLoopRef.current);
         gameLoopRef.current = null;
       }
@@ -828,12 +852,11 @@ export const GameProvider = ({ children }) => {
     
     return () => {
       if (gameLoopRef.current) {
-        console.log('Cleanup: Stopping game loop...');
         cancelAnimationFrame(gameLoopRef.current);
         gameLoopRef.current = null;
       }
     };
-  }, [isGameActive, gameState.isPaused, updateGame]);
+  }, [isGameActive, gameState.isPaused]); // Removed updateGame to prevent infinite loops
 
   /**
    * Context value

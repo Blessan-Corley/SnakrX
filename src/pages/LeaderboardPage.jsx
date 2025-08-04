@@ -52,6 +52,7 @@ const LeaderboardPage = () => {
         ...doc.data(),
       }));
       
+      
       setAllUsers(data);
     } catch (err) {
       console.error('Error loading leaderboard:', err);
@@ -65,6 +66,13 @@ const LeaderboardPage = () => {
   useEffect(() => {
     fetchAllUsers();
   }, [fetchAllUsers]);
+
+  // Refetch when user profile changes (e.g., after playing a game)
+  useEffect(() => {
+    if (userProfile?.stats?.totalGames > 0) {
+      fetchAllUsers();
+    }
+  }, [userProfile?.stats?.totalGames, fetchAllUsers]);
 
   // Effect to filter and sort data when filters or data change
   useEffect(() => {
@@ -159,8 +167,17 @@ const LeaderboardPage = () => {
                     className="bg-white/10 border border-white/20 rounded-lg pl-10 pr-4 py-2 text-white text-sm w-full md:w-48"
                   />
                 </div>
-                <Button variant="ghost" size="icon" onClick={fetchAllUsers} disabled={loading} aria-label="Refresh">
-                  <RefreshCw size={16} />
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => {
+                    playClick();
+                    fetchAllUsers();
+                  }} 
+                  disabled={loading} 
+                  aria-label="Refresh"
+                >
+                  <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
                 </Button>
               </div>
             </div>
