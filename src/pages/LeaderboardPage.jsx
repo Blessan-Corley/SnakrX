@@ -8,13 +8,13 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy, Crown, Users, Target, RefreshCw, Gamepad2, Zap, Search, ChevronDown } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
-import Button from '@/components/ui/Button';
-import Card, { StatsCard } from '@/components/ui/Card';
-import LoadingSpinner, { ListSkeleton } from '@/components/ui/LoadingSpinner';
-import { playClick } from '@/utils/sound';
-import { formatScore } from '@/utils/gameUtils';
-import { collection, query, orderBy, limit, where, getDocs, db } from '@/services/firebase';
+import { useAuth } from '../hooks/useAuth.js';
+import Button from '../components/ui/Button.jsx';
+import Card, { StatsCard } from '../components/ui/Card.jsx';
+import LoadingSpinner, { ListSkeleton } from '../components/ui/LoadingSpinner.jsx';
+import { playClick } from '../utils/sound.js';
+import { formatScore } from '../utils/gameUtils.js';
+import { collection, query, orderBy, limit, where, getDocs, db } from '../services/firebase.js';
 
 const LeaderboardPage = () => {
   const { userProfile } = useAuth();
@@ -33,8 +33,8 @@ const LeaderboardPage = () => {
   const gameModes = useMemo(() => [
     { id: 'bestScore', name: 'All Modes', icon: <Gamepad2 size={16} /> },
     { id: 'classicBestScore', name: 'Classic', icon: <Target size={16} /> },
-    { id: 'vsAIGames', name: 'VS AI Wins', icon: <Zap size={16} /> },
-    { id: 'multiplayerGames', name: 'Multiplayer Wins', icon: <Users size={16} /> }
+    { id: 'vsaiBestScore', name: 'VS AI Best', icon: <Zap size={16} /> },
+    { id: 'multiplayerBestScore', name: 'Multiplayer Best', icon: <Users size={16} /> }
   ], []);
 
   // Fetch all user data once
@@ -212,8 +212,8 @@ const LeaderboardPage = () => {
                               {badge.icon}
                             </div>
                             <div>
-                              <p className={`font-bold truncate ${entry.isCurrentUser ? 'text-primary-300' : 'text-white'}`}>{entry.displayName}</p>
-                              <p className="text-xs text-white/60">Best Score</p>
+                              <p className={`font-bold truncate ${entry.isCurrentUser ? 'text-primary-300' : 'text-white'}`}>{entry.displayName || entry.username || 'Unknown Player'}</p>
+                              <p className="text-xs text-white/60">{gameModes.find(m => m.id === selectedMode)?.name || 'Score'}</p>
                             </div>
                           </div>
                           <div className="text-right">

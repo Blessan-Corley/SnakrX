@@ -32,9 +32,9 @@ import {
   getStartingDirections,
   isMobile,
   generateGameId
-} from '@/utils/gameUtils';
-import { AIController } from '@/utils/aiPathfinding';
-import { playFoodEat, playDeath, playVictory } from '@/utils/sound';
+} from '../utils/gameUtils.js';
+import { AIController } from '../utils/aiPathfinding.js';
+import { playFoodEat, playDeath, playVictory } from '../utils/sound.js';
 import { useAuth, useAuthOperations } from './useAuth';
 import { useAchievementOperations } from './useAchievements';
 import { gameOperations } from '../services/firebase.js';
@@ -129,13 +129,15 @@ export const GameProvider = ({ children }) => {
 
     const now = performance.now();
     
-    // Control game speed
-    if (now - lastUpdateTimeRef.current < currentGameState.speed) {
+    // Smooth game speed control with proper frame time management
+    const deltaTime = now - lastUpdateTimeRef.current;
+    if (deltaTime < currentGameState.speed) {
       gameLoopRef.current = requestAnimationFrame(updateGame);
       return;
     }
     
-    lastUpdateTimeRef.current = now;
+    // Set last update time to maintain consistent intervals
+    lastUpdateTimeRef.current = now - (deltaTime % currentGameState.speed);
 
     // Update timer
     updateTimer();
@@ -533,7 +535,7 @@ export const GameProvider = ({ children }) => {
   }, []);
 
   /**
-   * ENHANCED: Safe direction update with improved 180-degree turn prevention
+   * FIXED: Responsive direction update with simplified validation
    */
   const updateSnakeDirection = useCallback((playerId, newDirection) => {
     // Validate input parameters
@@ -542,84 +544,72 @@ export const GameProvider = ({ children }) => {
       return;
     }
 
+    // Get current game state to avoid stale closure issues
+    const currentState = gameStateRef.current;
+    
     // Prevent player input from controlling AI snakes
-    const targetSnake = gameState.snakes[playerId];
+    const targetSnake = currentState.snakes[playerId];
     if (targetSnake && targetSnake.isAI) {
       return;
     }
     
     // Auto-start game if in READY state - INSTANT
-    if (gameState.gameState === GAME_STATES.READY) {
+    if (currentState.gameState === GAME_STATES.READY) {
       startGame();
-      // Also immediately update direction for instant response
-      setGameState(prev => {
-        const newSnakes = [...prev.snakes];
-        if (playerId >= 0 && playerId < newSnakes.length && newSnakes[playerId] && newSnakes[playerId].isAlive) {
-          const snake = newSnakes[playerId];
-          
-          // IMPROVED 180-degree turn prevention - only check if snake has moved (length > 1)
-          if (snake.body && snake.body.length > 1) {
-            const currentDir = snake.direction;
-            const isExactOpposite = (
-              currentDir.x + newDirection.x === 0 && 
-              currentDir.y + newDirection.y === 0 &&
-              (currentDir.x !== 0 || currentDir.y !== 0) &&
-              (newDirection.x !== 0 || newDirection.y !== 0)
-            );
-            
-            if (!isExactOpposite) {
-              newSnakes[playerId] = { ...snake, direction: newDirection };
-              console.log(`Direction changed for player ${playerId}:`, newDirection);
-            } else {
-              console.log(`180-degree turn blocked for player ${playerId} - snake length: ${snake.body.length}`);
-            }
-          } else {
-            // Allow any direction change for single-segment snakes
-            newSnakes[playerId] = { ...snake, direction: newDirection };
-              }
-        }
-        return { ...prev, snakes: newSnakes };
-      });
-      return;
     }
     
     // Only block if game is completely over
-    if (gameState.gameState === GAME_STATES.GAME_OVER || gameState.gameState === GAME_STATES.VICTORY) {
+    if (currentState.gameState === GAME_STATES.GAME_OVER || currentState.gameState === GAME_STATES.VICTORY) {
       return;
     }
 
-    // SAFE Direction change with IMPROVED validation to prevent 180-degree turns
+    // IMPROVED Direction change with smart collision prevention
     setGameState(prev => {
       const newSnakes = [...prev.snakes];
       if (playerId >= 0 && playerId < newSnakes.length && newSnakes[playerId] && newSnakes[playerId].isAlive) {
         const snake = newSnakes[playerId];
         
-        // IMPROVED 180-degree turn prevention - only check if snake has moved (length > 1)
+        // Enhanced direction validation with better sharp turn handling
+        let canChangeDirection = true;
         if (snake.body && snake.body.length > 1) {
           const currentDir = snake.direction;
+          const head = snake.body[0];
           
-          // More precise opposite direction check
-          const isExactOpposite = (
-            currentDir.x + newDirection.x === 0 && 
-            currentDir.y + newDirection.y === 0 &&
-            (currentDir.x !== 0 || currentDir.y !== 0) &&
-            (newDirection.x !== 0 || newDirection.y !== 0)
+          // Check for direct opposite (180-degree turn) - only block if snake length > 1
+          const isDirectOpposite = (
+            currentDir.x === -newDirection.x && 
+            currentDir.y === -newDirection.y &&
+            Math.abs(currentDir.x) + Math.abs(currentDir.y) === 1 && // Valid direction vectors
+            Math.abs(newDirection.x) + Math.abs(newDirection.y) === 1
           );
           
-          if (!isExactOpposite) {
-            newSnakes[playerId] = { ...snake, direction: newDirection };
-            console.log(`Direction changed for player ${playerId}:`, newDirection);
-          } else {
-            console.log(`180-degree turn blocked for player ${playerId} - current:`, currentDir, 'new:', newDirection);
+          // Additional check: would this direction immediately collide with neck?
+          let wouldCollideWithNeck = false;
+          if (snake.body.length > 1 && head) {
+            const neck = snake.body[1];
+            const nextHead = {
+              x: head.x + newDirection.x,
+              y: head.y + newDirection.y
+            };
+            wouldCollideWithNeck = (neck && nextHead.x === neck.x && nextHead.y === neck.y);
           }
-        } else {
-          // Allow any direction change for single-segment snakes (game start)
+          
+          // Block if it's a direct opposite OR would collide with neck
+          if (isDirectOpposite || wouldCollideWithNeck) {
+            canChangeDirection = false;
+            console.log(`Invalid direction blocked for player ${playerId}: opposite=${isDirectOpposite}, neckCollision=${wouldCollideWithNeck}`);
+          }
+        }
+        
+        // Allow all other direction changes (including sharp 90-degree turns)
+        if (canChangeDirection) {
           newSnakes[playerId] = { ...snake, direction: newDirection };
-          }
+          console.log(`Direction changed for player ${playerId}:`, newDirection);
+        }
       }
       return { ...prev, snakes: newSnakes };
     });
-  }, [gameState.gameState, startGame]);
+  }, [startGame]);
 
   /**
    * FIXED: Toggle pause with proper timer handling
@@ -712,18 +702,31 @@ export const GameProvider = ({ children }) => {
     try {
       console.log('Saving game data to Firebase...');
       
-      // Clean MVP game session data - only essential fields
+      // Complete game session data with proper mapping
       const gameSessionData = {
         gameId: gameState.gameId,
         userId: user.uid,
         username: userProfile?.username || userProfile?.displayName || user.email.split('@')[0],
         mode: gameState.gameMode,
+        difficulty: gameState.difficulty || null,
+        playerCount: gameState.playerCount || 1,
         score: gameState.score,
         duration: Math.max(0, Math.floor(gameState.gameTime)),
         foodEaten: gameState.foodEaten,
         speedReached: getSpeedMultiplier(gameState.speed),
         result: victory ? 'won' : 'lost',
         maxLength: gameState.snakes[0]?.body?.length || 1,
+        stats: {
+          moves: gameState.moves || 0,
+          wallHits: gameState.wallHits || 0,
+          selfHits: gameState.selfHits || 0,
+          maxLength: gameState.snakes[0]?.body?.length || 1,
+          averageSpeed: getSpeedMultiplier(gameState.speed),
+          efficiency: gameState.score > 0 && gameState.moves > 0 ? gameState.score / gameState.moves : 0,
+          timeToFirstFood: gameState.timeToFirstFood || 0,
+          timeToMaxLength: gameState.timeToMaxLength || 0
+        },
+        startedAt: gameState.startTime || Date.now(),
         endedAt: Date.now()
       };
 
@@ -741,19 +744,52 @@ export const GameProvider = ({ children }) => {
         console.error('Error details:', error.message, error.code);
       }
 
-      // Clean MVP user statistics - only essential stats
+      // Comprehensive user statistics with proper field mapping
       const statUpdates = {
+        // Basic game stats
         totalGames: 1,
         totalScore: gameState.score,
         bestScore: gameState.score,
         foodEaten: gameState.foodEaten,
         maxSpeed: getSpeedMultiplier(gameState.speed),
-        maxLength: gameState.snakes[0]?.body?.length || 1
+        maxLength: gameState.snakes[0]?.body?.length || 1,
+        
+        // Advanced tracking stats
+        wallHits: gameState.wallHits || 0,
+        selfHits: gameState.selfHits || 0,
+        moves: gameState.moves || 0,
+        
+        // Time and survival stats
+        totalPlayTime: Math.max(0, Math.floor(gameState.gameTime)),
+        maxSurvivalTime: Math.max(0, Math.floor(gameState.gameTime)),
+        
+        // Mode-specific stats
+        [`${gameState.gameMode.replace('_', '')}Games`]: 1,
+        [`${gameState.gameMode.replace('_', '')}BestScore`]: gameState.score
       };
 
-      // Win tracking
+      // Win tracking and streaks
       if (victory) {
         statUpdates.totalWins = 1;
+        statUpdates[`${gameState.gameMode.replace('_', '')}Wins`] = 1;
+        
+        // Update win streak (this would need current streak from profile)
+        const currentStreak = userProfile?.stats?.currentWinStreak || 0;
+        statUpdates.currentWinStreak = currentStreak + 1;
+        statUpdates.bestWinStreak = currentStreak + 1;
+      } else {
+        // Reset current win streak on loss
+        statUpdates.currentWinStreak = 0;
+      }
+
+      // Special tracking for achievements
+      if (gameState.gameTime < 5) {
+        statUpdates.quickDeaths = 1; // Track quick deaths for achievements
+      }
+      
+      // Difficulty-specific AI wins
+      if (gameState.gameMode === 'vsai' && victory && gameState.difficulty) {
+        statUpdates[`ai${gameState.difficulty.charAt(0).toUpperCase() + gameState.difficulty.slice(1)}Wins`] = 1;
       }
 
       console.log('Updating user stats:', statUpdates);
@@ -775,17 +811,43 @@ export const GameProvider = ({ children }) => {
       // Check and unlock achievements based on game performance
       try {
         const achievementGameStats = {
-          // Map to achievement property names
+          // Map to achievement property names that match achievements.js requirements
           games: (userProfile?.stats?.totalGames || 0) + 1,
           wins: victory ? (userProfile?.stats?.totalWins || 0) + 1 : (userProfile?.stats?.totalWins || 0),
-          score: Math.max(userProfile?.stats?.bestScore || 0, gameState.score),
+          totalScore: (userProfile?.stats?.totalScore || 0) + gameState.score,
+          bestScore: Math.max(userProfile?.stats?.bestScore || 0, gameState.score),
+          singleScore: gameState.score, // For achievements that check single game score
           maxSpeed: Math.max(userProfile?.stats?.maxSpeed || 1, getSpeedMultiplier(gameState.speed)),
           foodEaten: (userProfile?.stats?.foodEaten || 0) + gameState.foodEaten,
+          singleGameFood: gameState.foodEaten, // For single game food achievements
           maxLength: Math.max(userProfile?.stats?.maxLength || 1, gameState.snakes[0]?.body?.length || 1),
-          // Current game specific
-          currentScore: gameState.score,
-          currentSpeed: getSpeedMultiplier(gameState.speed),
-          singleGameFood: gameState.foodEaten
+          
+          // Time and survival stats for achievements
+          survivalTime: Math.max(0, Math.floor(gameState.gameTime)),
+          maxSurvivalTime: Math.max(userProfile?.stats?.maxSurvivalTime || 0, Math.floor(gameState.gameTime)),
+          
+          // Streak tracking
+          winStreak: victory ? (userProfile?.stats?.currentWinStreak || 0) + 1 : 0,
+          bestWinStreak: victory ? Math.max(userProfile?.stats?.bestWinStreak || 0, (userProfile?.stats?.currentWinStreak || 0) + 1) : (userProfile?.stats?.bestWinStreak || 0),
+          
+          // Failure stats for funny achievements
+          wallHits: (userProfile?.stats?.wallHits || 0) + (gameState.wallHits || 0),
+          selfHits: (userProfile?.stats?.selfHits || 0) + (gameState.selfHits || 0),
+          quickDeaths: gameState.gameTime < 5 ? (userProfile?.stats?.quickDeaths || 0) + 1 : (userProfile?.stats?.quickDeaths || 0),
+          
+          // AI specific achievements
+          aiWins: gameState.gameMode === 'vsai' && victory ? (userProfile?.stats?.totalWins || 0) + 1 : (userProfile?.stats?.totalWins || 0),
+          aiEasyWins: gameState.gameMode === 'vsai' && victory && gameState.difficulty === 'easy' ? (userProfile?.stats?.aiEasyWins || 0) + 1 : (userProfile?.stats?.aiEasyWins || 0),
+          aiMediumWins: gameState.gameMode === 'vsai' && victory && gameState.difficulty === 'medium' ? (userProfile?.stats?.aiMediumWins || 0) + 1 : (userProfile?.stats?.aiMediumWins || 0),
+          aiImpossibleWins: gameState.gameMode === 'vsai' && victory && gameState.difficulty === 'impossible' ? (userProfile?.stats?.aiImpossibleWins || 0) + 1 : (userProfile?.stats?.aiImpossibleWins || 0),
+          
+          // Multiplayer achievements  
+          multiplayerGames: gameState.gameMode === 'multiplayer' ? (userProfile?.stats?.multiplayerGames || 0) + 1 : (userProfile?.stats?.multiplayerGames || 0),
+          multiplayerWins: gameState.gameMode === 'multiplayer' && victory ? (userProfile?.stats?.multiplayerWins || 0) + 1 : (userProfile?.stats?.multiplayerWins || 0),
+          
+          // Special achievements
+          transparentScore: gameState.gameMode === 'classictransparent' ? gameState.score : (userProfile?.stats?.transparentScore || 0),
+          perfectGame: (gameState.wallHits || 0) === 0 && (gameState.selfHits || 0) === 0 && gameState.score > 0
         };
         
         console.log('Checking achievements with stats:', achievementGameStats);

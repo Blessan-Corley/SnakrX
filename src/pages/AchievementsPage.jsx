@@ -20,14 +20,14 @@ import {
   Gamepad2,
   Sparkles
 } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
-import { useAchievementOperations } from '@/hooks/useAchievements';
-import Button from '@/components/ui/Button';
-import Card, { AchievementCard, StatsCard } from '@/components/ui/Card';
-import Modal from '@/components/ui/Modal';
-import LoadingSpinner, { CardSkeleton } from '@/components/ui/LoadingSpinner';
-import { playClick } from '@/utils/sound';
-import { ACHIEVEMENT_CATEGORIES, ACHIEVEMENT_TIERS } from '@/data/achievements';
+import { useAuth } from '../hooks/useAuth.js';
+import { useAchievementOperations } from '../hooks/useAchievements.js';
+import Button from '../components/ui/Button.jsx';
+import Card, { AchievementCard, StatsCard } from '../components/ui/Card.jsx';
+import Modal from '../components/ui/Modal.jsx';
+import LoadingSpinner, { CardSkeleton } from '../components/ui/LoadingSpinner.jsx';
+import { playClick } from '../utils/sound.js';
+import { ACHIEVEMENT_CATEGORIES, ACHIEVEMENT_TIERS } from '../data/achievements.js';
 
 /**
  * Achievements Page Component
@@ -46,9 +46,13 @@ const AchievementsPage = () => {
     getAchievementStats,
     isAchievementUnlocked,
     getAchievementProgress,
+    calculateAchievementProgress,
     shareAchievement,
     getTotalPointsEarned,
-    getCompletionPercentage
+    getCompletionPercentage,
+    collectAchievement,
+    collectAllAchievements,
+    uncollectedAchievements
   } = useAchievementOperations();
 
   // State
@@ -219,6 +223,62 @@ const AchievementsPage = () => {
           </Card>
         </motion.div>
 
+        {/* Uncollected Achievements Banner */}
+        {uncollectedAchievements.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+            className="mb-8"
+          >
+            <Card variant="gradient" padding="lg" className="border-yellow-500/30 bg-gradient-to-r from-yellow-500/10 to-orange-500/10">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="text-4xl animate-bounce">🎁</div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white mb-1">
+                      {uncollectedAchievements.length} Achievement{uncollectedAchievements.length > 1 ? 's' : ''} Ready to Collect!
+                    </h3>
+                    <p className="text-white/80">
+                      Earn {uncollectedAchievements.reduce((sum, ach) => sum + ach.points, 0)} achievement points
+                    </p>
+                  </div>
+                </div>
+                <div className="flex space-x-3">
+                  <Button
+                    variant="secondary"
+                    size="lg"
+                    onClick={() => collectAllAchievements()}
+                    icon={<Sparkles size={20} />}
+                    className="animate-pulse"
+                  >
+                    Collect All
+                  </Button>
+                </div>
+              </div>
+              
+              {/* Preview of uncollected achievements */}
+              <div className="mt-4 flex flex-wrap gap-2">
+                {uncollectedAchievements.slice(0, 5).map((achievement) => (
+                  <div
+                    key={achievement.id}
+                    className="flex items-center space-x-2 bg-white/10 rounded-full px-3 py-1 text-sm"
+                  >
+                    <span className="text-lg">{achievement.icon}</span>
+                    <span className="text-white font-medium">{achievement.title}</span>
+                    <span className="text-yellow-300 font-bold">+{achievement.points}</span>
+                  </div>
+                ))}
+                {uncollectedAchievements.length > 5 && (
+                  <div className="flex items-center justify-center bg-white/10 rounded-full px-3 py-1 text-sm text-white/70">
+                    +{uncollectedAchievements.length - 5} more
+                  </div>
+                )}
+              </div>
+            </Card>
+          </motion.div>
+        )}
+
         {/* Filters */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -375,7 +435,7 @@ const AchievementsPage = () => {
               <AnimatePresence>
                 {filteredAchievements.map((achievement, index) => {
                   const isUnlocked = isAchievementUnlocked(achievement.id);
-                  const progress = getAchievementProgress(achievement.id);
+                  const progress = isUnlocked ? 100 : (userProfile?.stats ? calculateAchievementProgress(achievement, userProfile.stats) : 0);
                   const tierStyling = getTierStyling(achievement.tier);
 
                   return (
@@ -458,15 +518,40 @@ const AchievementsPage = () => {
                             </div>
                           )}
 
-                          {/* Unlocked Indicator */}
-                          {isUnlocked && (
-                            <div className="absolute top-2 right-2">
-                              <CheckCircle size={20} className="text-green-400" />
-                            </div>
-                          )}
+                          {/* Collection/Status Indicators */}
+                          {(() => {
+                            const isUncollected = uncollectedAchievements.some(ach => ach.id === achievement.id);
+                            const isCollected = isUnlocked && !isUncollected;
 
-                          {/* Share Button for Unlocked Achievements */}
-                          {isUnlocked && (
+                            if (isUncollected) {
+                              return (
+                                <div className="absolute top-2 right-2">
+                                  <Button
+                                    variant="primary"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      collectAchievement(achievement.id);
+                                    }}
+                                    icon={<Sparkles size={16} />}
+                                    className="animate-pulse"
+                                  >
+                                    Collect
+                                  </Button>
+                                </div>
+                              );
+                            } else if (isCollected) {
+                              return (
+                                <div className="absolute top-2 right-2">
+                                  <CheckCircle size={20} className="text-green-400" />
+                                </div>
+                              );
+                            }
+                            return null;
+                          })()}
+
+                          {/* Share Button for Collected Achievements */}
+                          {isUnlocked && !uncollectedAchievements.some(ach => ach.id === achievement.id) && (
                             <div className="absolute bottom-2 right-2">
                               <Button
                                 variant="minimal"
@@ -588,12 +673,12 @@ const AchievementsPage = () => {
                 <div className="bg-white/5 rounded-lg p-3 mb-4">
                   <div className="flex justify-between text-sm text-white/70 mb-2">
                     <span>Progress</span>
-                    <span>{getAchievementProgress(selectedAchievement.id)}%</span>
+                    <span>{userProfile?.stats ? calculateAchievementProgress(selectedAchievement, userProfile.stats) : 0}%</span>
                   </div>
                   <div className="w-full bg-white/10 rounded-full h-2">
                     <div 
                       className="bg-primary-500 h-2 rounded-full transition-all duration-500"
-                      style={{ width: `${getAchievementProgress(selectedAchievement.id)}%` }}
+                      style={{ width: `${userProfile?.stats ? calculateAchievementProgress(selectedAchievement, userProfile.stats) : 0}%` }}
                     />
                   </div>
                 </div>

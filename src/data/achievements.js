@@ -463,13 +463,69 @@ export const getAchievementById = (id) => {
   return ACHIEVEMENTS.find(achievement => achievement.id === id);
 };
 
-// Achievement requirements validation
+// Achievement requirements validation with better logging
 export const checkAchievementRequirements = (achievement, userStats) => {
+  if (!achievement || !achievement.requirements || !userStats) {
+    console.warn('Invalid parameters for achievement checking:', { achievement, userStats });
+    return false;
+  }
+  
   const { requirements } = achievement;
   
+  // Special handling for AI difficulty-specific achievements
+  if (achievement.id === 'ai_slayer') {
+    const aiWins = userStats.aiEasyWins || 0;
+    return aiWins >= (requirements.aiWins || 1);
+  }
+  
+  if (achievement.id === 'ai_hunter') {
+    const aiWins = userStats.aiMediumWins || 0;
+    return aiWins >= (requirements.aiWins || 1);
+  }
+  
+  if (achievement.id === 'terminator') {
+    const aiWins = userStats.aiImpossibleWins || 0;
+    return aiWins >= (requirements.aiWins || 1);
+  }
+  
+  if (achievement.id === 'am_i_god') {
+    // For now, check if user has at least 3 impossible AI wins
+    const impossibleWins = userStats.aiImpossibleWins || 0;
+    return impossibleWins >= 3;
+  }
+  
+  // Special handling for perfect game achievement
+  if (achievement.id === 'perfectionist') {
+    return userStats.perfectGame === true;
+  }
+  
+  // Standard requirement checking
   for (const [key, value] of Object.entries(requirements)) {
-    if (userStats[key] === undefined || userStats[key] < value) {
-      return false;
+    let userValue = userStats[key];
+    
+    // Handle special cases
+    if (key === 'earlyUser') {
+      // This would be set during account creation for early users
+      userValue = userStats.earlyUser || false;
+    } else if (key === 'perfectGame') {
+      userValue = userStats.perfectGame || false;
+    } else if (typeof userValue === 'undefined') {
+      userValue = 0; // Default to 0 for numeric requirements
+    }
+    
+    // Type-safe comparison
+    if (typeof value === 'boolean') {
+      if (userValue !== value) {
+        return false;
+      }
+    } else if (typeof value === 'number') {
+      if (Number(userValue) < value) {
+        return false;
+      }
+    } else {
+      if (userValue !== value) {
+        return false;
+      }
     }
   }
   

@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import Header from './Header';
 import Footer from './Footer';
 import Sidebar from './Sidebar';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '../../hooks/useAuth.js';
 
 /**
  * Main Application Layout
@@ -13,6 +13,7 @@ import { useAuth } from '@/hooks/useAuth';
 const AppLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { userProfile } = useAuth();
+  const location = useLocation();
 
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);

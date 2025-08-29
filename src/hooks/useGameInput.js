@@ -4,20 +4,24 @@
  */
 
 import { useEffect, useCallback, useRef } from 'react';
-import { DIRECTIONS } from '@/utils/gameUtils';
-import { playClick } from '@/utils/sound';
+import { DIRECTIONS } from '../utils/gameUtils.js';
+import { playClick } from '../utils/sound.js';
 
 /**
- * ULTRA-FAST key mapping using Map for O(1) lookup performance
+ * FIXED: Clean key mapping without duplicates
  */
 const ULTRA_KEY_MAP = new Map([
-  // Arrow Keys - Primary
+  // Arrow Keys
   ['ArrowUp', DIRECTIONS.UP],
   ['ArrowDown', DIRECTIONS.DOWN],
   ['ArrowLeft', DIRECTIONS.LEFT],
   ['ArrowRight', DIRECTIONS.RIGHT],
+  ['Up', DIRECTIONS.UP],
+  ['Down', DIRECTIONS.DOWN],
+  ['Left', DIRECTIONS.LEFT],
+  ['Right', DIRECTIONS.RIGHT],
   
-  // WASD - All variants for maximum compatibility
+  // WASD
   ['KeyW', DIRECTIONS.UP],
   ['KeyS', DIRECTIONS.DOWN],
   ['KeyA', DIRECTIONS.LEFT],
@@ -49,17 +53,7 @@ const ULTRA_KEY_MAP = new Map([
   ['Numpad8', DIRECTIONS.UP],
   ['Numpad5', DIRECTIONS.DOWN],
   ['Numpad4', DIRECTIONS.LEFT],
-  ['Numpad6', DIRECTIONS.RIGHT],
-  
-  // Additional keys for super responsiveness
-  ['ArrowUp', DIRECTIONS.UP],
-  ['Up', DIRECTIONS.UP],
-  ['ArrowDown', DIRECTIONS.DOWN],
-  ['Down', DIRECTIONS.DOWN],
-  ['ArrowLeft', DIRECTIONS.LEFT],
-  ['Left', DIRECTIONS.LEFT],
-  ['ArrowRight', DIRECTIONS.RIGHT],
-  ['Right', DIRECTIONS.RIGHT]
+  ['Numpad6', DIRECTIONS.RIGHT]
 ]);
 
 /**
@@ -276,28 +270,21 @@ export const useGameInput = ({
         eventTime: startTime
       };
       
-      // Check for input burst protection
+      // ULTRA-RESPONSIVE: Process all valid inputs immediately with minimal throttling
       const lastInputTime = lastInputTimeRef.current.get(playerId) || 0;
       const timeDiff = now - lastInputTime;
       
-      // Advanced anti-spam with adaptive timing
-      let minInterval = 16; // Base 60fps timing
-      const consecutiveCount = consecutiveInputsRef.current.get(playerId) || 0;
+      // Very minimal anti-spam - only prevent machine-level rapid inputs
+      const minInterval = 16; // Reduced to 16ms (60fps) for maximum responsiveness
       
-      if (timeDiff < 50) {
-        consecutiveInputsRef.current.set(playerId, consecutiveCount + 1);
-        // Adaptive interval based on input frequency
-        if (consecutiveCount > 3) {
-          minInterval = 25; // Slow down if too many rapid inputs
-        }
-      } else {
-        consecutiveInputsRef.current.set(playerId, 0);
-      }
+      // Process immediately if enough time has passed OR if it's a different direction
+      const lastDirection = consecutiveInputsRef.current.get(`${playerId}_lastDir`);
+      const isDifferentDirection = !lastDirection || 
+        (direction.x !== lastDirection.x || direction.y !== lastDirection.y);
       
-      // Smart input processing
-      if (timeDiff >= minInterval) {
-        // Process immediately
+      if (timeDiff >= minInterval || isDifferentDirection) {
         lastInputTimeRef.current.set(playerId, now);
+        consecutiveInputsRef.current.set(`${playerId}_lastDir`, direction);
         
         try {
           handlersRef.current.onDirectionChange(playerId, direction);
@@ -307,8 +294,8 @@ export const useGameInput = ({
           performanceRef.current.droppedInputs++;
         }
       } else {
-        // Queue for later processing - ZERO LOSS
-        inputQueueRef.current.enqueue(inputData);
+        // Only drop truly rapid duplicate inputs
+        performanceRef.current.droppedInputs++;
       }
       
       // Update performance metrics
@@ -421,8 +408,8 @@ export const useGameInput = ({
     const playerId = 0; // Touch is always player 0
     const lastInputTime = lastInputTimeRef.current.get(playerId) || 0;
     
-    // Prevent touch spam but allow rapid direction changes
-    if (now - lastInputTime < 50) return; // 20 inputs per second max
+    // Minimal touch throttling for better responsiveness
+    if (now - lastInputTime < 25) return; // 40 inputs per second max for better response
     
     lastInputTimeRef.current.set(playerId, now);
     
@@ -514,8 +501,8 @@ export const useGameInput = ({
       const playerId = 0;
       const lastInputTime = lastInputTimeRef.current.get(playerId) || 0;
       
-      // Prevent swipe spam
-      if (now - lastInputTime < 100) return;
+      // Minimal swipe throttling for better response
+      if (now - lastInputTime < 50) return;
       
       lastInputTimeRef.current.set(playerId, now);
       

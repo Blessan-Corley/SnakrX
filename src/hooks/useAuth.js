@@ -29,7 +29,7 @@ import {
   COLLECTIONS,
   firestoreOperations
 } from '../services/firebase.js';
-import { isValidEmail, isValidUsername, isValidPassword } from '@/utils/gameUtils';
+import { isValidEmail, isValidUsername, isValidPassword } from '../utils/gameUtils.js';
 import toast from 'react-hot-toast';
 
 // Create the context to hold authentication state.
@@ -46,6 +46,7 @@ const createDefaultUserProfile = (firebaseUser) => ({
   lastLoginAt: serverTimestamp(),
   role: 'player',
   stats: {
+    // Basic game statistics
     totalGames: 0,
     totalWins: 0,
     totalScore: 0,
@@ -53,25 +54,45 @@ const createDefaultUserProfile = (firebaseUser) => ({
     totalPlayTime: 0,
     achievementPoints: 0,
     achievements: [],
+    uncollectedAchievements: [], // Track achievements ready to collect
+    
+    // Mode-specific statistics
     classicGames: 0,
     classicWins: 0,
     classicBestScore: 0,
-    vsAIGames: 0,
-    vsAIWins: 0,
-    vsAIBestScore: 0,
+    vsaiGames: 0,
+    vsaiWins: 0,
+    vsaiBestScore: 0,
     multiplayerGames: 0,
     multiplayerWins: 0,
     multiplayerBestScore: 0,
+    
+    // Performance and failure tracking
     wallHits: 0,
     selfHits: 0,
     foodEaten: 0,
     maxSpeed: 1,
+    maxLength: 1,
     maxSurvivalTime: 0,
+    moves: 0,
+    quickDeaths: 0,
+    
+    // Streak tracking
     currentWinStreak: 0,
     bestWinStreak: 0,
+    
+    // AI difficulty specific wins
     aiEasyWins: 0,
     aiMediumWins: 0,
     aiImpossibleWins: 0,
+    
+    // Special achievement tracking
+    transparentScore: 0,
+    perfectGames: 0,
+    
+    // Time tracking
+    lastGameDuration: 0,
+    totalPlayTimeSeconds: 0
   },
   settings: {
     soundEnabled: true,

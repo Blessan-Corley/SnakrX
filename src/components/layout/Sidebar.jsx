@@ -14,9 +14,10 @@ import {
   LogOut,
   X
 } from 'lucide-react';
-import { useAuth, useAuthOperations } from '@/hooks/useAuth';
-import Button from '@/components/ui/Button';
-import { playClick } from '@/utils/sound';
+import { useAuth, useAuthOperations } from '../../hooks/useAuth.js';
+import { useAchievementOperations } from '../../hooks/useAchievements.js';
+import Button from '../ui/Button.jsx';
+import { playClick } from '../../utils/sound.js';
 
 /**
  * Navigation Sidebar Component
@@ -27,6 +28,7 @@ const Sidebar = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
   const { userProfile } = useAuth();
   const { logout } = useAuthOperations();
+  const { uncollectedAchievements } = useAchievementOperations();
 
   const isAdmin = userProfile?.role === 'admin' || userProfile?.username === 'admin';
 
@@ -44,7 +46,14 @@ const Sidebar = ({ isOpen, onClose }) => {
         { icon: Home, label: 'Home', path: '/', color: 'text-blue-400' },
         { icon: Gamepad2, label: 'Play Game', path: '/game', color: 'text-green-400' },
         { icon: Trophy, label: 'Leaderboard', path: '/leaderboard', color: 'text-yellow-400' },
-        { icon: Award, label: 'Achievements', path: '/achievements', color: 'text-purple-400' },
+        { 
+          icon: Award, 
+          label: 'Achievements', 
+          path: '/achievements', 
+          color: 'text-purple-400',
+          hasNotification: uncollectedAchievements.length > 0,
+          notificationCount: uncollectedAchievements.length
+        },
       ]
     },
     {
@@ -210,7 +219,7 @@ const Sidebar = ({ isOpen, onClose }) => {
 /**
  * Sidebar Navigation Item Component
  */
-const SidebarItem = ({ icon: Icon, label, path, color, isActive, onClick, delay = 0 }) => {
+const SidebarItem = ({ icon: Icon, label, path, color, isActive, onClick, delay = 0, hasNotification = false, notificationCount = 0 }) => {
   const handleClick = () => {
     playClick();
     onClick();
@@ -239,20 +248,27 @@ const SidebarItem = ({ icon: Icon, label, path, color, isActive, onClick, delay 
         to={path}
         onClick={handleClick}
         className={`
-          flex items-center space-x-3 px-3 py-2 rounded-lg transition-all duration-200 group
+          flex items-center space-x-3 px-3 py-2 rounded-lg transition-all duration-200 group relative
           ${isActive 
             ? 'bg-white/10 text-white shadow-inner' 
             : 'text-white/70 hover:text-white hover:bg-white/5'
           }
         `}
       >
-        <Icon 
-          size={20} 
-          className={`
-            ${isActive ? 'text-white' : color}
-            group-hover:scale-110 transition-transform duration-200
-          `} 
-        />
+        <div className="relative">
+          <Icon 
+            size={20} 
+            className={`
+              ${isActive ? 'text-white' : color}
+              group-hover:scale-110 transition-transform duration-200
+            `} 
+          />
+          {hasNotification && (
+            <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full min-w-[16px] h-[16px] flex items-center justify-center font-bold animate-pulse">
+              {notificationCount > 9 ? '9+' : notificationCount}
+            </div>
+          )}
+        </div>
         <span className="font-medium">{label}</span>
         
         {/* Active indicator */}

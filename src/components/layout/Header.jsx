@@ -13,10 +13,11 @@ import {
   Volume2,
   VolumeX
 } from 'lucide-react';
-import { useAuth, useAuthOperations } from '@/hooks/useAuth';
-import Button from '@/components/ui/Button';
-import { playClick } from '@/utils/sound';
-import { getMuted, toggleMute } from '@/utils/sound';
+import { useAuth, useAuthOperations } from '../../hooks/useAuth.js';
+import { useAchievementOperations } from '../../hooks/useAchievements.js';
+import Button from '../ui/Button.jsx';
+import { playClick } from '../../utils/sound.js';
+import { getMuted, toggleMute } from '../../utils/sound.js';
 
 /**
  * App Header Component
@@ -27,6 +28,7 @@ const Header = ({ onToggleSidebar, sidebarOpen }) => {
   const [soundMuted, setSoundMuted] = useState(getMuted());
   const { userProfile } = useAuth();
   const { logout } = useAuthOperations();
+  const { uncollectedAchievements } = useAchievementOperations();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -89,7 +91,12 @@ const Header = ({ onToggleSidebar, sidebarOpen }) => {
           <nav className="hidden lg:flex items-center space-x-1">
             <NavLink to="/" label="Home" />
             <NavLink to="/leaderboard" label="Leaderboard" />
-            <NavLink to="/achievements" label="Achievements" />
+            <NavLink 
+              to="/achievements" 
+              label="Achievements" 
+              hasNotification={uncollectedAchievements.length > 0}
+              notificationCount={uncollectedAchievements.length}
+            />
             {isAdmin && <NavLink to="/admin" label="Admin" />}
           </nav>
 
@@ -172,6 +179,8 @@ const Header = ({ onToggleSidebar, sidebarOpen }) => {
                         <UserMenuItem
                           icon={<Trophy size={16} />}
                           label="Achievements"
+                          hasNotification={uncollectedAchievements.length > 0}
+                          notificationCount={uncollectedAchievements.length}
                           onClick={() => {
                             navigate('/achievements');
                             setUserMenuOpen(false);
@@ -231,7 +240,7 @@ const Header = ({ onToggleSidebar, sidebarOpen }) => {
 /**
  * Navigation Link Component
  */
-const NavLink = ({ to, label, className = '' }) => {
+const NavLink = ({ to, label, className = '', hasNotification = false, notificationCount = 0 }) => {
   const location = useLocation();
   const isActive = location.pathname === to;
 
@@ -240,7 +249,7 @@ const NavLink = ({ to, label, className = '' }) => {
       to={to}
       onClick={() => playClick()}
       className={`
-        px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200
+        relative px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200
         ${isActive 
           ? 'bg-white/10 text-white shadow-inner' 
           : 'text-white/70 hover:text-white hover:bg-white/5'
@@ -249,6 +258,11 @@ const NavLink = ({ to, label, className = '' }) => {
       `}
     >
       {label}
+      {hasNotification && (
+        <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full min-w-[18px] h-[18px] flex items-center justify-center font-bold animate-pulse">
+          {notificationCount > 9 ? '9+' : notificationCount}
+        </div>
+      )}
     </Link>
   );
 };
@@ -256,8 +270,8 @@ const NavLink = ({ to, label, className = '' }) => {
 /**
  * User Menu Item Component
  */
-const UserMenuItem = ({ icon, label, onClick, variant = 'default' }) => {
-  const baseClasses = "flex items-center space-x-3 w-full px-3 py-2 rounded-lg text-sm transition-all duration-200";
+const UserMenuItem = ({ icon, label, onClick, variant = 'default', hasNotification = false, notificationCount = 0 }) => {
+  const baseClasses = "flex items-center space-x-3 w-full px-3 py-2 rounded-lg text-sm transition-all duration-200 relative";
   const variantClasses = {
     default: "text-white/80 hover:text-white hover:bg-white/10",
     danger: "text-red-400 hover:text-red-300 hover:bg-red-500/10"
@@ -271,7 +285,14 @@ const UserMenuItem = ({ icon, label, onClick, variant = 'default' }) => {
       }}
       className={`${baseClasses} ${variantClasses[variant]}`}
     >
-      {icon}
+      <div className="relative">
+        {icon}
+        {hasNotification && (
+          <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full min-w-[14px] h-[14px] flex items-center justify-center font-bold animate-pulse">
+            {notificationCount > 9 ? '9+' : notificationCount}
+          </div>
+        )}
+      </div>
       <span>{label}</span>
     </button>
   );

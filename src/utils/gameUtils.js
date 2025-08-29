@@ -68,13 +68,13 @@ export const BOARD_CONFIGS = {
   }
 };
 
-// Speed configurations - ENHANCED for longer, more enjoyable gameplay
+// Speed configurations - OPTIMIZED for smooth, responsive gameplay
 export const SPEED_CONFIGS = {
-  INITIAL: 250, // Much slower start for better control and longer games
-  INCREMENT: 3, // Very gentle progression for longer gameplay
-  MIN_SPEED: 50, // Allow up to 5x speed (250/50 = 5x)
-  MAX_MULTIPLIER: 8, // Higher max speed multiplier for achievements
-  FOOD_THRESHOLD: 1 // Increase speed every food eaten for better progression feel
+  INITIAL: 180, // Faster start for more engaging gameplay
+  INCREMENT: 8, // Smoother progression curve
+  MIN_SPEED: 60, // Reasonable maximum speed for playability
+  MAX_MULTIPLIER: 6, // Balanced max speed multiplier
+  FOOD_THRESHOLD: 2 // Increase speed every 2 food eaten for balanced progression
 };
 
 // Points system

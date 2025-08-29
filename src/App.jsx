@@ -1,30 +1,30 @@
 import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import { AuthProvider } from '@/hooks/useAuth';
-import { GameProvider } from '@/hooks/useGame';
-import { AchievementProvider } from '@/hooks/useAchievements';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
-import ProtectedRoute from '@/components/auth/ProtectedRoute';
-import PublicRoute from '@/components/auth/PublicRoute';
-import AppLayout from '@/components/layout/AppLayout';
-import ErrorBoundary from '@/components/ui/ErrorBoundary';
+import { AuthProvider } from './hooks/useAuth.js';
+import { GameProvider } from './hooks/useGame.js';
+import { AchievementProvider } from './hooks/useAchievements.js';
+import LoadingSpinner from './components/ui/LoadingSpinner.jsx';
+import ProtectedRoute from './components/auth/ProtectedRoute.jsx';
+import PublicRoute from './components/auth/PublicRoute.jsx';
+import AppLayout from './components/layout/AppLayout.jsx';
+import ErrorBoundary from './components/ui/ErrorBoundary.jsx';
 
 // Lazy load components
-const LandingPage = lazy(() => import('@/pages/LandingPage'));
-const LoginPage = lazy(() => import('@/pages/auth/LoginPage'));
-const RegisterPage = lazy(() => import('@/pages/auth/RegisterPage'));
-const ForgotPasswordPage = lazy(() => import('@/pages/auth/ForgotPasswordPage'));
-const HomePage = lazy(() => import('@/pages/HomePage'));
-const GamePage = lazy(() => import('@/pages/game/GamePage'));
-const Game = lazy(() => import('@/pages/game/Game'));
-const LeaderboardPage = lazy(() => import('@/pages/LeaderboardPage'));
-const ProfilePage = lazy(() => import('@/pages/ProfilePage'));
-const AchievementsPage = lazy(() => import('@/pages/AchievementsPage'));
-const AdminPage = lazy(() => import('@/pages/admin/AdminPage'));
-const HelpPage = lazy(() => import('@/pages/HelpPage'));
-const PrivacyPage = lazy(() => import('@/pages/legal/PrivacyPage'));
-const TermsPage = lazy(() => import('@/pages/legal/TermsPage'));
+const LandingPage = lazy(() => import('./pages/LandingPage.jsx'));
+const LoginPage = lazy(() => import('./pages/auth/LoginPage.jsx'));
+const RegisterPage = lazy(() => import('./pages/auth/RegisterPage.jsx'));
+const ForgotPasswordPage = lazy(() => import('./pages/auth/ForgotPasswordPage.jsx'));
+const HomePage = lazy(() => import('./pages/HomePage.jsx'));
+const GamePage = lazy(() => import('./pages/game/GamePage.jsx'));
+const Game = lazy(() => import('./pages/game/Game.jsx'));
+const LeaderboardPage = lazy(() => import('./pages/LeaderboardPage.jsx'));
+const ProfilePage = lazy(() => import('./pages/ProfilePage.jsx'));
+const AchievementsPage = lazy(() => import('./pages/AchievementsPage.jsx'));
+const AdminPage = lazy(() => import('./pages/admin/AdminPage.jsx'));
+const HelpPage = lazy(() => import('./pages/HelpPage.jsx'));
+const PrivacyPage = lazy(() => import('./pages/legal/PrivacyPage.jsx'));
+const TermsPage = lazy(() => import('./pages/legal/TermsPage.jsx'));
 
 function App() {
   return (
