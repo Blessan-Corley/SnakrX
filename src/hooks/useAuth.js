@@ -31,6 +31,7 @@ import {
 } from '../services/firebase.js';
 import { isValidEmail, isValidUsername, isValidPassword } from '../utils/gameUtils.js';
 import toast from 'react-hot-toast';
+import logger from '../utils/logger.js';
 
 // Create the context to hold authentication state.
 const AuthContext = createContext({});
@@ -163,15 +164,15 @@ export const AuthProvider = ({ children }) => {
               }).catch(console.warn);
             } else {
               // User exists in Auth but not in Firestore - create profile
-              console.warn(`User ${firebaseUser.uid} exists in Auth but not in Firestore. Creating profile...`);
+              logger.warn(`User ${firebaseUser.uid} exists in Auth but not in Firestore. Creating profile...`);
               const newProfile = createDefaultUserProfile(firebaseUser);
               await firestoreOperations.setDocument(userDocRef, newProfile);
-              console.log('✅ New user profile created:', newProfile);
+              logger.log('✅ New user profile created:', newProfile);
               setUserProfile({ uid: firebaseUser.uid, ...newProfile });
             }
           } catch (error) {
             // Handle offline mode or Firestore errors gracefully
-            console.warn("Could not load user profile:", error.message);
+            logger.warn("Could not load user profile:", error.message);
             // Create a basic profile for offline mode
             const basicProfile = createBasicProfile(firebaseUser);
             setUserProfile(basicProfile);
@@ -182,7 +183,7 @@ export const AuthProvider = ({ children }) => {
           setUserProfile(null);
         }
       } catch (error) {
-        console.error("Auth State Change Error:", error);
+        logger.error("Auth State Change Error:", error);
         
         // Handle specific error cases
         if (error.code === 'auth/invalid-api-key') {
@@ -249,16 +250,16 @@ export const refreshUserProfile = async (user, setUserProfile) => {
     
     if (userDoc.exists()) {
       const userData = userDoc.data();
-      console.log('🔄 User profile refreshed:', userData?.stats);
-      setUserProfile({ 
-        uid: user.uid, 
-        email: user.email, 
-        ...userData 
+      logger.log('🔄 User profile refreshed:', userData?.stats);
+      setUserProfile({
+        uid: user.uid,
+        email: user.email,
+        ...userData
       });
       return userData;
     }
   } catch (error) {
-    console.warn('Error refreshing user profile:', error);
+    logger.warn('Error refreshing user profile:', error);
   }
   return null;
 };
@@ -271,6 +272,60 @@ export const refreshUserProfile = async (user, setUserProfile) => {
 export const useAuthOperations = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [loginAttempts, setLoginAttempts] = useState(0);
+  const [lastAttemptTime, setLastAttemptTime] = useState(0);
+
+  // Rate limiting configuration
+  const RATE_LIMIT = {
+    MAX_ATTEMPTS: 5,
+    LOCKOUT_DURATION: 300000, // 5 minutes in milliseconds
+    ATTEMPT_WINDOW: 60000 // 1 minute
+  };
+
+  /**
+   * Check if rate limit is exceeded
+   */
+  const checkRateLimit = () => {
+    const now = Date.now();
+    const timeSinceLastAttempt = now - lastAttemptTime;
+
+    // Reset attempts if outside the attempt window
+    if (timeSinceLastAttempt > RATE_LIMIT.ATTEMPT_WINDOW) {
+      setLoginAttempts(0);
+      return true;
+    }
+
+    // Check if locked out
+    if (loginAttempts >= RATE_LIMIT.MAX_ATTEMPTS) {
+      const remainingTime = Math.ceil((RATE_LIMIT.LOCKOUT_DURATION - timeSinceLastAttempt) / 1000);
+      if (timeSinceLastAttempt < RATE_LIMIT.LOCKOUT_DURATION) {
+        toast.error(`Too many login attempts. Please wait ${remainingTime} seconds.`);
+        return false;
+      } else {
+        // Lockout expired, reset
+        setLoginAttempts(0);
+        return true;
+      }
+    }
+
+    return true;
+  };
+
+  /**
+   * Record a failed login attempt
+   */
+  const recordFailedAttempt = () => {
+    setLoginAttempts(prev => prev + 1);
+    setLastAttemptTime(Date.now());
+  };
+
+  /**
+   * Reset login attempts on success
+   */
+  const resetAttempts = () => {
+    setLoginAttempts(0);
+    setLastAttemptTime(0);
+  };
 
   /**
    * Checks if a username is already taken in the database.
@@ -284,7 +339,7 @@ export const useAuthOperations = () => {
       const querySnapshot = await getDocs(q);
       return querySnapshot.empty;
     } catch (err) {
-      console.error('Error checking username:', err);
+      logger.error('Error checking username:', err);
       toast.error("Could not verify username. Please try again.");
       return false;
     }
@@ -332,7 +387,7 @@ export const useAuthOperations = () => {
       toast.success('Welcome to SnakrX! Your account has been created.');
       return { success: true, user };
     } catch (err) {
-      console.error('Sign up error:', err);
+      logger.error('Sign up error:', err);
       let errorMessage = 'An unknown error occurred during sign-up.';
       
       // Handle Firebase authentication errors
@@ -383,6 +438,11 @@ export const useAuthOperations = () => {
    * @returns {Promise<object>} An object indicating success or failure.
    */
   const signIn = useCallback(async (identifier, password) => {
+    // Check rate limit before attempting sign in
+    if (!checkRateLimit()) {
+      return { success: false, error: 'Too many attempts. Please try again later.' };
+    }
+
     setLoading(true);
     setError(null);
     try {
@@ -396,10 +456,15 @@ export const useAuthOperations = () => {
         email = querySnapshot.docs[0].data().email;
       }
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
+
+      // Reset attempts on successful login
+      resetAttempts();
       toast.success(`Welcome back, ${userCredential.user.displayName || identifier}!`);
       return { success: true, user: userCredential.user };
     } catch (err) {
-      console.error('Sign in error:', err);
+      // Record failed attempt for rate limiting
+      recordFailedAttempt();
+      logger.error('Sign in error:', err);
       let errorMessage = 'An unknown error occurred.';
       
       // Handle Firebase authentication errors
@@ -493,7 +558,7 @@ export const useAuthOperations = () => {
       toast.success(`Password reset link sent to ${email}. Please check your inbox.`);
       return { success: true };
     } catch (err) {
-      console.error('Password reset error:', err);
+      logger.error('Password reset error:', err);
       let errorMessage = 'Failed to send password reset email.';
       
       // Handle Firebase authentication errors
@@ -623,19 +688,19 @@ export const useAuthOperations = () => {
         validatedUpdates['stats.updatedAt'] = serverTimestamp();
         validatedUpdates['updatedAt'] = serverTimestamp();
         validatedUpdates['lastActiveAt'] = serverTimestamp();
-        
+
         await firestoreOperations.updateDocument(userDocRef, validatedUpdates);
-        console.log('✅ Stats updated successfully:', validatedUpdates);
-        
+        logger.log('✅ Stats updated successfully:', validatedUpdates);
+
         // Trigger profile refresh after successful stats update
         setTimeout(async () => {
           try {
             await refreshUserProfile(auth.currentUser, (profile) => {
               // This will be handled by the auth context
-              console.log('🔄 Profile refresh triggered after stats update');
+              logger.log('🔄 Profile refresh triggered after stats update');
             });
           } catch (error) {
-            console.warn('Could not refresh user profile after stats update:', error);
+            logger.warn('Could not refresh user profile after stats update:', error);
           }
         }, 500); // Small delay to ensure Firestore consistency
         
@@ -644,7 +709,7 @@ export const useAuthOperations = () => {
       
       return false;
     } catch (err) {
-      console.error('Stats update error:', err);
+      logger.error('Stats update error:', err);
       return false;
     }
   }, []);
@@ -665,7 +730,7 @@ export const useAuthOperations = () => {
       const currentAchievements = userDoc.data()?.stats?.achievements || [];
       
       if (currentAchievements.some(ach => ach.id === achievementId)) {
-        console.log(`Achievement ${achievementId} already unlocked`);
+        logger.log(`Achievement ${achievementId} already unlocked`);
         return false;
       }
       

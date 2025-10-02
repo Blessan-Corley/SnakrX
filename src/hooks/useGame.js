@@ -38,8 +38,18 @@ import { playFoodEat, playDeath, playVictory } from '../utils/sound.js';
 import { useAuth, useAuthOperations } from './useAuth';
 import { useAchievementOperations } from './useAchievements';
 import { gameOperations } from '../services/firebase.js';
+import toast from 'react-hot-toast';
+import logger from '../utils/logger.js';
 
 const GameContext = createContext({});
+
+// Game configuration constants
+const GAME_CONFIG = {
+  QUICK_DEATH_THRESHOLD: 5, // seconds - defines a "quick death" for achievements
+  PROFILE_REFRESH_DELAY: 1000, // ms - delay before refreshing profile after stat update
+  ACHIEVEMENT_CHECK_DELAY: 500, // ms - delay for Firestore consistency
+  AUTO_START_DELAY: 3000 // ms - auto-start delay in ready state
+};
 
 // Enhanced initial state with tracking fields
 const createInitialGameState = () => ({
@@ -179,14 +189,14 @@ export const GameProvider = ({ children }) => {
             direction = aiDirection;
           }
         } catch (error) {
-          console.error('AI error:', error);
+          logger.error('AI error:', error);
         }
       }
 
       // Calculate new head position
       const head = snake.body[0];
       if (!head || typeof head.x !== 'number' || typeof head.y !== 'number') {
-        console.error(`Invalid head position for snake ${i}:`, head);
+        logger.error(`Invalid head position for snake ${i}:`, head);
         snake.isAlive = false;
         continue;
       }
@@ -225,7 +235,7 @@ export const GameProvider = ({ children }) => {
       for (let j = 1; j < snake.body.length; j++) {
         const segment = snake.body[j];
         if (!segment || typeof segment.x !== 'number' || typeof segment.y !== 'number') {
-          console.warn(`Invalid segment at position ${j} for snake ${i}:`, segment);
+          logger.warn(`Invalid segment at position ${j} for snake ${i}:`, segment);
           continue;
         }
         
@@ -291,12 +301,12 @@ export const GameProvider = ({ children }) => {
       // Food collision with validation
       if (newFood && 
           typeof newFood.x === 'number' && 
-          typeof newFood.y === 'number' && 
-          newHead.x === newFood.x && 
+          typeof newFood.y === 'number' &&
+          newHead.x === newFood.x &&
           newHead.y === newFood.y) {
         foodConsumed = true;
         playFoodEat();
-        console.log(`Snake ${i} ate food at:`, newFood);
+        logger.log(`Snake ${i} ate food at:`, newFood);
         
         // Track timing stats for player
         if (i === 0) {
@@ -416,7 +426,9 @@ export const GameProvider = ({ children }) => {
         gameLoopRef.current = requestAnimationFrame(updateGame);
       }
     } catch (error) {
-      console.error('Error updating game state:', error);
+      logger.error('Critical error updating game state:', error);
+      toast.error('Game encountered an error and had to stop. Please try again.');
+
       // Force end game on critical error - stop loop and set game over state
       if (gameLoopRef.current) {
         cancelAnimationFrame(gameLoopRef.current);
@@ -508,7 +520,8 @@ export const GameProvider = ({ children }) => {
       });
 
     } catch (error) {
-      console.error('Error initializing game:', error);
+      logger.error('Error initializing game:', error);
+      toast.error(`Failed to initialize game: ${error.message}`);
       throw error;
     }
   }, []);
@@ -517,14 +530,14 @@ export const GameProvider = ({ children }) => {
    * FIXED: Start game with proper timer initialization
    */
   const startGame = useCallback(() => {
-    console.log('Starting game!');
+    logger.log('Starting game!');
     gameStartTimeRef.current = Date.now();
     pausedTimeRef.current = 0;
     pauseStartRef.current = 0;
     lastUpdateTimeRef.current = 0;
-    
+
     setGameState(prev => {
-      console.log('Game state changing from', prev.gameState, 'to PLAYING');
+      logger.log('Game state changing from', prev.gameState, 'to PLAYING');
       return {
         ...prev,
         gameState: GAME_STATES.PLAYING,
@@ -540,7 +553,7 @@ export const GameProvider = ({ children }) => {
   const updateSnakeDirection = useCallback((playerId, newDirection) => {
     // Validate input parameters
     if (typeof playerId !== 'number' || !newDirection || typeof newDirection.x !== 'number' || typeof newDirection.y !== 'number') {
-      console.warn('Invalid direction change parameters:', { playerId, newDirection });
+      logger.warn('Invalid direction change parameters:', { playerId, newDirection });
       return;
     }
 
@@ -597,14 +610,14 @@ export const GameProvider = ({ children }) => {
           // Block if it's a direct opposite OR would collide with neck
           if (isDirectOpposite || wouldCollideWithNeck) {
             canChangeDirection = false;
-            console.log(`Invalid direction blocked for player ${playerId}: opposite=${isDirectOpposite}, neckCollision=${wouldCollideWithNeck}`);
+            logger.log(`Invalid direction blocked for player ${playerId}: opposite=${isDirectOpposite}, neckCollision=${wouldCollideWithNeck}`);
           }
         }
-        
+
         // Allow all other direction changes (including sharp 90-degree turns)
         if (canChangeDirection) {
           newSnakes[playerId] = { ...snake, direction: newDirection };
-          console.log(`Direction changed for player ${playerId}:`, newDirection);
+          logger.log(`Direction changed for player ${playerId}:`, newDirection);
         }
       }
       return { ...prev, snakes: newSnakes };
@@ -685,7 +698,7 @@ export const GameProvider = ({ children }) => {
       try {
         await saveGameData(victory);
       } catch (error) {
-        console.error('Error saving game:', error);
+        logger.error('Error saving game:', error);
       }
     }
   }, [user, gameState.score]);
@@ -695,12 +708,12 @@ export const GameProvider = ({ children }) => {
    */
   const saveGameData = useCallback(async (victory) => {
     if (!user || !updateUserStats) {
-      console.log('No user or updateUserStats - skipping save');
+      logger.log('No user or updateUserStats - skipping save');
       return;
     }
-    
+
     try {
-      console.log('Saving game data to Firebase...');
+      logger.log('Saving game data to Firebase...');
       
       // Complete game session data with proper mapping
       const gameSessionData = {
@@ -732,16 +745,16 @@ export const GameProvider = ({ children }) => {
 
       // Save game session to Firebase
       try {
-        console.log('Attempting to save game session with data:', gameSessionData);
+        logger.log('Attempting to save game session with data:', gameSessionData);
         const gameId = await gameOperations.saveGameSession(user.uid, gameSessionData);
         if (gameId) {
-          console.log('Game session saved to Firebase with ID:', gameId);
+          logger.log('Game session saved to Firebase with ID:', gameId);
         } else {
-          console.error('Game session save returned null - save failed');
+          logger.error('Game session save returned null - save failed');
         }
       } catch (error) {
-        console.error('Failed to save game session:', error);
-        console.error('Error details:', error.message, error.code);
+        logger.error('Failed to save game session:', error);
+        logger.error('Error details:', error.message, error.code);
       }
 
       // Comprehensive user statistics with proper field mapping
@@ -783,7 +796,7 @@ export const GameProvider = ({ children }) => {
       }
 
       // Special tracking for achievements
-      if (gameState.gameTime < 5) {
+      if (gameState.gameTime < GAME_CONFIG.QUICK_DEATH_THRESHOLD) {
         statUpdates.quickDeaths = 1; // Track quick deaths for achievements
       }
       
@@ -792,20 +805,20 @@ export const GameProvider = ({ children }) => {
         statUpdates[`ai${gameState.difficulty.charAt(0).toUpperCase() + gameState.difficulty.slice(1)}Wins`] = 1;
       }
 
-      console.log('Updating user stats:', statUpdates);
+      logger.log('Updating user stats:', statUpdates);
       const success = await updateUserStats(statUpdates);
       if (success) {
-        console.log('User stats updated successfully');
-        
+        logger.log('User stats updated successfully');
+
         // Force refresh of user profile to update UI
         if (refreshProfile) {
           setTimeout(() => {
-            console.log('🔄 Forcing profile refresh after game save...');
+            logger.log('🔄 Forcing profile refresh after game save...');
             refreshProfile();
-          }, 1000);
+          }, GAME_CONFIG.PROFILE_REFRESH_DELAY);
         }
       } else {
-        console.warn('Failed to update user stats (offline mode)');
+        logger.warn('Failed to update user stats (offline mode)');
       }
 
       // Check and unlock achievements based on game performance
@@ -833,7 +846,7 @@ export const GameProvider = ({ children }) => {
           // Failure stats for funny achievements
           wallHits: (userProfile?.stats?.wallHits || 0) + (gameState.wallHits || 0),
           selfHits: (userProfile?.stats?.selfHits || 0) + (gameState.selfHits || 0),
-          quickDeaths: gameState.gameTime < 5 ? (userProfile?.stats?.quickDeaths || 0) + 1 : (userProfile?.stats?.quickDeaths || 0),
+          quickDeaths: gameState.gameTime < GAME_CONFIG.QUICK_DEATH_THRESHOLD ? (userProfile?.stats?.quickDeaths || 0) + 1 : (userProfile?.stats?.quickDeaths || 0),
           
           // AI specific achievements
           aiWins: gameState.gameMode === 'vsai' && victory ? (userProfile?.stats?.totalWins || 0) + 1 : (userProfile?.stats?.totalWins || 0),
@@ -850,35 +863,35 @@ export const GameProvider = ({ children }) => {
           perfectGame: (gameState.wallHits || 0) === 0 && (gameState.selfHits || 0) === 0 && gameState.score > 0
         };
         
-        console.log('Checking achievements with stats:', achievementGameStats);
+        logger.log('Checking achievements with stats:', achievementGameStats);
         await checkAndUnlockAchievements(achievementGameStats);
       } catch (error) {
-        console.error('Error checking achievements:', error);
+        logger.error('Error checking achievements:', error);
       }
 
       // Update leaderboard if score is significant
       if (gameState.score > 0) {
         try {
-          console.log('Attempting to update leaderboard for user:', user.uid);
+          logger.log('Attempting to update leaderboard for user:', user.uid);
           const leaderboardData = {
             ...gameSessionData,
             username: userProfile?.username || userProfile?.displayName || user.email.split('@')[0]
           };
-          console.log('Leaderboard data being sent:', leaderboardData);
+          logger.log('Leaderboard data being sent:', leaderboardData);
           await gameOperations.updateLeaderboard(user.uid, leaderboardData);
-          console.log('Leaderboard updated successfully');
+          logger.log('Leaderboard updated successfully');
         } catch (error) {
-          console.error('Failed to update leaderboard:', error);
-          console.error('Leaderboard error details:', error.message, error.code);
+          logger.error('Failed to update leaderboard:', error);
+          logger.error('Leaderboard error details:', error.message, error.code);
         }
       } else {
-        console.log('Score is 0, skipping leaderboard update');
+        logger.log('Score is 0, skipping leaderboard update');
       }
 
     } catch (error) {
-      console.error('Error saving game data:', error);
+      logger.error('Error saving game data:', error);
     }
-  }, [user, userProfile, gameState, updateUserStats, getSpeedMultiplier, checkAndUnlockAchievements]);
+  }, [user, userProfile, gameState, updateUserStats, getSpeedMultiplier, checkAndUnlockAchievements, refreshProfile]);
 
   /**
    * Quit to menu
@@ -896,17 +909,17 @@ export const GameProvider = ({ children }) => {
    * Start game loop when playing and not paused - FIXED DEPENDENCIES
    */
   useEffect(() => {
-    console.log('🔄 Game loop effect - isGameActive:', isGameActive, 'isPaused:', gameState.isPaused, 'hasLoop:', !!gameLoopRef.current);
-    
+    logger.log('🔄 Game loop effect - isGameActive:', isGameActive, 'isPaused:', gameState.isPaused, 'hasLoop:', !!gameLoopRef.current);
+
     if (isGameActive && !gameState.isPaused) {
       if (!gameLoopRef.current) {
-        console.log('🚀 Starting game loop...');
+        logger.log('🚀 Starting game loop...');
         gameLoopRef.current = requestAnimationFrame(updateGame);
       }
     } else {
       // Stop game loop if not active or paused
       if (gameLoopRef.current) {
-        console.log('⏹️ Stopping game loop...');
+        logger.log('⏹️ Stopping game loop...');
         cancelAnimationFrame(gameLoopRef.current);
         gameLoopRef.current = null;
       }

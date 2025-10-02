@@ -28,8 +28,10 @@ import {
   enableNetwork,
   disableNetwork,
   connectFirestoreEmulator,
+  enableIndexedDbPersistence,
   CACHE_SIZE_UNLIMITED
 } from 'firebase/firestore';
+import logger from '../utils/logger.js';
 import {
   getAuth,
   GoogleAuthProvider,
@@ -55,16 +57,28 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
-// Validate Firebase configuration
+// Validate Firebase configuration with helpful error messages
 const requiredKeys = ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId'];
 for (const key of requiredKeys) {
   if (!firebaseConfig[key]) {
-    throw new Error(`Missing required Firebase configuration: ${key}`);
+    const errorMsg = `
+    ❌ Missing Firebase Configuration: VITE_FIREBASE_${key.replace(/([A-Z])/g, '_$1').toUpperCase()}
+
+    To fix this:
+    1. Create a .env file in the project root (copy from .env.example)
+    2. Get your Firebase credentials from: https://console.firebase.google.com/
+    3. Navigate to: Project Settings > General > Your apps > Firebase SDK snippet > Config
+    4. Fill in the VITE_FIREBASE_* variables in your .env file
+    5. Restart the development server
+
+    See .env.example for template and instructions.
+    `;
+    throw new Error(errorMsg);
   }
 }
 
 // Initialize Firebase
-console.log('🔥 Initializing Firebase with config:', {
+logger.log('🔥 Initializing Firebase with config:', {
   projectId: firebaseConfig.projectId,
   authDomain: firebaseConfig.authDomain
 });
@@ -81,12 +95,23 @@ export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
 // Test Firebase connection
-console.log('🔥 Firebase initialized successfully');
-console.log('📄 Firestore instance:', db.app.name);
-console.log('🔐 Auth instance:', auth.app.name);
+logger.log('🔥 Firebase initialized successfully');
+logger.log('📄 Firestore instance:', db.app.name);
+logger.log('🔐 Auth instance:', auth.app.name);
 googleProvider.setCustomParameters({
   prompt: 'select_account'
 });
+
+// Enable offline persistence for better offline support
+if (typeof window !== 'undefined') {
+  enableIndexedDbPersistence(db).catch((err) => {
+    if (err.code === 'failed-precondition') {
+      logger.warn('Multiple tabs open, persistence can only be enabled in one tab at a time.');
+    } else if (err.code === 'unimplemented') {
+      logger.warn('The current browser does not support offline persistence.');
+    }
+  });
+}
 
 // Development emulator connection (only in development)
 if (import.meta.env.DEV && !window.location.hostname.includes('firebase')) {
@@ -94,8 +119,9 @@ if (import.meta.env.DEV && !window.location.hostname.includes('firebase')) {
     // Uncomment these lines if you want to use Firebase emulators in development
     // connectAuthEmulator(auth, 'http://localhost:9099');
     // connectFirestoreEmulator(db, 'localhost', 8080);
+    logger.info('Firebase emulators: Not configured (comment out lines 97-98 to enable)');
   } catch (error) {
-    console.warn('Firebase emulator connection failed:', error);
+    logger.warn('Firebase emulator connection failed:', error);
   }
 }
 
@@ -116,11 +142,11 @@ export const firestoreOperations = {
         const docSnap = await getDoc(docRef);
         return docSnap;
       } catch (error) {
-        console.warn(`Firestore get attempt ${i + 1} failed:`, error);
-        
+        logger.warn(`Firestore get attempt ${i + 1} failed:`, error);
+
         // Handle offline mode gracefully
         if (error.code === 'unavailable' || error.message?.includes('offline')) {
-          console.log('Working in offline mode - document operations will be limited');
+          logger.info('Working in offline mode - document operations will be limited');
           throw new Error('offline');
         }
         
@@ -135,44 +161,44 @@ export const firestoreOperations = {
    */
   async setDocument(docRef, data, options = {}) {
     const retries = 3;
-    console.log('🔥 Firebase setDocument called for:', docRef.path);
-    console.log('📝 Data to save:', data);
-    
+    logger.log('🔥 Firebase setDocument called for:', docRef.path);
+    logger.log('📝 Data to save:', data);
+
     for (let i = 0; i < retries; i++) {
       try {
-        console.log(`🔄 Attempt ${i + 1} to save document...`);
+        logger.log(`🔄 Attempt ${i + 1} to save document...`);
         await setDoc(docRef, data, options);
-        console.log('✅ Document saved successfully to Firebase!');
+        logger.log('✅ Document saved successfully to Firebase!');
         return true;
       } catch (error) {
-        console.error(`❌ Firestore set attempt ${i + 1} failed:`, error);
-        console.error('Error code:', error.code);
-        console.error('Error message:', error.message);
-        
+        logger.error(`❌ Firestore set attempt ${i + 1} failed:`, error);
+        logger.error('Error code:', error.code);
+        logger.error('Error message:', error.message);
+
         // Handle specific Firebase errors
         if (error.code === 'permission-denied') {
-          console.error('🚫 Permission denied - check Firestore security rules');
+          logger.error('🚫 Permission denied - check Firestore security rules');
           throw error;
         }
-        
+
         if (error.code === 'unavailable' || error.message?.includes('offline')) {
-          console.warn('📡 Working in offline mode - document writes will be cached');
+          logger.warn('📡 Working in offline mode - document writes will be cached');
           // In offline mode, Firebase will cache the write and sync later
           return true; // Return true because the write will be cached
         }
-        
+
         if (error.code === 'unauthenticated') {
-          console.error('🔐 User not authenticated - cannot save to Firebase');
+          logger.error('🔐 User not authenticated - cannot save to Firebase');
           throw error;
         }
-        
+
         if (i === retries - 1) {
-          console.error('💥 All attempts failed, throwing error');
+          logger.error('💥 All attempts failed, throwing error');
           throw error;
         }
-        
+
         const delay = 1000 * (i + 1);
-        console.log(`⏳ Retrying in ${delay}ms...`);
+        logger.log(`⏳ Retrying in ${delay}ms...`);
         await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
@@ -188,11 +214,11 @@ export const firestoreOperations = {
         await updateDoc(docRef, data);
         return true;
       } catch (error) {
-        console.warn(`Firestore update attempt ${i + 1} failed:`, error);
-        
+        logger.warn(`Firestore update attempt ${i + 1} failed:`, error);
+
         // Handle offline mode gracefully
         if (error.code === 'unavailable' || error.message?.includes('offline')) {
-          console.log('Working in offline mode - document updates will be cached');
+          logger.info('Working in offline mode - document updates will be cached');
           return false; // Return false instead of throwing to allow graceful degradation
         }
         
@@ -721,12 +747,12 @@ export const gameOperations = {
    */
   async saveGameSession(userId, gameData) {
     try {
-      console.log('Starting game session save for user:', userId);
-      console.log('Game data received:', gameData);
-      
+      logger.log('Starting game session save for user:', userId);
+      logger.log('Game data received:', gameData);
+
       const gameRef = doc(collection(db, COLLECTIONS.GAMES));
-      console.log('Created game reference:', gameRef.id);
-      
+      logger.log('Created game reference:', gameRef.id);
+
       const gameSession = createGameDocument({
         userId,
         gameId: gameData.gameId,
@@ -754,19 +780,19 @@ export const gameOperations = {
         endedAt: gameData.endedAt || serverTimestamp()
       });
 
-      console.log('Created game session document:', gameSession);
+      logger.log('Created game session document:', gameSession);
 
       const success = await firestoreOperations.setDocument(gameRef, gameSession);
       if (success) {
-        console.log('Game session saved successfully to Firestore with ID:', gameRef.id);
+        logger.log('Game session saved successfully to Firestore with ID:', gameRef.id);
         return gameRef.id;
       } else {
-        console.error('setDocument returned false - save failed');
+        logger.error('setDocument returned false - save failed');
         return null;
       }
     } catch (error) {
-      console.error('Error saving game session to Firebase:', error);
-      console.error('Full error object:', error);
+      logger.error('Error saving game session to Firebase:', error);
+      logger.error('Full error object:', error);
       return null;
     }
   },
@@ -789,7 +815,7 @@ export const gameOperations = {
         ...doc.data()
       }));
     } catch (error) {
-      console.error('Error fetching user games:', error);
+      logger.error('Error fetching user games:', error);
       return [];
     }
   },
@@ -799,24 +825,24 @@ export const gameOperations = {
    */
   async updateLeaderboard(userId, gameData) {
     try {
-      console.log('Starting leaderboard update for user:', userId);
-      console.log('Game data for leaderboard:', gameData);
-      
+      logger.log('Starting leaderboard update for user:', userId);
+      logger.log('Game data for leaderboard:', gameData);
+
       const leaderboardId = `${gameData.mode}_${gameData.difficulty || 'default'}`;
-      console.log('Leaderboard ID:', leaderboardId);
-      
+      logger.log('Leaderboard ID:', leaderboardId);
+
       const leaderboardRef = doc(db, COLLECTIONS.LEADERBOARDS, leaderboardId);
-      
+
       // Get current leaderboard
-      console.log('Fetching current leaderboard...');
+      logger.log('Fetching current leaderboard...');
       const leaderboardDoc = await firestoreOperations.getDocument(leaderboardRef);
       let currentEntries = [];
-      
+
       if (leaderboardDoc.exists()) {
         currentEntries = leaderboardDoc.data()?.entries || [];
-        console.log('Found existing leaderboard with', currentEntries.length, 'entries');
+        logger.log('Found existing leaderboard with', currentEntries.length, 'entries');
       } else {
-        console.log('Creating new leaderboard');
+        logger.log('Creating new leaderboard');
       }
 
       // Create new entry
@@ -832,15 +858,15 @@ export const gameOperations = {
         speedReached: gameData.speedReached
       });
 
-      console.log('Created leaderboard entry:', newEntry);
+      logger.log('Created leaderboard entry:', newEntry);
 
       // Add new entry and sort
       currentEntries.push(newEntry);
       currentEntries.sort((a, b) => b.score - a.score);
-      
+
       // Keep only top 100 entries
       const topEntries = currentEntries.slice(0, 100);
-      console.log('Updated entries count:', topEntries.length);
+      logger.log('Updated entries count:', topEntries.length);
 
       // Update ranks
       topEntries.forEach((entry, index) => {
@@ -863,19 +889,19 @@ export const gameOperations = {
         }
       };
 
-      console.log('Saving leaderboard data to Firestore...');
+      logger.log('Saving leaderboard data to Firestore...');
       const success = await firestoreOperations.setDocument(leaderboardRef, leaderboardData);
-      
+
       if (success) {
-        console.log('Leaderboard updated successfully in Firestore');
+        logger.log('Leaderboard updated successfully in Firestore');
         return true;
       } else {
-        console.error('Leaderboard update failed - setDocument returned false');
+        logger.error('Leaderboard update failed - setDocument returned false');
         return false;
       }
     } catch (error) {
-      console.error('Error updating leaderboard:', error);
-      console.error('Full leaderboard error:', error);
+      logger.error('Error updating leaderboard:', error);
+      logger.error('Full leaderboard error:', error);
       return false;
     }
   },
@@ -907,7 +933,7 @@ export const gameOperations = {
         totalEntries: 0
       };
     } catch (error) {
-      console.error('Error fetching leaderboard:', error);
+      logger.error('Error fetching leaderboard:', error);
       return {
         entries: [],
         stats: {},
@@ -932,7 +958,7 @@ export const gameOperations = {
       ];
 
       const allEntries = [];
-      
+
       for (const modeConfig of modes) {
         const leaderboard = await this.getLeaderboard(modeConfig.mode, modeConfig.difficulty, 50);
         allEntries.push(...leaderboard.entries);
@@ -957,7 +983,7 @@ export const gameOperations = {
 
       return topPlayers;
     } catch (error) {
-      console.error('Error fetching top players:', error);
+      logger.error('Error fetching top players:', error);
       return [];
     }
   },
@@ -969,7 +995,7 @@ export const gameOperations = {
     try {
       const leaderboard = await this.getLeaderboard(mode, difficulty, 1000);
       const userEntry = leaderboard.entries.find(entry => entry.userId === userId);
-      
+
       if (userEntry) {
         return {
           rank: userEntry.rank,
@@ -977,10 +1003,10 @@ export const gameOperations = {
           totalPlayers: leaderboard.totalEntries
         };
       }
-      
+
       return null;
     } catch (error) {
-      console.error('Error fetching user rank:', error);
+      logger.error('Error fetching user rank:', error);
       return null;
     }
   }

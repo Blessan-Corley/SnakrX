@@ -19,7 +19,6 @@ const Game = () => {
   const navigate = useNavigate();
   const { mode, difficulty, playerCount } = useParams();
   const { userProfile } = useAuth();
-  const { recentUnlocks } = useAchievementOperations();
 
   const { gameState, snakes, food, boardSize, score, gameTime, speed, foodEaten, isPaused, deadPlayers } = useGame();
   const { initializeGame, startGame, updateSnakeDirection, togglePause, restartGame, quitToMenu, isGameActive, isGameOver, isVictory, speedMultiplier } = useGameOperations();
@@ -154,10 +153,11 @@ const Game = () => {
 
   useEffect(() => {
     if (isGameOver || isVictory) {
-      const finalStats = { mode, score, time: Math.floor(gameTime / 1000), foodEaten, speedReached: speedMultiplier };
+      // Fix: gameTime is already in seconds, no need to divide by 1000
+      const finalStats = { mode, score, time: Math.floor(gameTime), foodEaten, speedReached: speedMultiplier };
       setGameStats(finalStats);
       setShowGameOverModal(true);
-      
+
       // Reset performance metrics on game end
       resetPerformanceMetrics();
       setInputWarning(null);
@@ -328,7 +328,7 @@ const Game = () => {
       </Modal>
 
       {/* Input Performance Monitor - Development only */}
-      {process.env.NODE_ENV === 'development' && (
+      {import.meta.env.DEV && (
         <InputPerformanceMonitor
           getInputPerformance={getInputPerformance}
           isVisible={showPerformanceMonitor}
