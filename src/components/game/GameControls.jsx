@@ -1,4 +1,3 @@
-import React from 'react';
 import { motion } from 'framer-motion';
 import { 
   Play, 
@@ -16,7 +15,7 @@ import {
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
-import { formatScore, formatTime, getSpeedMultiplier, DIRECTIONS } from '@/utils/gameUtils';
+import { formatScore, formatTime, DIRECTIONS } from '@/utils/gameUtils';
 import { playClick } from '@/utils/sound';
 
 /**
@@ -29,7 +28,6 @@ const GameControls = ({
   isGameOver = false,
   score = 0,
   gameTime = 0,
-  speed = 150,
   speedMultiplier = 1.0,
   foodEaten = 0,
   gameMode = 'classic',
