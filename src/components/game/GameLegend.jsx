@@ -1,4 +1,3 @@
-import React from 'react';
 import { MODE_DESCRIPTIONS } from '@/utils/gameUtils';
 
 const GameLegend = ({ gameMode, className = '' }) => {

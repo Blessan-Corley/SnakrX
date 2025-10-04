@@ -5,7 +5,6 @@
  * @version 2.0.0
  */
 
-import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Heart, Mail, Shield, FileText } from 'lucide-react';

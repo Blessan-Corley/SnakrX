@@ -3,9 +3,9 @@
  * Shows real-time achievement progress during and after games
  */
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trophy, Target, CheckCircle, ArrowRight, Sparkles } from 'lucide-react';
+import { Trophy, Target, Sparkles } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.js';
 import { useAchievementOperations } from '../hooks/useAchievements.js';
 import { ACHIEVEMENT_TIERS } from '../data/achievements.js';
@@ -14,9 +14,7 @@ const AchievementProgress = ({ gameStats, isVisible = true, maxDisplay = 3 }) =>
   const { userProfile } = useAuth();
   const {
     getNextAchievements,
-    calculateAchievementProgress,
-    isAchievementUnlocked,
-    recentUnlocks
+    calculateAchievementProgress
   } = useAchievementOperations();
 
   const [nearestAchievements, setNearestAchievements] = useState([]);

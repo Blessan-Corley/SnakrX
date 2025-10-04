@@ -3,7 +3,7 @@
  * Displays real-time input performance metrics for debugging and optimization
  */
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Activity, Zap, Target, Clock } from 'lucide-react';
 

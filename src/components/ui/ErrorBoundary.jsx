@@ -1,4 +1,4 @@
-import React from 'react';
+import { Component } from 'react';
 import { motion } from 'framer-motion';
 import { RefreshCw, AlertTriangle, Home, Bug, Mail, ExternalLink } from 'lucide-react';
 import Button from './Button';
@@ -7,7 +7,7 @@ import Button from './Button';
  * Enhanced Error Boundary Component for SnakrX
  * Catches JavaScript errors anywhere in the component tree and displays a fallback UI
  */
-class ErrorBoundary extends React.Component {
+class ErrorBoundary extends Component {
   constructor(props) {
     super(props);
     this.state = { 
