@@ -1,4 +1,4 @@
-import React, { forwardRef } from 'react';
+import { forwardRef } from 'react';
 import { motion } from 'framer-motion';
 
 /**
@@ -194,7 +194,6 @@ export const AchievementCard = ({
   userStats = null,
   onClick,
   className = '',
-  showRequirements = false,
   ...props 
 }) => {
   // Calculate detailed progress information
@@ -246,7 +245,7 @@ export const AchievementCard = ({
     };
   };
 
-  const getRequirementDescription = (key, current, target) => {
+  const getRequirementDescription = (key) => {
     const mappings = {
       games: 'games played',
       wins: 'games won',

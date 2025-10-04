@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -14,7 +14,7 @@ import {
   VolumeX
 } from 'lucide-react';
 import { useAuth, useAuthOperations } from '../../hooks/useAuth.js';
-import { useAchievementOperations } from '../../hooks/useAchievements.js';
+import { useAchievements } from '../../hooks/useAchievements.js';
 import Button from '../ui/Button.jsx';
 import { playClick } from '../../utils/sound.js';
 import { getMuted, toggleMute } from '../../utils/sound.js';
@@ -28,7 +28,7 @@ const Header = ({ onToggleSidebar, sidebarOpen }) => {
   const [soundMuted, setSoundMuted] = useState(getMuted());
   const { userProfile } = useAuth();
   const { logout } = useAuthOperations();
-  const { uncollectedAchievements } = useAchievementOperations();
+  const { uncollectedAchievements = [] } = useAchievements();
   const navigate = useNavigate();
   const location = useLocation();
 
