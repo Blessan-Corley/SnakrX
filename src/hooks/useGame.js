@@ -37,7 +37,7 @@ import { AIController } from '../utils/aiPathfinding.js';
 import { playFoodEat, playDeath, playVictory } from '../utils/sound.js';
 import { useAuth, useAuthOperations } from './useAuth';
 import { useAchievementOperations } from './useAchievements';
-import { gameOperations } from '../services/firebase.js';
+import { gameOperations } from '../services/firebase/index.js';
 import toast from 'react-hot-toast';
 import logger from '../utils/logger.js';
 
