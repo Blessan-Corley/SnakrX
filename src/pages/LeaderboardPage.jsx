@@ -5,7 +5,7 @@
  * @version 3.0.0
  */
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy, Crown, Users, Target, RefreshCw, Gamepad2, Zap, Search, ChevronDown } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.js';
@@ -14,7 +14,7 @@ import Card, { StatsCard } from '../components/ui/Card.jsx';
 import LoadingSpinner, { ListSkeleton } from '../components/ui/LoadingSpinner.jsx';
 import { playClick } from '../utils/sound.js';
 import { formatScore } from '../utils/gameUtils.js';
-import { collection, query, orderBy, limit, where, getDocs, db } from '../services/firebase.js';
+import { collection, query, orderBy, limit, where, getDocs, db } from '../services/firebase/index.js';
 
 const LeaderboardPage = () => {
   const { userProfile } = useAuth();
