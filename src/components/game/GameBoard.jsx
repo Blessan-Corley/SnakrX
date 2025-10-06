@@ -21,7 +21,6 @@ const GameBoard = memo(({
 
     const screenWidth = window.innerWidth;
     const screenHeight = window.innerHeight;
-    const pixelRatio = window.devicePixelRatio || 1;
 
     const maxBoardWidth = Math.min(screenWidth * 0.85, 1200);
     const maxBoardHeight = Math.min(screenHeight * 0.8, 900);
@@ -166,6 +165,8 @@ const GameBoard = memo(({
     <div
       ref={boardRef}
       className={`relative mx-auto rounded-lg overflow-hidden ${className}`}
+      role="img"
+      aria-label="Snake game board"
       style={{
         width: boardWidth + 8,
         height: boardHeight + 8,
@@ -178,6 +179,8 @@ const GameBoard = memo(({
         width={boardWidth}
         height={boardHeight}
         className="mx-auto mt-1"
+        role="presentation"
+        aria-hidden="true"
         style={{
           display: 'block',
           background: '#0f0f23'

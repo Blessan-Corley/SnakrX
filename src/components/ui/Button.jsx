@@ -1,4 +1,4 @@
-import { forwardRef } from 'react';
+import { forwardRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { playClick, playHover } from '@/utils/sound';
 
@@ -86,7 +86,7 @@ const Button = forwardRef(({
   ].filter(Boolean).join(' ');
 
   // Handle click with sound and debouncing to prevent rapid clicks
-  const handleClick = React.useCallback((e) => {
+  const handleClick = useCallback((e) => {
     if (disabled || loading) {
       e.preventDefault();
       e.stopPropagation();
@@ -107,7 +107,7 @@ const Button = forwardRef(({
   }, [disabled, loading, soundEnabled, onClick]);
 
   // Handle hover with sound and error handling
-  const handleMouseEnter = React.useCallback(() => {
+  const handleMouseEnter = useCallback(() => {
     if (disabled || loading) return;
     
     try {
@@ -138,6 +138,9 @@ const Button = forwardRef(({
       onClick={handleClick}
       onMouseEnter={handleMouseEnter}
       disabled={disabled || loading}
+      aria-disabled={disabled || loading}
+      aria-busy={loading}
+      aria-label={props['aria-label'] || (size === 'icon' && typeof children === 'string' ? children : undefined)}
       whileHover={disabled || loading ? {} : { scale: 1.02 }}
       whileTap={disabled || loading ? {} : { scale: 0.98 }}
       {...props}

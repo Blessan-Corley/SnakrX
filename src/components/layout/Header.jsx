@@ -30,7 +30,6 @@ const Header = ({ onToggleSidebar, sidebarOpen }) => {
   const { logout } = useAuthOperations();
   const { uncollectedAchievements = [] } = useAchievements();
   const navigate = useNavigate();
-  const location = useLocation();
 
   const handleLogout = async () => {
     await logout();

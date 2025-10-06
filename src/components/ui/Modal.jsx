@@ -128,6 +128,9 @@ const Modal = ({
           exit="hidden"
           transition={{ duration: 0.2 }}
           onClick={handleBackdropClick}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={title ? "modal-title" : undefined}
         >
           {/* Backdrop */}
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
@@ -175,6 +178,7 @@ const Modal = ({
                     size="icon"
                     onClick={onClose}
                     icon={<X size={20} />}
+                    aria-label="Close modal"
                     className="text-white/70 hover:text-white ml-auto"
                     aria-label="Close modal"
                   />

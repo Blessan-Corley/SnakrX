@@ -3,7 +3,7 @@ import Card from '@/components/ui/Card';
 /**
  * Profile Achievements Tab Component
  */
-export const AchievementsTab = ({ achievementStats, achievements }) => {
+export const AchievementsTab = ({ achievementStats }) => {
   const categoryInfo = {
     gameplay: { name: 'Gameplay', icon: '🎮', color: 'text-orange-400' },
     score: { name: 'High Scores', icon: '🏆', color: 'text-yellow-400' },

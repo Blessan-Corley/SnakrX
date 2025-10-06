@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -188,7 +188,7 @@ const RegisterPage = () => {
   };
 
   // Username change handler with debounced checking
-  React.useEffect(() => {
+  useEffect(() => {
     if (formData.username && isValidUsername(formData.username)) {
       const timer = setTimeout(() => {
         checkUsername(formData.username);

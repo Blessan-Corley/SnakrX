@@ -14,7 +14,8 @@ const AchievementProgress = ({ gameStats, isVisible = true, maxDisplay = 3 }) =>
   const { userProfile } = useAuth();
   const {
     getNextAchievements,
-    calculateAchievementProgress
+    calculateAchievementProgress,
+    recentUnlocks
   } = useAchievementOperations();
 
   const [nearestAchievements, setNearestAchievements] = useState([]);

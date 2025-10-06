@@ -132,8 +132,8 @@ export default {
         }
       },
       fontFamily: {
-        'gaming': ['Orbitron', 'monospace'],
-        'display': ['Inter', 'sans-serif'],
+        'gaming': ['Orbitron', 'Courier New', 'Courier', 'monospace'],
+        'display': ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Helvetica Neue', 'sans-serif'],
       },
       backdropBlur: {
         xs: '2px',

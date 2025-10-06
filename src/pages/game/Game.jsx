@@ -1,9 +1,8 @@
-import { useEffect, useCallback, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Home, RotateCcw, Share2, ArrowRight } from 'lucide-react';
 import { useGame, useGameOperations } from '../../hooks/useGame.js';
-import { useAuth } from '../../hooks/useAuth.js';
 import { useAchievementOperations } from '../../hooks/useAchievements.js';
 import useGameInput from '../../hooks/useGameInput.js';
 import { GameBoardWithOverlay } from '../../components/game/GameBoard.jsx';
@@ -13,20 +12,19 @@ import Button from '../../components/ui/Button.jsx';
 import Modal from '../../components/ui/Modal.jsx';
 import LoadingSpinner from '../../components/ui/LoadingSpinner.jsx';
 import { playClick } from '../../utils/sound.js';
-import { formatScore, formatTime, isMobile, DIRECTIONS, GAME_STATES } from '../../utils/gameUtils.js';
+import { formatScore, isMobile, GAME_STATES } from '../../utils/gameUtils.js';
 
 const Game = () => {
   const navigate = useNavigate();
   const { mode, difficulty, playerCount } = useParams();
-  const { userProfile } = useAuth();
 
-  const { gameState, snakes, food, boardSize, score, gameTime, speed, foodEaten, isPaused, deadPlayers } = useGame();
+  const { gameState, snakes, food, boardSize, score, gameTime, speed, foodEaten, isPaused } = useGame();
   const { initializeGame, startGame, updateSnakeDirection, togglePause, restartGame, quitToMenu, isGameActive, isGameOver, isVictory, speedMultiplier } = useGameOperations();
 
   const [showGameOverModal, setShowGameOverModal] = useState(false);
   const [showAchievementModal, setShowAchievementModal] = useState(false);
   const [newAchievement, setNewAchievement] = useState(null);
-  const [gameStats, setGameStats] = useState(null);
+  const [, setGameStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showPerformanceMonitor, setShowPerformanceMonitor] = useState(false);
   const [inputWarning, setInputWarning] = useState(null);
@@ -44,7 +42,6 @@ const Game = () => {
     getCurrentKeyMappings,
     getInputPerformance,
     resetPerformanceMetrics,
-    clearInputQueue,
     isHighLatency,
     getSuccessRate
   } = useGameInput({
@@ -164,8 +161,10 @@ const Game = () => {
     }
   }, [isGameOver, isVictory, mode, score, gameTime, foodEaten, speedMultiplier, resetPerformanceMetrics]);
 
+  const { recentUnlocks } = useAchievementOperations();
+  
   useEffect(() => {
-    if (recentUnlocks.length > 0) {
+    if (recentUnlocks && recentUnlocks.length > 0) {
       const latestAchievement = recentUnlocks[0];
       setNewAchievement(latestAchievement);
       setShowAchievementModal(true);

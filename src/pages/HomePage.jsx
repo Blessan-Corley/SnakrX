@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -153,7 +153,7 @@ const HomePage = () => {
   ];
 
   // Build leaderboard display data from real Firebase data
-  const recentLeaderboard = React.useMemo(() => {
+  const recentLeaderboard = useMemo(() => {
     if (loadingLeaderboard || !leaderboardSummary?.hasData) {
       return [];
     }

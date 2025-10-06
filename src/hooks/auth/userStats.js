@@ -8,7 +8,6 @@ import {
   auth,
   db,
   doc,
-  getDoc,
   serverTimestamp,
   arrayUnion,
   COLLECTIONS,

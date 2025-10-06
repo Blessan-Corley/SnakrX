@@ -54,44 +54,44 @@ const GameControls = ({
   return (
     <div className="space-y-6">
       {/* Game Stats */}
-      <Card variant="glass" padding="md">
+      <Card variant="glass" padding="md" role="region" aria-label="Game statistics">
         <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-          <Trophy className="mr-2" size={18} />
+          <Trophy className="mr-2" size={18} aria-hidden="true" />
           Game Stats
         </h3>
         
         <div className="space-y-4">
           {/* Score */}
-          <div className="text-center">
-            <div className="text-3xl font-bold bg-gradient-sunset bg-clip-text text-transparent mb-1">
+          <div className="text-center" role="status" aria-live="polite">
+            <div className="text-3xl font-bold bg-gradient-sunset bg-clip-text text-transparent mb-1" aria-label={`Current score: ${formatScore(score)}`}>
               {formatScore(score)}
             </div>
             <div className="text-white/60 text-sm">Score</div>
           </div>
 
           {/* Quick Stats Grid */}
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            <div className="bg-white/5 rounded-lg p-3 text-center">
-              <Clock size={16} className="mx-auto mb-1 text-blue-400" />
-              <div className="font-bold text-white">{formatTime(formattedTime)}</div>
+          <div className="grid grid-cols-2 gap-3 text-sm" role="list" aria-label="Game metrics">
+            <div className="bg-white/5 rounded-lg p-3 text-center" role="listitem">
+              <Clock size={16} className="mx-auto mb-1 text-blue-400" aria-hidden="true" />
+              <div className="font-bold text-white" aria-label={`Time played: ${formatTime(formattedTime)}`}>{formatTime(formattedTime)}</div>
               <div className="text-white/60 text-xs">Time</div>
             </div>
             
-            <div className="bg-white/5 rounded-lg p-3 text-center">
-              <Target size={16} className="mx-auto mb-1 text-green-400" />
-              <div className="font-bold text-white">{foodEaten}</div>
+            <div className="bg-white/5 rounded-lg p-3 text-center" role="listitem">
+              <Target size={16} className="mx-auto mb-1 text-green-400" aria-hidden="true" />
+              <div className="font-bold text-white" aria-label={`Food eaten: ${foodEaten}`}>{foodEaten}</div>
               <div className="text-white/60 text-xs">Food</div>
             </div>
             
-            <div className="bg-white/5 rounded-lg p-3 text-center">
-              <Zap size={16} className="mx-auto mb-1 text-yellow-400" />
-              <div className="font-bold text-white">{speedMultiplier.toFixed(1)}x</div>
+            <div className="bg-white/5 rounded-lg p-3 text-center" role="listitem">
+              <Zap size={16} className="mx-auto mb-1 text-yellow-400" aria-hidden="true" />
+              <div className="font-bold text-white" aria-label={`Speed multiplier: ${speedMultiplier.toFixed(1)}x`}>{speedMultiplier.toFixed(1)}x</div>
               <div className="text-white/60 text-xs">Speed</div>
             </div>
             
-            <div className="bg-white/5 rounded-lg p-3 text-center">
-              <div className="text-lg mb-1">🎮</div>
-              <div className="font-bold text-white text-xs">{gameMode}</div>
+            <div className="bg-white/5 rounded-lg p-3 text-center" role="listitem">
+              <div className="text-lg mb-1" aria-hidden="true">🎮</div>
+              <div className="font-bold text-white text-xs" aria-label={`Game mode: ${gameMode}`}>{gameMode}</div>
               <div className="text-white/60 text-xs">Mode</div>
             </div>
           </div>
@@ -110,10 +110,10 @@ const GameControls = ({
       </Card>
 
       {/* Game Controls */}
-      <Card variant="glass" padding="md">
+      <Card variant="glass" padding="md" role="region" aria-label="Game controls">
         <h3 className="text-lg font-semibold text-white mb-4">Controls</h3>
         
-        <div className="space-y-3">
+        <div className="space-y-3" role="group" aria-label="Game action buttons">
           {/* Pause/Resume */}
           <Button
             variant="primary"
@@ -131,6 +131,7 @@ const GameControls = ({
             }}
             disabled={isGameOver}
             icon={isPaused ? <Play size={18} /> : <Pause size={18} />}
+            aria-label={isPaused ? 'Resume game' : 'Pause game'}
           >
             {isPaused ? 'Resume' : 'Pause'}
           </Button>
@@ -147,6 +148,7 @@ const GameControls = ({
               }
             }}
             icon={<RotateCcw size={18} />}
+            aria-label="Restart game"
           >
             Restart
           </Button>
@@ -163,6 +165,7 @@ const GameControls = ({
               }
             }}
             icon={<Home size={18} />}
+            aria-label="Return to main menu"
           >
             Main Menu
           </Button>
@@ -171,10 +174,10 @@ const GameControls = ({
 
       {/* Mobile Touch Controls */}
       {showMobileControls && (
-        <Card variant="glass" padding="md">
+        <Card variant="glass" padding="md" role="region" aria-label="Touch controls">
           <h3 className="text-lg font-semibold text-white mb-4">Touch Controls</h3>
           
-          <div className="grid grid-cols-3 gap-2 max-w-48 mx-auto">
+          <div className="grid grid-cols-3 gap-2 max-w-48 mx-auto" role="group" aria-label="Directional controls">
             <div />
             <Button
               variant="ghost"
@@ -191,6 +194,7 @@ const GameControls = ({
               icon={<ArrowUp size={20} />}
               className="aspect-square"
               soundEnabled={false}
+              aria-label="Move up"
             />
             <div />
             
@@ -209,6 +213,7 @@ const GameControls = ({
               icon={<ArrowLeft size={20} />}
               className="aspect-square"
               soundEnabled={false}
+              aria-label="Move left"
             />
             <div />
             <Button
@@ -225,6 +230,7 @@ const GameControls = ({
               disabled={!isPlaying || isPaused}
               icon={<ArrowRight size={20} />}
               className="aspect-square"
+              aria-label="Move right"
               soundEnabled={false}
             />
             
@@ -242,6 +248,7 @@ const GameControls = ({
               }}
               disabled={!isPlaying || isPaused}
               icon={<ArrowDown size={20} />}
+              aria-label="Move down"
               className="aspect-square"
               soundEnabled={false}
             />

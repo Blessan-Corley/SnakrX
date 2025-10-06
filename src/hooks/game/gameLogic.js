@@ -3,8 +3,8 @@
  * Core game mechanics and collision detection
  */
 
-import { DIRECTIONS, GAME_MODES } from './constants.js';
-import { generateFood, isPositionEqual } from '../../utils/gameUtils.js';
+import { GAME_MODES } from './constants.js';
+import { generateFood } from '../../utils/gameUtils.js';
 import { playFoodEat, playDeath } from '../../utils/sound.js';
 import logger from '../../utils/logger.js';
 

@@ -371,7 +371,7 @@ export const useGameInput = ({
     }
     
     // Performance logging (only in dev mode)
-    if (process.env.NODE_ENV === 'development' && processed > 0) {
+    if (import.meta.env.DEV && processed > 0) {
       const perf = performanceRef.current;
       const successRate = (perf.processedInputs / perf.totalInputs * 100).toFixed(1);
       console.log(`Input Performance: ${successRate}% success, ${perf.averageLatency.toFixed(2)}ms avg latency, queue: ${queue.size}`);

@@ -1,11 +1,11 @@
-import { forwardRef } from 'react';
+import { forwardRef, memo } from 'react';
 import { motion } from 'framer-motion';
 
 /**
  * Reusable Card Component with SnakrX glass morphism design
  * Features gradient backgrounds, backdrop blur, and hover animations
  */
-const Card = forwardRef(({
+const Card = memo(forwardRef(({
   children,
   variant = 'default',
   padding = 'md',
@@ -109,7 +109,7 @@ const Card = forwardRef(({
   );
 
   return CardComponent;
-});
+}));
 
 Card.displayName = 'Card';
 

@@ -1,6 +1,7 @@
+import { memo } from 'react';
 import { MODE_DESCRIPTIONS } from '@/utils/gameUtils';
 
-const GameLegend = ({ gameMode, className = '' }) => {
+const GameLegend = memo(({ gameMode, className = '' }) => {
   const modeInfo = MODE_DESCRIPTIONS[gameMode];
   
   if (!modeInfo) return null;
@@ -20,6 +21,8 @@ const GameLegend = ({ gameMode, className = '' }) => {
       </div>
     </div>
   );
-};
+});
+
+GameLegend.displayName = 'GameLegend';
 
 export default GameLegend;

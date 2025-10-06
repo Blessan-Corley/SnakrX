@@ -1,6 +1,6 @@
-import { Component } from 'react';
+import { Component, useState, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { RefreshCw, AlertTriangle, Home, Bug, Mail, ExternalLink } from 'lucide-react';
+import { RefreshCw, AlertTriangle, Home, Bug, Mail } from 'lucide-react';
 import Button from './Button';
 
 /**
@@ -213,7 +213,7 @@ Thanks!`;
               </div>
 
               {/* Development error details */}
-              {process.env.NODE_ENV === 'development' && this.state.error && (
+              {import.meta.env.DEV && this.state.error && (
                 <details className="bg-red-500/10 border border-red-400/20 rounded-lg p-4 text-left mb-6">
                   <summary className="text-red-400 cursor-pointer mb-3 font-medium flex items-center">
                     <AlertTriangle size={16} className="mr-2" />
@@ -284,7 +284,7 @@ Thanks!`;
 
               {/* Support Information */}
               <div className="mt-8 pt-6 border-t border-white/10">
-                <p className="text-white/60 text-sm mb-3">
+                  <p className="text-white/60 text-sm mb-3">
                   Need help? Our support team is here for you!
                 </p>
                 
@@ -317,18 +317,18 @@ Thanks!`;
  * Hook for error handling in functional components
  */
 export const useErrorHandler = () => {
-  const [error, setError] = React.useState(null);
+  const [error, setError] = useState(null);
 
-  const handleError = React.useCallback((error) => {
+  const handleError = useCallback((error) => {
     console.error('Error caught by useErrorHandler:', error);
     setError(error);
   }, []);
 
-  const clearError = React.useCallback(() => {
+  const clearError = useCallback(() => {
     setError(null);
   }, []);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (error) {
       throw error;
     }
@@ -406,7 +406,7 @@ export const GameError = ({ onRetry, onRestart }) => (
     <div className="text-6xl mb-4">🐍💥</div>
     <h3 className="text-xl font-semibold text-white mb-2">Game Crashed!</h3>
     <p className="text-white/70 mb-6">
-      The snake got tangled up in some code! Don't worry, we can fix this.
+      The snake got tangled up in some code! Don&apos;t worry, we can fix this.
     </p>
     
     <div className="flex space-x-3 justify-center">
@@ -440,7 +440,7 @@ export const NotFoundError = ({ onGoHome }) => (
     <div className="text-8xl mb-6">🐍❓</div>
     <h1 className="text-4xl font-bold text-white mb-4">404</h1>
     <p className="text-white/70 mb-8 text-lg">
-      The snake couldn't find what you're looking for!
+      The snake couldn&apos;t find what you&apos;re looking for!
     </p>
     <Button
       variant="primary"
