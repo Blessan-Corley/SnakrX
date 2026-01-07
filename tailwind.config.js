@@ -62,7 +62,7 @@ export default {
         }
       },
       backgroundImage: {
-        'gradient-sunset': 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 25%, #fecfef 50%, #667eea 100%)',
+        'gradient-sunset': 'linear-gradient(135deg, #f59e0b 0%, #f97316 42%, #3b82f6 100%)',
         'gradient-gaming': 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
         'gradient-success': 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
         'gradient-danger': 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',

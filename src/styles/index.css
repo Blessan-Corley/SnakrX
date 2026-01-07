@@ -9,6 +9,7 @@
 
 html {
   scroll-behavior: smooth;
+  min-height: 100%;
 }
 
 body {
@@ -20,6 +21,11 @@ body {
   background: linear-gradient(135deg, #0c0c0c 0%, #1a1a2e 50%, #16213e 100%);
   color: white;
   overflow-x: hidden;
+  min-height: 100dvh;
+}
+
+#root {
+  min-height: 100dvh;
 }
 
 /* Remove loading screen once React loads */
@@ -53,7 +59,7 @@ body {
 }
 
 /* Focus styles */
-*:focus {
+:focus-visible {
   outline: 2px solid #f97316;
   outline-offset: 2px;
 }
