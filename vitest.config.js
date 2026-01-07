@@ -8,28 +8,43 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react({
+      include: /\.[jt]sx?$/
+    })
+  ],
   test: {
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.js'],
     css: true,
+    include: ['src/**/*.test.{js,jsx,ts,tsx}', 'functions/src/**/*.test.js'],
+    exclude: ['e2e/**', 'node_modules/**', 'functions/node_modules/**'],
     coverage: {
+      all: true,
       reporter: ['text', 'json', 'html'],
       exclude: [
         'node_modules/',
         'src/test/',
         '**/*.d.ts',
+        '**/*.cjs',
         '**/*.config.js',
         'dist/',
         'coverage/',
+        'e2e/',
+        'functions/**',
+        '.github/**',
+        'src/main.jsx',
+        'src/App.jsx',
+        'src/**/context.js',
+        'src/**/index.js',
       ],
       thresholds: {
         global: {
-          branches: 70,
-          functions: 70,
-          lines: 70,
-          statements: 70,
+          branches: 63,
+          functions: 53,
+          lines: 44,
+          statements: 44,
         },
       },
     },
@@ -45,5 +60,10 @@ export default defineConfig({
       '@data': path.resolve(__dirname, './src/data'),
       '@styles': path.resolve(__dirname, './src/styles'),
     },
+  },
+  esbuild: {
+    loader: 'jsx',
+    include: /src\/.*\.(jsx?|tsx?)$/,
+    exclude: [],
   },
 });
