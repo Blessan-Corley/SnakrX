@@ -1,134 +1,101 @@
 # Dependencies
 node_modules/
+functions/node_modules/
+
+# Package manager caches
+.npm/
+.pnpm-store/
+.yarn/cache/
+.yarn/unplugged/
+.yarn/build-state.yml
+.yarn/install-state.gz
+
+# Build outputs
+dist/
+build/
+.vite/
+.vitest/
+*.tgz
+*.tsbuildinfo
+
+# Coverage and test artifacts
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+blob-report/
+e2e/.auth/
+
+# Environment and local config
+.env
+.env.*
+!.env.example
+functions/.env
+functions/.env.*
+!functions/.env.example
+.firebaserc
+!.firebaserc.example
+.runtimeconfig.json
+functions/.runtimeconfig.json
+
+# Logs and runtime files
+logs/
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+*.pid
+*.pid.lock
+*.seed
 
-# Build outputs
-dist/
-build/
-*.local
+# Tool caches and temp files
+.cache/
+.parcel-cache/
+.eslintcache
+tmp/
+temp/
+*.tmp
+*.temp
 
-# Environment variables
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+# Firebase local state and emulator logs
+.firebase/
+firebase-debug.log
+firebase-debug.*.log
+firestore-debug.log
+firestore-debug.*.log
+database-debug.log
+database-debug.*.log
+dataconnect-debug.log
+dataconnect-debug.*.log
+pubsub-debug.log
+pubsub-debug.*.log
+storage-debug.log
+storage-debug.*.log
+ui-debug.log
+ui-debug.*.log
 
-# Editor directories and files
+# Editor and OS files
 .vscode/
+.vs/
 .idea/
+.history/
 .DS_Store
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
 *.suo
+*.user
+*.userossc
+*.sln.docstates
 *.ntvs*
 *.njsproj
 *.sln
-*.sw?
-
-# Claude Code files
-.claude/
-CLAUDE.md
-
-# Logs
-logs
-*.log
-
-# Runtime data
-pids
-*.pid
-*.seed
-*.pid.lock
-
-# Coverage directory used by tools like istanbul
-coverage/
-*.lcov
-
-# nyc test coverage
-.nyc_output
-
-# Dependency directories
-jspm_packages/
-
-# Optional npm cache directory
-.npm
-
-# Optional eslint cache
-.eslintcache
-
-# Microbundle cache
-.rpt2_cache/
-.rts2_cache_cjs/
-.rts2_cache_es/
-.rts2_cache_umd/
-
-# Optional REPL history
-.node_repl_history
-
-# Output of 'npm pack'
-*.tgz
-
-# Yarn Integrity file
-.yarn-integrity
-
-# parcel-bundler cache (https://parceljs.org/)
-.cache
-.parcel-cache
-
-# Next.js build output
-.next
-
-# Nuxt.js build / generate output
-.nuxt
-
-# Gatsby files
-.cache/
-public
-
-# Storybook build outputs
-.out
-.storybook-out
-
-# Temporary folders
-tmp/
-temp/
-
-# Firebase
-.firebase/
-firebase-debug.log
-
-# OS generated files
-Thumbs.db
-ehthumbs.db
-Desktop.ini
-$RECYCLE.BIN/
-
-# Archive files
-*.zip
-*.tar.gz
-*.rar
-
-# IDE files
 *.swp
 *.swo
 *~
 
-# Test files
-test-results/
-playwright-report/
-test_*.js
-tests/
-__tests__/
-*.test.js
-*.test.jsx
-*.spec.js
-*.spec.jsx
-coverage/
+# Local tooling files
+.claude/
 
-# Documentation files
-docs/
-*.md
-!README.md
-!CLAUDE.md
