@@ -20,14 +20,14 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
     return (
       <Navigate 
         to="/landing" // Redirect to landing page instead of login
-        state={{ from: location.pathname }} 
+        state={{ from: `${location.pathname}${location.search}${location.hash}` }} 
         replace 
       />
     );
   }
 
   // Check admin access if required
-  const isAdmin = userProfile?.role === 'admin' || userProfile?.username === 'admin';
+  const isAdmin = userProfile?.role === 'admin';
   if (adminOnly && !isAdmin) {
     return (
       <Navigate 
