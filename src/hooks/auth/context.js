@@ -6,7 +6,7 @@
 import { createContext, useContext } from 'react';
 
 // Create the context to hold authentication state
-export const AuthContext = createContext({});
+export const AuthContext = createContext(null);
 
 /**
  * Custom hook to easily access the auth context

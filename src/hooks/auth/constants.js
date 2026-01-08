@@ -18,6 +18,8 @@ export const createDefaultUserProfile = (firebaseUser) => ({
   username: firebaseUser.email.split('@')[0],
   displayName: firebaseUser.displayName || firebaseUser.email.split('@')[0],
   email: firebaseUser.email,
+  avatar: firebaseUser.photoURL || null,
+  avatarPath: null,
   createdAt: serverTimestamp(),
   lastLoginAt: serverTimestamp(),
   role: 'player',
@@ -25,23 +27,39 @@ export const createDefaultUserProfile = (firebaseUser) => ({
     // Basic game statistics
     totalGames: 0,
     totalWins: 0,
+    competitiveGames: 0,
+    competitiveWins: 0,
     totalScore: 0,
     bestScore: 0,
+    bestScoreMode: null,
     totalPlayTime: 0,
     achievementPoints: 0,
     achievements: [],
     uncollectedAchievements: [],
+    xp: 0,
+    level: 1,
 
     // Mode-specific statistics
     classicGames: 0,
     classicWins: 0,
     classicBestScore: 0,
+    classicBestScoreAt: null,
+    transparentGames: 0,
+    transparentWins: 0,
+    transparentBestScore: 0,
+    transparentBestScoreAt: null,
     vsaiGames: 0,
     vsaiWins: 0,
     vsaiBestScore: 0,
+    vsaiBestScoreAt: null,
     multiplayerGames: 0,
     multiplayerWins: 0,
     multiplayerBestScore: 0,
+    multiplayerBestScoreAt: null,
+    multiplayerGames4Player: 0,
+    multiplayerWins4Player: 0,
+    multiplayerWins4PlayerAllAbove50: 0,
+    bestScoreAt: null,
 
     // Performance and failure tracking
     wallHits: 0,
@@ -51,6 +69,8 @@ export const createDefaultUserProfile = (firebaseUser) => ({
     maxLength: 1,
     maxSurvivalTime: 0,
     moves: 0,
+    closeCalls: 0,
+    fastEats: 0,
     quickDeaths: 0,
 
     // Streak tracking
@@ -61,6 +81,26 @@ export const createDefaultUserProfile = (firebaseUser) => ({
     aiEasyWins: 0,
     aiMediumWins: 0,
     aiImpossibleWins: 0,
+    aiImpossibleStreak: 0,
+    friendsCount: 0,
+    leaderboardTop100Finishes: 0,
+    leaderboardTop10Finishes: 0,
+    leaderboardTop3Finishes: 0,
+    leaderboardRank1Finishes: 0,
+    achievementLeaderboardTop10Finishes: 0,
+    overallLeaderboardTop10Finishes: 0,
+    leaderboardTop3WeekStreak: 0,
+    leaderboardTop3BestWeekStreak: 0,
+    leaderboardTop3LastWeekKey: null,
+    weeklyLeaderboardTop100Finishes: 0,
+    weeklyLeaderboardTop10Finishes: 0,
+    weeklyLeaderboardTop3Finishes: 0,
+    weeklyLeaderboardRank1Finishes: 0,
+    weeklyOverallTop10Finishes: 0,
+    weeklyTop3WeekStreak: 0,
+    weeklyTop3BestWeekStreak: 0,
+    weeklyTop3LastWeekKey: null,
+    weeklyLastProcessedWeekKey: null,
 
     // Special achievement tracking
     transparentScore: 0,
@@ -68,7 +108,8 @@ export const createDefaultUserProfile = (firebaseUser) => ({
 
     // Time tracking
     lastGameDuration: 0,
-    totalPlayTimeSeconds: 0
+    totalPlayTimeSeconds: 0,
+    lastGameAt: null
   },
   settings: {
     soundEnabled: true,
@@ -78,6 +119,7 @@ export const createDefaultUserProfile = (firebaseUser) => ({
   preferences: {
     favoriteGameMode: 'classic',
     snakeColor: '#10b981',
+    privateLeaderboard: false
   }
 });
 
@@ -89,5 +131,7 @@ export const createBasicProfile = (firebaseUser) => ({
   email: firebaseUser.email,
   displayName: firebaseUser.displayName || firebaseUser.email.split('@')[0],
   username: firebaseUser.email.split('@')[0],
+  avatar: firebaseUser.photoURL || null,
+  avatarPath: null,
   stats: createDefaultUserProfile(firebaseUser).stats
 });
