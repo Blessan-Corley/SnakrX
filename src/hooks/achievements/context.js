@@ -4,7 +4,7 @@
 
 import { createContext, useContext } from 'react';
 
-export const AchievementContext = createContext({});
+export const AchievementContext = createContext(null);
 
 /**
  * Custom hook to use achievement context
