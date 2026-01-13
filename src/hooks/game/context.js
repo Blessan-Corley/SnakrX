@@ -5,7 +5,7 @@
 
 import { createContext, useContext } from 'react';
 
-export const GameContext = createContext({});
+export const GameContext = createContext(null);
 
 /**
  * Hook to access game context

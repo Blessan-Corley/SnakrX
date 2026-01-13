@@ -3,7 +3,15 @@
  * Configuration constants for game mechanics
  */
 
-import { GAME_STATES, GAME_MODES, DIRECTIONS } from '../../utils/gameUtils.js';
+import {
+  AI_DIFFICULTIES,
+  DIRECTIONS,
+  GAME_MODES,
+  GAME_STATES,
+  SPEED_CONFIGS,
+  getBoardSize,
+  isMobile,
+} from '../../utils/gameUtils.js';
 
 // Game configuration constants
 export const GAME_CONFIG = {
@@ -17,27 +25,37 @@ export const GAME_CONFIG = {
 export const createInitialGameState = () => ({
   gameState: GAME_STATES.MENU,
   gameMode: GAME_MODES.CLASSIC,
-  difficulty: null,
+  difficulty: AI_DIFFICULTIES.MEDIUM,
   playerCount: 1,
+  boardSize: getBoardSize(GAME_MODES.CLASSIC, 1, isMobile()),
   snakes: [],
-  food: null,
+  food: [],
   score: 0,
   gameTime: 0,
-  speed: 180,
+  speed: SPEED_CONFIGS.INITIAL,
   foodEaten: 0,
   isPaused: false,
-  boardSize: { width: 30, height: 25 },
+  aiController: null,
+  deadPlayers: new Set(),
   startTime: null,
   gameId: null,
-  deadPlayers: [],
+  winnerId: null,
 
-  // Enhanced tracking
   moves: 0,
   wallHits: 0,
   selfHits: 0,
   timeToFirstFood: null,
   timeToMaxLength: null,
-  maxLengthReached: 1
+  maxLengthReached: 1,
+  closeCalls: 0,
+  fastEats: 0,
+  highlightCollision: null,
+  bonusFoodEnabled: true,
+  normalFoodsSinceBonus: 0,
+  pendingBonusSpawns: 0,
+  bonusFoodsSpawned: 0,
+  bonusFoodsCollected: 0,
+  bonusFoodPoints: 0
 });
 
 export { GAME_STATES, GAME_MODES, DIRECTIONS };
