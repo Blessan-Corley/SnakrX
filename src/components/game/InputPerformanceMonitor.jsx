@@ -70,7 +70,7 @@ const InputPerformanceMonitor = ({
             animate={{ rotate: isExpanded ? 180 : 0 }}
             className="text-white/60"
           >
-            ↓
+            Down
           </motion.div>
         </div>
 
