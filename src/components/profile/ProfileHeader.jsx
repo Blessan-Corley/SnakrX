@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Crown, Edit3, Save, X } from 'lucide-react';
+import { Crown, Edit3, Save, X, User } from 'lucide-react';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { playClick } from '@/utils/sound';
@@ -59,8 +59,14 @@ export const ProfileHeader = ({ userProfile, playerLevel, levelProgress, nextLev
         <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
           {/* User Info */}
           <div className="flex items-center space-x-4">
-            <div className="w-20 h-20 bg-gradient-sunset rounded-full flex items-center justify-center text-3xl font-bold text-white">
-              {userProfile.displayName?.charAt(0).toUpperCase() || 'U'}
+            <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg shadow-purple-500/20 text-white overflow-hidden">
+              {userProfile.photoURL ? (
+                <img src={userProfile.photoURL} alt="Profile" className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-3xl font-bold">
+                  {userProfile.displayName?.charAt(0).toUpperCase() || <User size={32} />}
+                </span>
+              )}
             </div>
             <div>
               {editing ? (
@@ -102,18 +108,22 @@ export const ProfileHeader = ({ userProfile, playerLevel, levelProgress, nextLev
 
           {/* Player Level */}
           <div className="text-center md:text-right">
-            <div className="flex items-center justify-center md:justify-end space-x-2 mb-2">
-              <Crown size={20} className="text-amber-400" />
-              <span className="text-xl font-bold text-white">Level {playerLevel}</span>
+            <div className="flex items-center justify-center md:justify-end space-y-1">
+              <div className="flex items-center space-x-2 mb-2">
+                <Crown size={24} className="text-amber-400 fill-amber-400/20" />
+                <span className="text-2xl font-bold text-white">Level {playerLevel}</span>
+              </div>
             </div>
-            <div className="w-48 bg-white/10 rounded-full h-2">
+            <div className="w-48 bg-black/30 rounded-full h-3 backdrop-blur-sm overflow-hidden border border-white/5">
               <div
-                className="bg-gradient-sunset h-2 rounded-full transition-all duration-500"
+                className="bg-gradient-to-r from-blue-500 to-purple-500 h-full rounded-full transition-all duration-500 relative"
                 style={{ width: `${Math.min(100, levelProgress)}%` }}
-              />
+              >
+                <div className="absolute inset-0 bg-white/20 animate-pulse" />
+              </div>
             </div>
-            <p className="text-white/60 text-sm mt-1">
-              {Math.max(0, nextLevelScore - (userStats.totalScore || 0))} points to level {playerLevel + 1}
+            <p className="text-white/60 text-xs mt-2 font-mono">
+              {Math.max(0, nextLevelScore - (userStats.totalScore || 0))} XP to next level
             </p>
           </div>
         </div>
