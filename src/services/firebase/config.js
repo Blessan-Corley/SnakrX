@@ -4,7 +4,7 @@
  */
 
 import { initializeApp } from 'firebase/app';
-import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
+import { initializeFirestore, persistentLocalCache } from 'firebase/firestore';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import logger from '../../utils/logger.js';
 
@@ -47,8 +47,10 @@ logger.log('🔥 Initializing Firebase with config:', {
 
 const app = initializeApp(firebaseConfig);
 
-// Initialize Firestore with optimized settings
-export const db = getFirestore(app);
+// Initialize Firestore with optimized settings and offline persistence
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache()
+});
 
 // Initialize Auth
 export const auth = getAuth(app);
@@ -59,16 +61,7 @@ googleProvider.setCustomParameters({
   prompt: 'select_account'
 });
 
-// Enable offline persistence for better offline support
-if (typeof window !== 'undefined') {
-  enableIndexedDbPersistence(db).catch((err) => {
-    if (err.code === 'failed-precondition') {
-      logger.warn('Multiple tabs open, persistence can only be enabled in one tab at a time.');
-    } else if (err.code === 'unimplemented') {
-      logger.warn('The current browser does not support offline persistence.');
-    }
-  });
-}
+
 
 logger.log('🔥 Firebase initialized successfully');
 logger.log('📄 Firestore instance:', db.app.name);
@@ -105,6 +98,7 @@ export {
   doc,
   setDoc,
   updateDoc,
+  deleteDoc,
   getDoc,
   collection,
   addDoc,

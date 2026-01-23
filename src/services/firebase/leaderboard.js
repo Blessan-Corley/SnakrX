@@ -3,7 +3,7 @@
  * Handles leaderboard data and rankings
  */
 
-import { db, doc, getDocs, query, collection, where, orderBy, limit as queryLimit, serverTimestamp, COLLECTIONS } from './config.js';
+import { db, doc, serverTimestamp, COLLECTIONS } from './config.js';
 import { firestoreOperations } from './firestore.js';
 import logger from '../../utils/logger.js';
 
@@ -28,8 +28,8 @@ const createLeaderboardEntry = (data) => ({
  */
 export const leaderboardOperations = {
   /**
-   * Update leaderboard
-   */
+    * Update leaderboard with optimized batch operations
+    */
   async updateLeaderboard(userId, gameData) {
     try {
       logger.log('Starting leaderboard update for user:', userId);
@@ -40,7 +40,7 @@ export const leaderboardOperations = {
 
       const leaderboardRef = doc(db, COLLECTIONS.LEADERBOARDS, leaderboardId);
 
-      // Get current leaderboard
+      // Get current leaderboard with retry logic
       logger.log('Fetching current leaderboard...');
       const leaderboardDoc = await firestoreOperations.getDocument(leaderboardRef);
       let currentEntries = [];
@@ -52,7 +52,7 @@ export const leaderboardOperations = {
         logger.log('Creating new leaderboard');
       }
 
-      // Create new entry
+      // Create new entry with validation
       const newEntry = createLeaderboardEntry({
         userId,
         username: gameData.username,
@@ -66,20 +66,37 @@ export const leaderboardOperations = {
 
       logger.log('Created leaderboard entry:', newEntry);
 
-      // Add new entry and sort
-      currentEntries.push(newEntry);
+      // Check if user already has an entry
+      const existingEntryIndex = currentEntries.findIndex(entry => entry.userId === userId);
+
+      if (existingEntryIndex >= 0) {
+        // Update existing entry if new score is better
+        if (newEntry.score > currentEntries[existingEntryIndex].score) {
+          currentEntries[existingEntryIndex] = { ...newEntry, rank: 0 };
+          logger.log('Updated existing user entry with better score');
+        } else {
+          logger.log('User score not better than existing entry, skipping update');
+          return true; // Not an error, just no update needed
+        }
+      } else {
+        // Add new entry
+        currentEntries.push(newEntry);
+        logger.log('Added new user entry to leaderboard');
+      }
+
+      // Sort by score (descending)
       currentEntries.sort((a, b) => b.score - a.score);
 
-      // Keep only top 100 entries
+      // Keep only top 100 entries to maintain performance
       const topEntries = currentEntries.slice(0, 100);
       logger.log('Updated entries count:', topEntries.length);
 
-      // Update ranks
+      // Update ranks efficiently
       topEntries.forEach((entry, index) => {
         entry.rank = index + 1;
       });
 
-      // Create leaderboard data
+      // Create optimized leaderboard data
       const leaderboardData = {
         mode: gameData.mode,
         difficulty: gameData.difficulty || null,
@@ -88,12 +105,14 @@ export const leaderboardOperations = {
         totalEntries: topEntries.length,
         stats: {
           highestScore: topEntries[0]?.score || 0,
-          averageScore: topEntries.reduce((sum, e) => sum + e.score, 0) / topEntries.length || 0,
-          totalGames: topEntries.length
+          averageScore: topEntries.length > 0 ?
+            Math.round(topEntries.reduce((sum, e) => sum + e.score, 0) / topEntries.length) : 0,
+          totalGames: topEntries.length,
+          lastUpdated: serverTimestamp()
         }
       };
 
-      logger.log('Saving leaderboard data to Firestore...');
+      logger.log('Saving optimized leaderboard data to Firestore...');
       const success = await firestoreOperations.setDocument(leaderboardRef, leaderboardData);
 
       if (success) {
@@ -111,10 +130,11 @@ export const leaderboardOperations = {
   },
 
   /**
-   * Get leaderboard data
-   */
-  async getLeaderboard(mode = 'classic', difficulty = null, limit = 100) {
+    * Get leaderboard data with pagination support
+    */
+  async getLeaderboard(mode = 'classic', difficulty = null, options = {}) {
     try {
+      const { page = 1, limit: pageLimit = 50, includeStats = true } = options;
       const leaderboardId = `${mode}_${difficulty || 'default'}`;
       const leaderboardRef = doc(db, COLLECTIONS.LEADERBOARDS, leaderboardId);
 
@@ -122,17 +142,46 @@ export const leaderboardOperations = {
 
       if (leaderboardDoc.exists()) {
         const data = leaderboardDoc.data();
-        return {
-          entries: data.entries || [],
-          stats: data.stats || {},
+        const allEntries = data.entries || [];
+
+        // Implement pagination
+        const startIndex = (page - 1) * pageLimit;
+        const endIndex = startIndex + pageLimit;
+        const paginatedEntries = allEntries.slice(startIndex, endIndex);
+
+        const result = {
+          entries: paginatedEntries,
+          pagination: {
+            page,
+            limit: pageLimit,
+            total: allEntries.length,
+            totalPages: Math.ceil(allEntries.length / pageLimit),
+            hasNext: endIndex < allEntries.length,
+            hasPrev: page > 1
+          },
           lastUpdated: data.lastUpdated,
           totalEntries: data.totalEntries || 0
         };
+
+        // Include stats if requested
+        if (includeStats) {
+          result.stats = data.stats || {};
+        }
+
+        return result;
       }
 
       return {
         entries: [],
-        stats: {},
+        pagination: {
+          page: 1,
+          limit: pageLimit,
+          total: 0,
+          totalPages: 0,
+          hasNext: false,
+          hasPrev: false
+        },
+        stats: includeStats ? {} : undefined,
         lastUpdated: null,
         totalEntries: 0
       };
@@ -140,7 +189,15 @@ export const leaderboardOperations = {
       logger.error('Error fetching leaderboard:', error);
       return {
         entries: [],
-        stats: {},
+        pagination: {
+          page: 1,
+          limit: options.limit || 50,
+          total: 0,
+          totalPages: 0,
+          hasNext: false,
+          hasPrev: false
+        },
+        stats: options.includeStats !== false ? {} : undefined,
         lastUpdated: null,
         totalEntries: 0
       };
