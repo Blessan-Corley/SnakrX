@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -19,7 +19,7 @@ import { useAuthOperations } from '@/hooks/useAuth';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import { playClick } from '@/utils/sound';
-import { isValidEmail, isValidUsername, isValidPassword } from '@/utils/gameUtils';
+import { validators } from '@/utils/validation';
 
 /**
  * Multi-step Registration Page Component
@@ -60,8 +60,9 @@ const RegisterPage = () => {
   /**
    * Check username availability
    */
-  const checkUsername = async (username) => {
-    if (!isValidUsername(username)) {
+  const checkUsername = useCallback(async (username) => {
+    const val = validators.username(username);
+    if (!val.valid) {
       setUsernameAvailable(false);
       return;
     }
@@ -75,7 +76,7 @@ const RegisterPage = () => {
     } finally {
       setUsernameChecking(false);
     }
-  };
+  }, [checkUsernameAvailability]);
 
   /**
    * Validate current step inputs
@@ -85,44 +86,33 @@ const RegisterPage = () => {
 
     if (step === 1) {
       // Username validation
-      if (!formData.username.trim()) {
-        errors.username = 'Username is required';
-      } else if (!isValidUsername(formData.username)) {
-        errors.username = 'Username must be at least 3 characters and contain only letters, numbers, and underscores';
+      const usernameVal = validators.username(formData.username);
+      if (!usernameVal.valid) {
+        errors.username = usernameVal.error;
       } else if (usernameAvailable === false) {
         errors.username = 'Username is already taken';
       }
 
       // Email validation
-      if (!formData.email.trim()) {
-        errors.email = 'Email is required';
-      } else if (!isValidEmail(formData.email)) {
-        errors.email = 'Please use a valid email from gmail.com, outlook.com, yahoo.com, or mail.com';
+      const emailVal = validators.email(formData.email);
+      if (!emailVal.valid) {
+        errors.email = emailVal.error;
       }
-    }
-
-    if (step === 2) {
+    } else if (step === 2) {
       // Password validation
-      if (!formData.password) {
-        errors.password = 'Password is required';
-      } else if (!isValidPassword(formData.password)) {
-        errors.password = 'Password must be at least 6 characters long';
+      const passwordVal = validators.password(formData.password);
+      if (!passwordVal.valid) {
+        errors.password = passwordVal.error;
       }
 
-      // Confirm password validation
-      if (!formData.confirmPassword) {
-        errors.confirmPassword = 'Please confirm your password';
-      } else if (formData.password !== formData.confirmPassword) {
+      // Confirm password
+      if (formData.password !== formData.confirmPassword) {
         errors.confirmPassword = 'Passwords do not match';
       }
-    }
-
-    if (step === 3) {
-      // Security answer validation
+    } else if (step === 3) {
+      // Security Answer
       if (!formData.securityAnswer.trim()) {
         errors.securityAnswer = 'Security answer is required';
-      } else if (formData.securityAnswer.trim().length < 2) {
-        errors.securityAnswer = 'Security answer must be at least 2 characters';
       }
     }
 
@@ -197,7 +187,7 @@ const RegisterPage = () => {
     } else {
       setUsernameAvailable(null);
     }
-  }, [formData.username]);
+  }, [formData.username, checkUsername]);
 
   // Animation variants for steps
   const stepVariants = {

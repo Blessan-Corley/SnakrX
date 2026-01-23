@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  User, 
-  Lock, 
-  ArrowRight, 
-  ArrowLeft, 
-  Eye, 
+import {
+  User,
+  Lock,
+  ArrowRight,
+  ArrowLeft,
+  Eye,
   EyeOff,
   Mail,
   CheckCircle,
@@ -15,7 +15,6 @@ import {
 import { useAuthOperations } from '@/hooks/useAuth';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { playClick } from '@/utils/sound';
 
 /**
@@ -394,7 +393,7 @@ const LoginPage = () => {
           </Link>
           
           <div className="flex items-center justify-center space-x-2 text-white/70">
-            <span className="text-sm">Don't have an account?</span>
+            <span className="text-sm">Don&apos;t have an account?</span>
             <Link
               to="/register"
               onClick={() => playClick()}

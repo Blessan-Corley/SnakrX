@@ -20,7 +20,7 @@ import {
   COLLECTIONS,
   firestoreOperations
 } from '../../services/firebase/index.js';
-import { isValidEmail, isValidUsername, isValidPassword } from '../../utils/gameUtils.js';
+import { validators } from '../../utils/validation.js';
 import toast from 'react-hot-toast';
 import logger from '../../utils/logger.js';
 import { createDefaultUserProfile } from './constants.js';
@@ -59,10 +59,15 @@ export const useAuthOperations = () => {
     try {
       const { username, email, password, securityAnswer } = userData;
 
-      // Validate input
-      if (!isValidUsername(username) || !isValidEmail(email) || !isValidPassword(password) || !securityAnswer) {
-        throw new Error('Invalid registration data. Please check all fields.');
-      }
+      // Validate input using the robust validation module
+      const usernameVal = validators.username(username);
+      const emailVal = validators.email(email);
+      const passwordVal = validators.password(password);
+
+      if (!usernameVal.valid) throw new Error(usernameVal.error);
+      if (!emailVal.valid) throw new Error(emailVal.error);
+      if (!passwordVal.valid) throw new Error(passwordVal.error);
+      if (!securityAnswer) throw new Error('Security answer is required.');
 
       const isUsernameAvailable = await checkUsernameAvailability(username);
       if (!isUsernameAvailable) {

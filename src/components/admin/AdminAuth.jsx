@@ -12,7 +12,7 @@ export const AdminAuth = ({ onAuthenticate }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-  const ADMIN_PASSWORD = 'Blessan@26';
+  const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || 'SnakrX_Admin_2024!';
 
   const handlePasswordSubmit = (e) => {
     if (e) e.preventDefault();
