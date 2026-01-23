@@ -1,31 +1,25 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Award, 
-  Trophy, 
-  Star, 
-  Crown, 
-  Filter,
+import {
+  Award,
+  Trophy,
+  Star,
   Search,
   Share2,
   Lock,
   CheckCircle,
-  Target,
-  TrendingUp,
-  Calendar,
-  Medal,
   Zap,
-  Clock,
-  Users,
   Gamepad2,
-  Sparkles
+  Sparkles,
+  Clock,
+  Users
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.js';
 import { useAchievementOperations } from '../hooks/useAchievements.js';
 import Button from '../components/ui/Button.jsx';
 import Card, { AchievementCard, StatsCard } from '../components/ui/Card.jsx';
 import Modal from '../components/ui/Modal.jsx';
-import LoadingSpinner, { CardSkeleton } from '../components/ui/LoadingSpinner.jsx';
+import { CardSkeleton } from '../components/ui/LoadingSpinner.jsx';
 import { playClick } from '../utils/sound.js';
 import { ACHIEVEMENT_CATEGORIES, ACHIEVEMENT_TIERS } from '../data/achievements.js';
 
@@ -38,14 +32,9 @@ const AchievementsPage = () => {
   const {
     achievements,
     achievementTiers,
-    unlockedAchievements,
-    achievementProgress,
     recentUnlocks,
-    getAchievementsByCategory,
-    getAchievementsByTier,
     getAchievementStats,
     isAchievementUnlocked,
-    getAchievementProgress,
     calculateAchievementProgress,
     shareAchievement,
     getTotalPointsEarned,
@@ -62,7 +51,7 @@ const AchievementsPage = () => {
   const [showUnlockedOnly, setShowUnlockedOnly] = useState(false);
   const [selectedAchievement, setSelectedAchievement] = useState(null);
   const [showAchievementModal, setShowAchievementModal] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading] = useState(false);
 
   // Get achievement stats
   const achievementStats = getAchievementStats();

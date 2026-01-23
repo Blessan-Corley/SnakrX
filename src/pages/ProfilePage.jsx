@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth, useAuthOperations } from '@/hooks/useAuth';
@@ -11,7 +11,8 @@ import {
   StatisticsTab,
   AchievementsTab,
   MatchHistoryTab,
-  SettingsTab
+  SettingsTab,
+  FriendsTab
 } from '@/components/profile';
 
 /**
@@ -45,18 +46,26 @@ const ProfilePage = () => {
 
   // Get user stats
   const userStats = userProfile?.stats || {};
-  const achievementStats = getAchievementStats();
-  const totalAchievementPoints = getTotalPointsEarned();
 
-  // Calculate player level based on total score
-  const calculateLevel = (totalScore) => {
-    return Math.floor(Math.sqrt(totalScore / 100)) + 1;
-  };
+  // Memoize expensive calculations
+  const achievementStats = useMemo(() => getAchievementStats(), [getAchievementStats]);
+  const totalAchievementPoints = useMemo(() => getTotalPointsEarned(), [getTotalPointsEarned]);
 
-  const playerLevel = calculateLevel(userStats.totalScore || 0);
-  const nextLevelScore = Math.pow(playerLevel, 2) * 100;
-  const currentLevelScore = Math.pow(playerLevel - 1, 2) * 100;
-  const levelProgress = ((userStats.totalScore || 0) - currentLevelScore) / (nextLevelScore - currentLevelScore) * 100;
+  // Memoize player level calculations
+  const levelData = useMemo(() => {
+    const totalScore = userStats.totalScore || 0;
+    const playerLevel = Math.floor(Math.sqrt(totalScore / 100)) + 1;
+    const nextLevelScore = Math.pow(playerLevel, 2) * 100;
+    const currentLevelScore = Math.pow(playerLevel - 1, 2) * 100;
+    const levelProgress = ((totalScore - currentLevelScore) / (nextLevelScore - currentLevelScore)) * 100;
+
+    return {
+      playerLevel,
+      nextLevelScore,
+      currentLevelScore,
+      levelProgress: Math.min(100, Math.max(0, levelProgress))
+    };
+  }, [userStats.totalScore]);
 
   // Mock match history (in a real app, this would come from Firebase)
   const mockMatchHistory = [
@@ -127,9 +136,9 @@ const ProfilePage = () => {
         {/* Profile Header */}
         <ProfileHeader
           userProfile={userProfile}
-          playerLevel={playerLevel}
-          levelProgress={levelProgress}
-          nextLevelScore={nextLevelScore}
+          playerLevel={levelData.playerLevel}
+          levelProgress={levelData.levelProgress}
+          nextLevelScore={levelData.nextLevelScore}
           userStats={userStats}
           onUpdate={updateProfile}
         />
@@ -171,6 +180,10 @@ const ProfilePage = () => {
 
             {activeTab === 'history' && (
               <MatchHistoryTab mockMatchHistory={mockMatchHistory} />
+            )}
+
+            {activeTab === 'friends' && (
+              <FriendsTab />
             )}
 
             {activeTab === 'settings' && (

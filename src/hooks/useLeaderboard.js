@@ -14,7 +14,7 @@ export const useLeaderboard = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   
-  const { user, userProfile } = useAuth();
+  const { user } = useAuth();
   const cacheRef = useRef({});
   const lastFetchRef = useRef({});
 

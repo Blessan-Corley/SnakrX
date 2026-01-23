@@ -1,21 +1,17 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Play, 
-  Trophy, 
-  Award, 
-  Target, 
-  Users, 
-  Shield, 
+import {
+  Play,
+  Trophy,
+  Award,
+  Shield,
   BarChart3,
-  Clock,
   Star,
-  Zap,
   Crown,
   TrendingUp,
-  Calendar,
-  Gamepad2
+  Gamepad2,
+  Zap
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useAchievementOperations } from '@/hooks/useAchievements';
@@ -24,7 +20,7 @@ import Button from '@/components/ui/Button';
 import { GameModeCard, StatsCard, AchievementCard, LeaderboardCard } from '@/components/ui/Card';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { playClick } from '@/utils/sound';
-import { formatScore, formatTime, isMobile } from '@/utils/gameUtils';
+import { formatScore, isMobile } from '@/utils/gameUtils';
 
 /**
  * Home Page - Main Dashboard
@@ -33,7 +29,7 @@ import { formatScore, formatTime, isMobile } from '@/utils/gameUtils';
 const HomePage = () => {
   const { userProfile } = useAuth();
   const { recentUnlocks, getNextAchievements, getAchievementStats } = useAchievementOperations();
-  const { getLeaderboardSummary, topPlayers } = useLeaderboard();
+  const { getLeaderboardSummary } = useLeaderboard();
   const navigate = useNavigate();
   
   const [typingComplete, setTypingComplete] = useState(false);
@@ -104,7 +100,7 @@ const HomePage = () => {
   }, [userProfile, getLeaderboardSummary]);
 
   // Handle game mode selection
-  const handleGameMode = (mode, difficulty = null, playerCount = 1) => {
+  const handleGameMode = (mode, _difficulty = null, _playerCount = 1) => {
     playClick();
     
     if (mode === 'multiplayer' && mobile) {
