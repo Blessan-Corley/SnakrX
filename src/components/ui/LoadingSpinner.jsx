@@ -1,122 +1,39 @@
 import { motion } from 'framer-motion';
+import { Loader2 } from 'lucide-react';
 
-/**
- * Loading Spinner Component with SnakrX design
- * Features smooth animations and gradient effects
- */
-const LoadingSpinner = ({ 
-  size = 'md', 
-  fullScreen = false, 
-  text = '', 
-  variant = 'primary',
-  className = '' 
-}) => {
-  
-  // Size configurations
-  const sizes = {
-    xs: 'w-4 h-4',
-    sm: 'w-6 h-6',
-    md: 'w-8 h-8',
-    lg: 'w-12 h-12',
-    xl: 'w-16 h-16'
-  };
-
-  // Variant configurations
-  const variants = {
-    primary: 'border-primary-500/30 border-t-primary-500',
-    secondary: 'border-secondary-500/30 border-t-secondary-500',
-    white: 'border-white/30 border-t-white',
-    accent: 'border-accent-500/30 border-t-accent-500',
-    gradient: 'border-transparent bg-gradient-to-r from-primary-500 to-secondary-500'
-  };
-
-  const spinnerClasses = [
-    'border-4 rounded-full animate-spin',
-    sizes[size],
-    variants[variant],
-    className
-  ].filter(Boolean).join(' ');
-
-  // Full screen loading component
-  if (fullScreen) {
-    return (
-      <div className="fixed inset-0 bg-gradient-dark flex items-center justify-center z-50">
-        <div className="text-center">
-          {/* Animated logo/icon */}
-          <motion.div
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 0.3 }}
-            className="mb-8"
-          >
-            <div className="text-6xl mb-4">🐍</div>
-            <h1 className="text-3xl font-bold bg-gradient-sunset bg-clip-text text-transparent">
-              SnakrX
-            </h1>
-          </motion.div>
-
-          {/* Main spinner */}
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.2, duration: 0.3 }}
-            className="mb-6"
-          >
-            <div className={`mx-auto ${sizes.lg} border-4 border-primary-500/30 border-t-primary-500 rounded-full animate-spin`} />
-          </motion.div>
-
-          {/* Loading text */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.4, duration: 0.3 }}
-          >
-            <p className="text-white/70 text-lg">
-              {text || 'Loading your gaming experience...'}
-            </p>
-            
-            {/* Loading dots animation */}
-            <div className="flex justify-center space-x-1 mt-4">
-              {[0, 1, 2].map((i) => (
-                <motion.div
-                  key={i}
-                  className="w-2 h-2 bg-primary-500 rounded-full"
-                  animate={{
-                    scale: [1, 1.2, 1],
-                    opacity: [0.5, 1, 0.5]
-                  }}
-                  transition={{
-                    duration: 1.5,
-                    repeat: Infinity,
-                    delay: i * 0.2
-                  }}
-                />
-              ))}
-            </div>
-          </motion.div>
-        </div>
-      </div>
-    );
-  }
-
-  // Regular spinner component
-  return (
-    <div className="flex flex-col items-center justify-center">
-      <div className={spinnerClasses} />
+const LoadingSpinner = ({ fullScreen = false, text = 'Loading...' }) => {
+  const content = (
+    <div className="flex flex-col items-center justify-center p-8">
+      <motion.div
+        animate={{ rotate: 360 }}
+        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+        className="mb-4 text-primary-500"
+      >
+        <Loader2 size={64} />
+      </motion.div>
       {text && (
         <motion.p
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.2 }}
-          className="text-white/70 text-sm mt-3 text-center"
+          transition={{ duration: 0.5 }}
+          className="text-white/80 font-medium text-lg tracking-wide"
         >
           {text}
         </motion.p>
       )}
     </div>
   );
-};
 
+  if (fullScreen) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+        {content}
+      </div>
+    );
+  }
+
+  return content;
+};
 /**
  * Skeleton Loading Component
  * For content placeholders while data is loading

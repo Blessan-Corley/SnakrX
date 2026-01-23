@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X } from 'lucide-react';
+import { X, CheckCircle, AlertTriangle, XCircle, Info } from 'lucide-react';
 import Button from './Button';
 
 /**
@@ -180,7 +180,6 @@ const Modal = ({
                     icon={<X size={20} />}
                     aria-label="Close modal"
                     className="text-white/70 hover:text-white ml-auto"
-                    aria-label="Close modal"
                   />
                 )}
               </div>
@@ -280,14 +279,14 @@ export const AlertModal = ({
   const getIcon = () => {
     switch (type) {
       case 'success':
-        return '✅';
+        return <CheckCircle size={48} className="text-green-500 mx-auto" />;
       case 'warning':
-        return '⚠️';
+        return <AlertTriangle size={48} className="text-yellow-500 mx-auto" />;
       case 'error':
-        return '❌';
+        return <XCircle size={48} className="text-red-500 mx-auto" />;
       case 'info':
       default:
-        return 'ℹ️';
+        return <Info size={48} className="text-blue-500 mx-auto" />;
     }
   };
 
@@ -314,7 +313,7 @@ export const AlertModal = ({
       {...props}
     >
       <div className="text-center mb-6">
-        <div className="text-4xl mb-4">{getIcon()}</div>
+        <div className="mb-4">{getIcon()}</div>
         <p className="text-white/80">{message}</p>
       </div>
       
