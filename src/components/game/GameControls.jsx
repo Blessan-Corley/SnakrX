@@ -11,7 +11,11 @@ import {
   ArrowUp,
   ArrowDown,
   ArrowLeft,
-  ArrowRight
+  ArrowRight,
+  Circle,
+  AlertTriangle,
+  Skull,
+  Gamepad2
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
@@ -32,6 +36,7 @@ const GameControls = ({
   foodEaten = 0,
   gameMode = 'classic',
   difficulty = null,
+  snakes = [], 
   showMobileControls = true,
   onMobileControl = () => {},
   onPause = () => {},
@@ -40,13 +45,13 @@ const GameControls = ({
   onQuit = () => {}
 }) => {
   
-  const formattedTime = Math.floor(gameTime); // gameTime is already in seconds
+  const formattedTime = Math.floor(gameTime); 
 
   // Difficulty display configuration
   const difficultyConfig = {
-    easy: { name: 'Easy', color: 'text-green-400', icon: '🟢' },
-    medium: { name: 'Medium', color: 'text-yellow-400', icon: '🟡' },
-    impossible: { name: 'Impossible', color: 'text-red-400', icon: '🔴' }
+    easy: { name: 'Easy', color: 'text-green-400', icon: <Circle size={16} className="text-green-400" /> },
+    medium: { name: 'Medium', color: 'text-yellow-400', icon: <Circle size={16} className="text-yellow-400" /> },
+    impossible: { name: 'Impossible', color: 'text-red-400', icon: <AlertTriangle size={16} className="text-red-400" /> }
   };
 
   const currentDifficulty = difficulty ? difficultyConfig[difficulty] : null;
@@ -61,13 +66,27 @@ const GameControls = ({
         </h3>
         
         <div className="space-y-4">
-          {/* Score */}
-          <div className="text-center" role="status" aria-live="polite">
-            <div className="text-3xl font-bold bg-gradient-sunset bg-clip-text text-transparent mb-1" aria-label={`Current score: ${formatScore(score)}`}>
-              {formatScore(score)}
+          {/* Multiplayer Scoreboard */}
+          {gameMode === 'multiplayer' ? (
+            <div className="space-y-2 mb-4">
+               {snakes.map((snake, index) => (
+                 <div key={index} className="flex justify-between items-center bg-white/5 rounded px-3 py-2">
+                    <span className={`text-sm font-bold ${snake.isAlive ? 'text-white' : 'text-gray-500 line-through'}`}>
+                      Player {index + 1}
+                    </span>
+                    <span className="text-yellow-400 font-bold">{formatScore(snake.score || 0)}</span>
+                 </div>
+               ))}
             </div>
-            <div className="text-white/60 text-sm">Score</div>
-          </div>
+          ) : (
+            /* Classic/VS AI Score */
+            <div className="text-center" role="status" aria-live="polite">
+              <div className="text-3xl font-bold bg-gradient-sunset bg-clip-text text-transparent mb-1" aria-label={`Current score: ${formatScore(score)}`}>
+                {formatScore(score)}
+              </div>
+              <div className="text-white/60 text-sm">Score</div>
+            </div>
+          )}
 
           {/* Quick Stats Grid */}
           <div className="grid grid-cols-2 gap-3 text-sm" role="list" aria-label="Game metrics">
@@ -90,7 +109,9 @@ const GameControls = ({
             </div>
             
             <div className="bg-white/5 rounded-lg p-3 text-center" role="listitem">
-              <div className="text-lg mb-1" aria-hidden="true">🎮</div>
+              <div className="flex justify-center mb-1">
+                <Gamepad2 size={18} className="text-purple-400" />
+              </div>
               <div className="font-bold text-white text-xs" aria-label={`Game mode: ${gameMode}`}>{gameMode}</div>
               <div className="text-white/60 text-xs">Mode</div>
             </div>
@@ -99,7 +120,9 @@ const GameControls = ({
           {/* Difficulty Display for VS AI */}
           {currentDifficulty && (
             <div className="bg-white/5 rounded-lg p-3 text-center">
-              <div className="text-lg mb-1">{currentDifficulty.icon}</div>
+              <div className="flex justify-center mb-1">
+                {currentDifficulty.icon}
+              </div>
               <div className={`font-bold ${currentDifficulty.color}`}>
                 {currentDifficulty.name}
               </div>
@@ -109,7 +132,7 @@ const GameControls = ({
         </div>
       </Card>
 
-      {/* Game Controls */}
+      {/* ... controls ... */}
       <Card variant="glass" padding="md" role="region" aria-label="Game controls">
         <h3 className="text-lg font-semibold text-white mb-4">Controls</h3>
         
@@ -335,8 +358,12 @@ export const GameOverOverlay = ({
       className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center rounded-xl z-30"
     >
       <Card variant="glass" padding="lg" className="text-center max-w-sm mx-4">
-        <div className="text-4xl mb-4">
-          {isVictory ? '🎉' : '💀'}
+        <div className="flex justify-center mb-4">
+          {isVictory ? (
+            <Trophy size={48} className="text-yellow-400" />
+          ) : (
+            <Skull size={48} className="text-red-400" />
+          )}
         </div>
         
         <h3 className="text-2xl font-bold text-white mb-2">

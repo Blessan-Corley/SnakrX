@@ -123,42 +123,48 @@ const GameBoard = memo(({
   }, [cellSize, deadPlayers, SNAKE_COLORS, highlightCollision]);
 
   const renderFood = useCallback(() => {
-    if (!food || typeof food.x !== 'number' || typeof food.y !== 'number') return null;
+    if (!food) return null;
+    
+    const foods = Array.isArray(food) ? food : [food];
+    
+    return foods.map((item, index) => {
+        if (!item || typeof item.x !== 'number' || typeof item.y !== 'number') return null;
 
-    const x = food.x * cellSize;
-    const y = food.y * cellSize;
-    const foodSize = cellSize - 4;
-    const offset = 2;
+        const x = item.x * cellSize;
+        const y = item.y * cellSize;
+        const foodSize = cellSize - 4;
+        const offset = 2;
 
-    return (
-      <g key={`food-${food.x}-${food.y}`}>
-        <circle
-          cx={x + cellSize / 2}
-          cy={y + cellSize / 2}
-          r={cellSize * 0.6}
-          fill="none"
-          stroke="#ff4444"
-          strokeWidth="2"
-          opacity="0.4"
-        />
-        <rect
-          x={x + offset}
-          y={y + offset}
-          width={foodSize}
-          height={foodSize}
-          fill="#ff0000"
-          rx={foodSize * 0.3}
-          ry={foodSize * 0.3}
-        />
-        <circle
-          cx={x + cellSize * 0.6}
-          cy={y + cellSize * 0.4}
-          r={Math.max(1, cellSize * 0.1)}
-          fill="#ffffff"
-          opacity="0.8"
-        />
-      </g>
-    );
+        return (
+          <g key={`food-${index}-${item.x}-${item.y}`}>
+            <circle
+              cx={x + cellSize / 2}
+              cy={y + cellSize / 2}
+              r={cellSize * 0.6}
+              fill="none"
+              stroke="#ff4444"
+              strokeWidth="2"
+              opacity="0.4"
+            />
+            <rect
+              x={x + offset}
+              y={y + offset}
+              width={foodSize}
+              height={foodSize}
+              fill="#ff0000"
+              rx={foodSize * 0.3}
+              ry={foodSize * 0.3}
+            />
+            <circle
+              cx={x + cellSize * 0.6}
+              cy={y + cellSize * 0.4}
+              r={Math.max(1, cellSize * 0.1)}
+              fill="#ffffff"
+              opacity="0.8"
+            />
+          </g>
+        );
+    });
   }, [food, cellSize]);
 
   return (
