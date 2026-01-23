@@ -311,7 +311,7 @@ const PrivacyPage = () => {
               </p>
               <ul className="text-white/80 space-y-2 ml-6">
                 <li>• Notify you via email if you have an account with us</li>
-                <li>• Update the "Last updated" date at the top of this policy</li>
+                <li>• Update the &ldquo;Last updated&rdquo; date at the top of this policy</li>
                 <li>• Provide a clear summary of changes when you next visit the game</li>
               </ul>
               <p className="text-white/80 leading-relaxed">

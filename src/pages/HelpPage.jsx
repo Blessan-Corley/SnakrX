@@ -1,23 +1,19 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  HelpCircle, 
-  Gamepad2, 
-  Target, 
-  Users, 
-  Award, 
+import {
+  HelpCircle,
+  Gamepad2,
+  Target,
+  Award,
   Settings,
   Mail,
   ChevronDown,
-  ChevronRight,
   Keyboard,
   Smartphone,
-  Trophy,
   Shield,
   Zap
 } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
-import Button from '@/components/ui/Button';
+
 import Card from '@/components/ui/Card';
 import { playClick } from '@/utils/sound';
 import { isMobile } from '@/utils/gameUtils';
@@ -27,7 +23,6 @@ import { isMobile } from '@/utils/gameUtils';
  * Comprehensive help documentation for SnakrX
  */
 const HelpPage = () => {
-  const { userProfile } = useAuth();
   const [activeSection, setActiveSection] = useState('getting-started');
   const [expandedFaq, setExpandedFaq] = useState(null);
   
@@ -179,7 +174,7 @@ const HelpPage = () => {
             <Card variant="glass" padding="sm" className="mt-6">
               <h3 className="text-lg font-semibold text-white mb-3">Need More Help?</h3>
               <p className="text-white/70 text-sm mb-4">
-                Can't find what you're looking for? Get in touch!
+                Can&apos;t find what you&apos;re looking for? Get in touch!
               </p>
               <a
                 href="mailto:blessancorley@gmail.com?subject=SnakrX Support"
@@ -214,7 +209,7 @@ const HelpPage = () => {
                             Create Your Account
                           </h3>
                           <p className="text-white/70 ml-9">
-                            Sign up with your email and choose a unique username. You'll also set up a security question for account recovery.
+                            Sign up with your email and choose a unique username. You&apos;ll also set up a security question for account recovery.
                           </p>
                         </div>
 
@@ -271,7 +266,7 @@ const HelpPage = () => {
                         <div className="space-y-3">
                           <div className="flex items-start space-x-3">
                             <div className="w-2 h-2 bg-red-400 rounded-full mt-2 flex-shrink-0" />
-                            <p className="text-white/70">Don't hit the walls or your own body</p>
+                            <p className="text-white/70">Don&apos;t hit the walls or your own body</p>
                           </div>
                           <div className="flex items-start space-x-3">
                             <div className="w-2 h-2 bg-red-400 rounded-full mt-2 flex-shrink-0" />
@@ -279,7 +274,7 @@ const HelpPage = () => {
                           </div>
                           <div className="flex items-start space-x-3">
                             <div className="w-2 h-2 bg-red-400 rounded-full mt-2 flex-shrink-0" />
-                            <p className="text-white/70">In multiplayer, avoid other players' snakes</p>
+                            <p className="text-white/70">In multiplayer, avoid other players&apos; snakes</p>
                           </div>
                         </div>
                       </div>
@@ -556,8 +551,8 @@ const HelpPage = () => {
                             <div className="bg-white/5 rounded-lg p-4">
                               <h4 className="font-semibold text-white mb-2">Password Recovery</h4>
                               <p className="text-white/70">
-                                If you forget your password, use the "Forgot Password" link on the login page. 
-                                You'll need to answer your security question to reset it.
+                                If you forget your password, use the &quot;Forgot Password&quot; link on the login page.
+                                You&apos;ll need to answer your security question to reset it.
                               </p>
                             </div>
                           </div>

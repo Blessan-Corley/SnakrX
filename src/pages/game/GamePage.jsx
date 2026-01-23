@@ -1,28 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Play, 
-  ArrowLeft, 
-  Gamepad2, 
-  Target, 
-  Users, 
-  Settings,
+import {
+  Play,
+  ArrowLeft,
   Trophy,
-  Clock,
   Star,
-  Zap,
-  Brain,
-  Sword,
-  Crown,
-  AlertTriangle
+  AlertTriangle,
+  Gamepad2,
+  Clock
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { useGameOperations } from '@/hooks/useGame';
 import Button from '@/components/ui/Button';
-import Card, { GameModeCard, StatsCard } from '@/components/ui/Card';
+import Card, { StatsCard } from '@/components/ui/Card';
 import { playClick } from '@/utils/sound';
-import { isMobile, formatScore, formatTime } from '@/utils/gameUtils';
+import { isMobile, formatScore } from '@/utils/gameUtils';
 
 /**
  * Game Mode Selection Hub
@@ -35,14 +27,14 @@ const GamePage = () => {
   const [showMobileWarning, setShowMobileWarning] = useState(false);
   
   const { userProfile } = useAuth();
-  const { initializeGame } = useGameOperations();
   const navigate = useNavigate();
-  
+
   const mobile = isMobile();
 
-  // Get user stats for quick display
+  // Get user stats for display
   const userStats = userProfile?.stats || {};
 
+  
   // Game mode configurations
   const gameModes = [
     {
@@ -53,8 +45,8 @@ const GamePage = () => {
       gradient: 'from-green-400 to-emerald-600',
       features: ['Endless gameplay', 'Progressive difficulty', 'Personal best tracking'],
       stats: {
-        played: userStats.classicGames || 0,
-        bestScore: userStats.classicBestScore || 0,
+        played: 0,
+        bestScore: 0,
         wins: userStats.classicWins || 0
       }
     },
@@ -219,7 +211,7 @@ const GamePage = () => {
             >
               {/* Game Modes Grid */}
               <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {gameModes.map((mode, index) => (
+                {gameModes.map((mode) => (
                   <motion.div
                     key={mode.id}
                     variants={itemVariants}

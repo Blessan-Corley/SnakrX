@@ -1,8 +1,8 @@
 import { motion } from 'framer-motion';
-import { 
-  FileText, 
-  Scale, 
-  AlertTriangle, 
+import {
+  FileText,
+  Scale,
+  AlertTriangle,
   Shield,
   User,
   Gamepad2,
@@ -11,8 +11,7 @@ import {
   Mail,
   ArrowLeft,
   Info,
-  CheckCircle,
-  XCircle
+  CheckCircle
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';

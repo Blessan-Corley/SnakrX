@@ -28,7 +28,7 @@ const SupportPage = () => {
     {
       id: 'bugs',
       title: 'Bug Reports & Errors',
-      description: 'Found a bug or experiencing game crashes? Let us know!',
+      description: 'Found a bug or experiencing game crashes? Let&apos;s know!',
       icon: <Bug size={24} />,
       color: 'text-red-400',
       bgColor: 'bg-red-500/10',
@@ -163,7 +163,7 @@ const SupportPage = () => {
             Support Center
           </h1>
           <p className="text-xl text-white/70 max-w-2xl mx-auto">
-            Need help? We're here to assist you with any issues or questions about SnakrX
+            Need help? We&apos;re here to assist you with any issues or questions about SnakrX
           </p>
         </motion.div>
 
@@ -180,7 +180,7 @@ const SupportPage = () => {
               <div className="text-center">
                 <h2 className="text-xl font-bold text-white mb-2">24-Hour Response Guarantee</h2>
                 <p className="text-white/90">
-                  All support requests are resolved within 24 hours. We're committed to providing fast, reliable support!
+                  All support requests are resolved within 24 hours. We&apos;re committed to providing fast, reliable support!
                 </p>
               </div>
               <CheckCircle className="text-white" size={32} />
@@ -310,7 +310,7 @@ const SupportPage = () => {
                 </div>
                 <h3 className="font-semibold text-white mb-2">Password Reset</h3>
                 <p className="text-white/70 text-sm mb-4">
-                  Need to change your password? Email us with your username and we'll help you reset it securely.
+                  Need to change your password? Email us with your username and we&apos;ll help you reset it securely.
                 </p>
                 <Button
                   variant="ghost"
@@ -344,7 +344,7 @@ const SupportPage = () => {
                 </div>
                 <h3 className="font-semibold text-white mb-2">Account Deletion</h3>
                 <p className="text-white/70 text-sm mb-4">
-                  Want to delete your account? Email us and we'll permanently remove all your data within 24 hours.
+                  Want to delete your account? Email us and we&apos;ll permanently remove all your data within 24 hours.
                 </p>
                 <Button
                   variant="ghost"
@@ -371,7 +371,7 @@ const SupportPage = () => {
               <h3 className="text-xl font-semibold text-white">Urgent Technical Issues?</h3>
             </div>
             <p className="text-white/80 mb-4">
-              If you're experiencing critical game-breaking bugs or urgent account security issues, 
+              If you&apos;re experiencing critical game-breaking bugs or urgent account security issues, 
               you can also call us directly for immediate assistance.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center space-y-3 sm:space-y-0 sm:space-x-4">
