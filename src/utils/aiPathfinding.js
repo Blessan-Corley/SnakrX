@@ -179,14 +179,14 @@ export class AIStrategy {
         selfCollisionAvoidance: 1.0  // Always avoid self-collision
       },
       impossible: {
-        optimality: 0.95,        // 95% optimal - very competitive but not perfect
-        lookAhead: 5,            // Look far ahead
-        avoidancePriority: 0.98, // Near-perfect collision avoidance
-        randomness: 0.05,        // 5% calculated sub-optimal moves for unpredictability
+        optimality: 1.0,        // 100% optimal - perfect play
+        lookAhead: 10,           // Look far ahead
+        avoidancePriority: 1.0,  // Perfect collision avoidance
+        randomness: 0.0,         // No randomness
         reactionTime: 0,         // Instant reaction
-        safetyDistance: 3,       // Large safety margin
-        selfCollisionAvoidance: 1.0,  // Always avoid self-collision
-        aggressiveness: 0.8      // 80% chance to take aggressive moves
+        safetyDistance: 2,       // Safe distance
+        selfCollisionAvoidance: 1.0,
+        aggressiveness: 1.0      // Very aggressive
       }
     };
   }
@@ -194,18 +194,18 @@ export class AIStrategy {
   /**
    * Get next move for AI snake with enhanced difficulty-based behavior
    */
-  getNextMove(aiSnake, food, obstacles = [], otherSnakes = []) {
+  getNextMove(aiSnake, food, obstacles = [], otherSnakes = [], gameMode = 'vsai') {
     if (!aiSnake || aiSnake.length === 0) return this.getRandomDirection();
     
     const currentSettings = this.settings[this.difficulty];
     const head = aiSnake[0];
     
     // Get safe moves (moves that don't cause immediate death)
-    const safeMoves = this.getSafeMoves(head, aiSnake, obstacles, otherSnakes, currentSettings);
+    const safeMoves = this.getSafeMoves(head, aiSnake, obstacles, otherSnakes, currentSettings, gameMode);
     
     if (safeMoves.length === 0) {
       // No safe moves - try desperate escape
-      return this.getDesperateMove(head, aiSnake, obstacles, otherSnakes);
+      return this.getDesperateMove(head, aiSnake, obstacles, otherSnakes, gameMode);
     }
     
     // Determine if AI should make optimal move based on difficulty
@@ -213,7 +213,7 @@ export class AIStrategy {
     
     if (shouldMakeOptimalMove) {
       // Make strategic/optimal move
-      return this.getOptimalMove(head, food, aiSnake, obstacles, otherSnakes, currentSettings);
+      return this.getOptimalMove(head, food, aiSnake, obstacles, otherSnakes, currentSettings, gameMode);
     } else {
       // Make suboptimal move (simulate human-like mistakes)
       return this.getSuboptimalMove(safeMoves, currentSettings);
@@ -223,7 +223,7 @@ export class AIStrategy {
   /**
    * Get safe moves with enhanced safety calculation
    */
-  getSafeMoves(head, snake, obstacles, otherSnakes, settings) {
+  getSafeMoves(head, snake, obstacles, otherSnakes, settings, gameMode) {
     const moves = [];
     
     for (const direction of Object.values(DIRECTIONS)) {
@@ -233,9 +233,9 @@ export class AIStrategy {
       };
       
       // Check if move is safe with difficulty-adjusted safety distance
-      if (this.isSafeMoveWithDistance(newPos, snake, obstacles, otherSnakes, settings.safetyDistance)) {
-        const safety = this.calculateAdvancedSafety(newPos, snake, obstacles, otherSnakes, settings);
-        const futureSpace = this.calculateFutureSpace(newPos, direction, snake, obstacles, otherSnakes, settings.lookAhead);
+      if (this.isSafeMoveWithDistance(newPos, snake, obstacles, otherSnakes, settings.safetyDistance, gameMode)) {
+        const safety = this.calculateAdvancedSafety(newPos, snake, obstacles, otherSnakes, settings, gameMode);
+        const futureSpace = this.calculateFutureSpace(newPos, direction, snake, obstacles, otherSnakes, settings.lookAhead, gameMode);
         
         moves.push({
           direction,
@@ -253,33 +253,45 @@ export class AIStrategy {
   /**
    * Enhanced safety check with distance consideration
    */
-  isSafeMoveWithDistance(position, snake, obstacles, otherSnakes, minDistance = 1) {
-    // Basic boundary check
+  isSafeMoveWithDistance(position, snake, obstacles, otherSnakes, minDistance = 1, gameMode) {
+    // Basic boundary check - ALWAYS DEADLY
     if (!isWithinBounds(position, this.boardWidth, this.boardHeight)) {
       return false;
     }
     
-    // Check immediate collision with snake body (excluding tail)
+    // Check immediate collision with own body - ALWAYS DEADLY
     const bodyWithoutTail = snake.slice(0, -1);
     if (checkSelfCollision(position, bodyWithoutTail)) {
       return false;
     }
     
-    // Check collision with obstacles
+    // Check collision with obstacles - ALWAYS DEADLY
     if (obstacles.some(obstacle => positionsEqual(position, obstacle))) {
       return false;
     }
     
-    // Check collision with other snakes
-    for (const otherSnake of otherSnakes) {
-      if (checkSnakeCollision(position, otherSnake)) {
-        return false;
-      }
+    // VS AI Logic: Opponent bodies are NOT obstacles, only Heads are dangerous
+    if (gameMode === 'vsai') {
+        // In VS AI, bodies are safe (Ghost Mode), but heads are dangerous if we crash
+        // We only check for head-to-head collision risk
+        for (const otherSnake of otherSnakes) {
+            if (otherSnake.length > 0 && positionsEqual(position, otherSnake[0])) {
+                // Moving into opponent head is risky (draw/death)
+                return false;
+            }
+        }
+    } else {
+        // Classic logic: Opponent bodies are deadly
+        for (const otherSnake of otherSnakes) {
+            if (checkSnakeCollision(position, otherSnake)) {
+                return false;
+            }
+        }
     }
     
     // For higher difficulties, check safety distance
     if (minDistance > 1) {
-      return this.checkSafetyDistance(position, snake, obstacles, otherSnakes, minDistance);
+      return this.checkSafetyDistance(position, snake, obstacles, otherSnakes, minDistance, gameMode);
     }
     
     return true;
@@ -288,7 +300,7 @@ export class AIStrategy {
   /**
    * Check if position maintains safe distance from dangers
    */
-  checkSafetyDistance(position, snake, obstacles, otherSnakes, minDistance) {
+  checkSafetyDistance(position, snake, obstacles, otherSnakes, minDistance, gameMode) {
     // Check distance from walls
     if (position.x < minDistance || position.x >= this.boardWidth - minDistance ||
         position.y < minDistance || position.y >= this.boardHeight - minDistance) {
@@ -304,11 +316,19 @@ export class AIStrategy {
     
     // Check distance from other snakes
     for (const otherSnake of otherSnakes) {
-      for (const segment of otherSnake) {
-        if (manhattanDistance(position, segment) < minDistance) {
-          return false;
+        // VS AI: Only avoid Heads
+        if (gameMode === 'vsai') {
+             if (otherSnake.length > 0 && manhattanDistance(position, otherSnake[0]) < minDistance) {
+                 return false;
+             }
+        } else {
+            // Classic: Avoid whole body
+            for (const segment of otherSnake) {
+                if (manhattanDistance(position, segment) < minDistance) {
+                  return false;
+                }
+            }
         }
-      }
     }
     
     return true;
@@ -317,10 +337,10 @@ export class AIStrategy {
   /**
    * Calculate advanced safety score
    */
-  calculateAdvancedSafety(position, snake, obstacles, otherSnakes, settings) {
+  calculateAdvancedSafety(position, snake, obstacles, otherSnakes, settings, gameMode) {
     let safety = 100;
     
-    // Penalty for being near walls (scaled by difficulty)
+    // Penalty for being near walls
     const wallDistance = Math.min(
       position.x,
       position.y,
@@ -339,12 +359,22 @@ export class AIStrategy {
     
     // Penalty for being near other snakes
     for (const otherSnake of otherSnakes) {
-      for (const segment of otherSnake) {
-        const dist = manhattanDistance(position, segment);
-        if (dist <= settings.safetyDistance) {
-          safety -= (settings.safetyDistance - dist + 1) * 25;
+        if (gameMode === 'vsai') {
+            // Only care about head proximity
+             if (otherSnake.length > 0) {
+                 const dist = manhattanDistance(position, otherSnake[0]);
+                 if (dist <= settings.safetyDistance) {
+                    safety -= (settings.safetyDistance - dist + 1) * 25;
+                 }
+             }
+        } else {
+            for (const segment of otherSnake) {
+                const dist = manhattanDistance(position, segment);
+                if (dist <= settings.safetyDistance) {
+                  safety -= (settings.safetyDistance - dist + 1) * 25;
+                }
+            }
         }
-      }
     }
     
     return Math.max(0, safety);
@@ -353,7 +383,7 @@ export class AIStrategy {
   /**
    * Calculate future space availability
    */
-  calculateFutureSpace(position, direction, snake, obstacles, otherSnakes, depth) {
+  calculateFutureSpace(position, direction, snake, obstacles, otherSnakes, depth, gameMode) {
     let space = 0;
     let current = position;
     
@@ -363,11 +393,23 @@ export class AIStrategy {
         y: current.y + direction.y
       };
       
-      if (!isWithinBounds(current, this.boardWidth, this.boardHeight) ||
-          checkSelfCollision(current, snake) ||
-          otherSnakes.some(otherSnake => checkSnakeCollision(current, otherSnake))) {
-        break;
+      let isSafe = true;
+      
+      // Check Bounds
+      if (!isWithinBounds(current, this.boardWidth, this.boardHeight)) isSafe = false;
+      
+      // Check Self
+      if (checkSelfCollision(current, snake)) isSafe = false;
+      
+      // Check Opponents
+      if (gameMode === 'vsai') {
+          // Check head collisions
+          if (otherSnakes.some(s => s.length > 0 && positionsEqual(current, s[0]))) isSafe = false;
+      } else {
+          if (otherSnakes.some(otherSnake => checkSnakeCollision(current, otherSnake))) isSafe = false;
       }
+
+      if (!isSafe) break;
       
       space += (depth - i); // Weight closer spaces more
     }
@@ -378,7 +420,7 @@ export class AIStrategy {
   /**
    * Get desperate move when no safe moves available
    */
-  getDesperateMove(head, snake, obstacles, otherSnakes) {
+  getDesperateMove(head, snake, obstacles, otherSnakes, gameMode) {
     // Try to find any move that doesn't cause immediate death
     for (const direction of Object.values(DIRECTIONS)) {
       const newPos = {
@@ -386,7 +428,7 @@ export class AIStrategy {
         y: head.y + direction.y
       };
       
-      if (this.isSafeMoveWithDistance(newPos, snake, obstacles, otherSnakes, 0)) {
+      if (this.isSafeMoveWithDistance(newPos, snake, obstacles, otherSnakes, 0, gameMode)) {
         return direction;
       }
     }
@@ -417,89 +459,33 @@ export class AIStrategy {
   }
 
   /**
-   * Check if a move is safe (won't result in immediate collision)
-   */
-  isSafeMove(position, snake, obstacles, otherSnakes) {
-    // Check bounds
-    if (!isWithinBounds(position, this.boardWidth, this.boardHeight)) {
-      return false;
-    }
-    
-    // Check self collision (excluding tail since it will move)
-    const bodyWithoutTail = snake.slice(0, -1);
-    if (checkSelfCollision(position, bodyWithoutTail)) {
-      return false;
-    }
-    
-    // Check obstacles
-    if (obstacles.some(obstacle => positionsEqual(position, obstacle))) {
-      return false;
-    }
-    
-    // Check collision with other snakes
-    for (const otherSnake of otherSnakes) {
-      if (checkSnakeCollision(position, otherSnake)) {
-        return false;
-      }
-    }
-    
-    return true;
-  }
-
-  /**
-   * Calculate safety score for a position
-   */
-  calculateSafety(position, snake, obstacles, otherSnakes) {
-    let safety = 100;
-    
-    // Penalty for being near walls
-    const distToWalls = Math.min(
-      position.x,
-      position.y,
-      this.boardWidth - position.x - 1,
-      this.boardHeight - position.y - 1
-    );
-    safety -= Math.max(0, (3 - distToWalls) * 10);
-    
-    // Penalty for being near own body
-    const bodyWithoutTail = snake.slice(0, -1);
-    for (const segment of bodyWithoutTail) {
-      const dist = manhattanDistance(position, segment);
-      if (dist <= 2) {
-        safety -= (3 - dist) * 15;
-      }
-    }
-    
-    // Penalty for being near other snakes
-    for (const otherSnake of otherSnakes) {
-      for (const segment of otherSnake) {
-        const dist = manhattanDistance(position, segment);
-        if (dist <= 2) {
-          safety -= (3 - dist) * 20;
-        }
-      }
-    }
-    
-    return Math.max(0, safety);
-  }
-
-  /**
    * Get optimal move using enhanced A* pathfinding
    */
-  getOptimalMove(head, food, snake, obstacles, otherSnakes, settings) {
+  getOptimalMove(head, food, snake, obstacles, otherSnakes, settings, gameMode) {
     if (!food) return this.getRandomDirection();
     
     const allObstacles = [...obstacles];
     
-    // Add other snakes as obstacles (predict their movement for higher difficulties)
-    otherSnakes.forEach(otherSnake => {
-      if (settings.lookAhead > 2) {
-        // For harder difficulties, predict where other snakes might move
-        allObstacles.push(...this.predictSnakeMovement(otherSnake, settings.lookAhead));
-      } else {
-        allObstacles.push(...otherSnake);
-      }
-    });
+    // VS AI: Opponent bodies are NOT obstacles.
+    if (gameMode !== 'vsai') {
+        // Add other snakes as obstacles (predict their movement for higher difficulties)
+        otherSnakes.forEach(otherSnake => {
+          if (settings.lookAhead > 2) {
+            allObstacles.push(...this.predictSnakeMovement(otherSnake, settings.lookAhead));
+          } else {
+            allObstacles.push(...otherSnake);
+          }
+        });
+    } else {
+        // In VS AI, we might want to avoid the head?
+        // Add predicted head positions as obstacles to avoid crashes
+         otherSnakes.forEach(otherSnake => {
+             if (otherSnake.length > 0) {
+                 // Treat current head and potential next moves as danger zones
+                 allObstacles.push(otherSnake[0]);
+             }
+         });
+    }
     
     // Add own body (excluding tail) as obstacles
     allObstacles.push(...snake.slice(0, -1));
@@ -512,20 +498,20 @@ export class AIStrategy {
       const direction = this.getDirectionFromPositions(head, nextPos);
       
       // Double-check the move is safe
-      if (this.isSafeMoveWithDistance(nextPos, snake, obstacles, otherSnakes, 0)) {
+      if (this.isSafeMoveWithDistance(nextPos, snake, obstacles, otherSnakes, 0, gameMode)) {
         return direction;
       }
     }
     
     // If no path to food or path is unsafe, prioritize survival
-    return this.getSurvivalMove(head, snake, obstacles, otherSnakes, settings);
+    return this.getSurvivalMove(head, snake, obstacles, otherSnakes, settings, gameMode);
   }
 
   /**
    * Get survival move when can't reach food
    */
-  getSurvivalMove(head, snake, obstacles, otherSnakes, settings) {
-    const safeMoves = this.getSafeMoves(head, snake, obstacles, otherSnakes, settings);
+  getSurvivalMove(head, snake, obstacles, otherSnakes, settings, gameMode) {
+    const safeMoves = this.getSafeMoves(head, snake, obstacles, otherSnakes, settings, gameMode);
     
     if (safeMoves.length > 0) {
       // Choose move that maximizes future space
@@ -533,7 +519,7 @@ export class AIStrategy {
     }
     
     // Last resort
-    return this.getDesperateMove(head, snake, obstacles, otherSnakes);
+    return this.getDesperateMove(head, snake, obstacles, otherSnakes, gameMode);
   }
 
   /**
@@ -570,68 +556,6 @@ export class AIStrategy {
   }
 
   /**
-   * Get strategic move with difficulty-based optimality
-   */
-  getStrategicMove(head, food, possibleMoves, settings, snake, otherSnakes) {
-    // Calculate scores for each move
-    const scoredMoves = possibleMoves.map(move => {
-      let score = move.safety;
-      
-      // Distance to food (lower is better)
-      const distToFood = manhattanDistance(move.position, food);
-      score += Math.max(0, 100 - distToFood * 5);
-      
-      // Bonus for moves that don't trap the snake
-      const spaceAhead = this.calculateSpaceAhead(move.position, move.direction, snake, otherSnakes);
-      score += spaceAhead * 2;
-      
-      return {
-        ...move,
-        score
-      };
-    });
-    
-    // Sort by score
-    scoredMoves.sort((a, b) => b.score - a.score);
-    
-    // Apply optimality and randomness based on difficulty
-    if (Math.random() < settings.optimality) {
-      // Choose optimal move
-      return scoredMoves[0].direction;
-    } else {
-      // Choose random move from top options
-      const topMoves = scoredMoves.slice(0, Math.min(3, scoredMoves.length));
-      const randomMove = topMoves[Math.floor(Math.random() * topMoves.length)];
-      return randomMove.direction;
-    }
-  }
-
-  /**
-   * Calculate available space ahead of a position
-   */
-  calculateSpaceAhead(position, direction, snake, otherSnakes, depth = 3) {
-    let space = 0;
-    let current = position;
-    
-    for (let i = 0; i < depth; i++) {
-      current = {
-        x: current.x + direction.x,
-        y: current.y + direction.y
-      };
-      
-      if (!isWithinBounds(current, this.boardWidth, this.boardHeight) ||
-          checkSelfCollision(current, snake) ||
-          otherSnakes.some(otherSnake => checkSnakeCollision(current, otherSnake))) {
-        break;
-      }
-      
-      space++;
-    }
-    
-    return space;
-  }
-
-  /**
    * Get direction from two positions
    */
   getDirectionFromPositions(from, to) {
@@ -640,7 +564,7 @@ export class AIStrategy {
       y: to.y - from.y
     };
     
-    for (const [key, direction] of Object.entries(DIRECTIONS)) {
+    for (const [, direction] of Object.entries(DIRECTIONS)) {
       if (direction.x === diff.x && direction.y === diff.y) {
         return direction;
       }
@@ -681,7 +605,7 @@ export class AIController {
   /**
    * Get next move for AI snake with reaction time simulation
    */
-  getNextMove(aiSnake, food, obstacles = [], otherSnakes = []) {
+  getNextMove(aiSnake, food, obstacles = [], otherSnakes = [], gameMode = 'vsai') {
     this.tickCounter++;
     
     const settings = this.strategy.settings[this.strategy.difficulty];
@@ -695,7 +619,7 @@ export class AIController {
     
     this.moveDelay = 0; // Reset delay after making a move
     
-    const move = this.strategy.getNextMove(aiSnake, food, obstacles, otherSnakes);
+    const move = this.strategy.getNextMove(aiSnake, food, obstacles, otherSnakes, gameMode);
     
     // Anti-stuck mechanism with difficulty-based tolerance
     const stuckTolerance = settings.reactionTime + 2;
@@ -703,7 +627,7 @@ export class AIController {
       this.stuckCounter++;
       if (this.stuckCounter > stuckTolerance) {
         // Try alternative moves
-        const safeMoves = this.strategy.getSafeMoves(aiSnake[0], aiSnake, obstacles, otherSnakes, settings);
+        const safeMoves = this.strategy.getSafeMoves(aiSnake[0], aiSnake, obstacles, otherSnakes, settings, gameMode);
         const alternativeMoves = safeMoves.filter(m => !positionsEqual(m.direction, move));
         
         if (alternativeMoves.length > 0) {

@@ -303,7 +303,7 @@ export const getVolume = () => globalVolume;
 let audioInitialized = false;
 
 if (typeof window !== 'undefined') {
-  const initAudio = async (event) => {
+  const initAudio = async () => {
     if (audioInitialized) return;
     
     try {

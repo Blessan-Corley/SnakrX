@@ -413,36 +413,90 @@ export const ACHIEVEMENTS = [
     requirements: { winStreak: 10 }
   },
   
-  // Food Achievements
+  // Friend & Social Achievements
   {
-    id: 'food_hunter',
-    title: 'Food Hunter',
-    description: 'Eat 100 food items',
-    icon: '🍎',
-    category: 'food',
+    id: 'social_butterfly',
+    title: 'Social Butterfly',
+    description: 'Add 5 friends',
+    icon: '🦋',
+    category: 'multiplayer',
     tier: 'common',
     points: 15,
-    requirements: { foodEaten: 100 }
+    requirements: { friendsCount: 5 }
   },
   {
-    id: 'glutton',
-    title: 'Glutton',
-    description: 'Eat 1000 food items',
-    icon: '🍽️',
+    id: 'squad_goals',
+    title: 'Squad Goals',
+    description: 'Play a 4-player local multiplayer game',
+    icon: '👥',
+    category: 'multiplayer',
+    tier: 'rare',
+    points: 40,
+    requirements: { multiplayerGames4Player: 1 }
+  },
+
+  // Skill Achievements
+  {
+    id: 'sniper',
+    title: 'Sniper',
+    description: 'Eat food within 2 seconds of spawning',
+    icon: '🎯',
+    category: 'gameplay',
+    tier: 'rare',
+    points: 35,
+    requirements: { fastEats: 1 }
+  },
+  {
+    id: 'close_call',
+    title: 'Close Call',
+    description: 'Survive a collision by turning at the last possible moment',
+    icon: '😰',
+    category: 'gameplay',
+    tier: 'epic',
+    points: 50,
+    requirements: { closeCalls: 1 }
+  },
+  
+  // Food Achievements (Tiered)
+  {
+    id: 'food_hunter_bronze',
+    title: 'Appetizer',
+    description: 'Eat 50 food items',
+    icon: '🥉',
+    category: 'food',
+    tier: 'common',
+    points: 10,
+    requirements: { foodEaten: 50 }
+  },
+  {
+    id: 'food_hunter_silver',
+    title: 'Hungry Snake',
+    description: 'Eat 250 food items',
+    icon: '🥈',
     category: 'food',
     tier: 'uncommon',
-    points: 35,
+    points: 25,
+    requirements: { foodEaten: 250 }
+  },
+  {
+    id: 'food_hunter_gold',
+    title: 'Feast Master',
+    description: 'Eat 1000 food items',
+    icon: '🥇',
+    category: 'food',
+    tier: 'rare',
+    points: 50,
     requirements: { foodEaten: 1000 }
   },
   {
-    id: 'food_vacuum',
-    title: 'Food Vacuum',
-    description: 'Eat 50 food items in a single game',
-    icon: '🌪️',
+    id: 'food_hunter_platinum',
+    title: 'Gluttony God',
+    description: 'Eat 5000 food items',
+    icon: '💎',
     category: 'food',
-    tier: 'rare',
-    points: 40,
-    requirements: { singleGameFood: 50 }
+    tier: 'legendary',
+    points: 150,
+    requirements: { foodEaten: 5000 }
   }
 ];
 
@@ -466,7 +520,7 @@ export const getAchievementById = (id) => {
 // Achievement requirements validation with better logging
 export const checkAchievementRequirements = (achievement, userStats) => {
   if (!achievement || !achievement.requirements || !userStats) {
-    console.warn('Invalid parameters for achievement checking:', { achievement, userStats });
+    // console.warn('Invalid parameters for achievement checking:', { achievement, userStats });
     return false;
   }
   

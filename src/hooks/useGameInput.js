@@ -146,8 +146,6 @@ class InputQueue {
  */
 export const useGameInput = ({
   playerCount = 1,
-  isPlaying = false,
-  isPaused = false,
   onDirectionChange = () => {},
   onPauseToggle = () => {},
   onRestart = () => {},
@@ -261,14 +259,6 @@ export const useGameInput = ({
       }
       
       // Advanced input validation and queuing
-      const inputData = {
-        playerId,
-        direction,
-        code,
-        key,
-        timestamp: now,
-        eventTime: startTime
-      };
       
       // ULTRA-RESPONSIVE: Process all valid inputs immediately with minimal throttling
       const lastInputTime = lastInputTimeRef.current.get(playerId) || 0;
@@ -345,7 +335,7 @@ export const useGameInput = ({
       const input = queue.peek();
       if (!input) break;
       
-      const { playerId, direction, timestamp } = input;
+      const { playerId, direction } = input;
       const lastInputTime = lastInputTimeRef.current.get(playerId) || 0;
       const timeSinceLastInput = now - lastInputTime;
       
@@ -524,22 +514,30 @@ export const useGameInput = ({
   }, []);
 
   /**
-   * ULTRA-OPTIMIZED event listeners with maximum responsiveness
-   */
+    * ULTRA-OPTIMIZED event listeners with maximum responsiveness
+    */
   useEffect(() => {
+    // Capture ref values to avoid ESLint warnings about stale closures
+    const keysDown = keysDownRef.current;
+    const keyStates = keyStatesRef.current;
+    const lastInputTime = lastInputTimeRef.current;
+    const consecutiveInputs = consecutiveInputsRef.current;
+    const inputQueue = inputQueueRef.current;
+    const performance = performanceRef.current;
+
     // Ultra-fast event handling configuration
-    const keyOptions = { 
+    const keyOptions = {
       capture: true,        // Capture phase for immediate response
       passive: false,       // Allow preventDefault
       once: false          // Reusable listeners
     };
-    
+
     const touchOptions = {
       capture: true,
       passive: false,       // Allow preventDefault for scroll prevention
       once: false
     };
-    
+
     // Multiple listener strategies for maximum compatibility
     const targets = [document, window];
     
@@ -583,25 +581,23 @@ export const useGameInput = ({
         target.removeEventListener('touchend', handleTouchEnd, touchOptions);
         target.removeEventListener('touchcancel', handleTouchEnd, touchOptions);
       });
-      
+
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener('blur', handleBlur);
       window.removeEventListener('visibilitychange', handleBlur);
-      
-      // Clear all tracking data
-      keysDownRef.current.clear();
-      keyStatesRef.current.clear();
-      lastInputTimeRef.current.clear();
-      consecutiveInputsRef.current.clear();
-      inputQueueRef.current.clear();
-      
-      // Reset performance metrics
-      performanceRef.current = {
-        totalInputs: 0,
-        processedInputs: 0,
-        droppedInputs: 0,
-        averageLatency: 0
-      };
+
+      // Clear all tracking data using captured values
+      keysDown.clear();
+      keyStates.clear();
+      lastInputTime.clear();
+      consecutiveInputs.clear();
+      inputQueue.clear();
+
+      // Reset performance metrics using captured value
+      performance.totalInputs = 0;
+      performance.processedInputs = 0;
+      performance.droppedInputs = 0;
+      performance.averageLatency = 0;
     };
   }, [handleKeyDown, handleKeyUp, handleTouchStart, handleTouchMove, handleTouchEnd]);
 

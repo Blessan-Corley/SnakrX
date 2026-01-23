@@ -295,12 +295,25 @@ export const generateFoodPosition = (boardWidth, boardHeight, snakes = []) => {
     // Add all snake segments to occupied positions
     if (Array.isArray(snakes)) {
       snakes.forEach(snake => {
-        if (Array.isArray(snake)) {
+        // Check if snake is an object with body property (Standard Snake Object)
+        if (snake && snake.body && Array.isArray(snake.body)) {
+           snake.body.forEach(segment => {
+             if (segment && typeof segment.x === 'number' && typeof segment.y === 'number') {
+               occupiedPositions.add(`${segment.x},${segment.y}`);
+             }
+           });
+        } 
+        // Check if snake is an array of segments (Legacy/Simple Body Array)
+        else if (Array.isArray(snake)) {
           snake.forEach(segment => {
             if (segment && typeof segment.x === 'number' && typeof segment.y === 'number') {
               occupiedPositions.add(`${segment.x},${segment.y}`);
             }
           });
+        }
+        // Check if snake is a single segment (Legacy/Flat Position)
+        else if (snake && typeof snake.x === 'number' && typeof snake.y === 'number') {
+           occupiedPositions.add(`${snake.x},${snake.y}`);
         }
       });
     }
@@ -330,11 +343,10 @@ export const generateFoodPosition = (boardWidth, boardHeight, snakes = []) => {
       }
     }
     
-    // Last resort fallback
-    console.warn('No available food position found, using center');
+    // Last resort fallback - Random position (better than fixed center)
     return { 
-      x: Math.floor(boardWidth / 2), 
-      y: Math.floor(boardHeight / 2) 
+      x: Math.floor(Math.random() * boardWidth), 
+      y: Math.floor(Math.random() * boardHeight) 
     };
   } catch (error) {
     console.error('Error generating food position:', error);
