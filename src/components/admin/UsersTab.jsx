@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Search, RefreshCw, Users, Ban, UnlockKeyhole } from 'lucide-react';
+import { Search, RefreshCw, Users, Ban, UnlockKeyhole, ExternalLink } from 'lucide-react';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
@@ -118,21 +118,21 @@ export const UsersTab = ({
                     {/* Stats */}
                     <div className="hidden md:block text-right">
                       <div className="text-sm text-white">
-                        {formatScore(user.stats?.highestScore || 0)}
+                        {formatScore(user.stats?.bestScore || 0)}
                       </div>
                       <div className="text-xs text-white/60">High Score</div>
                     </div>
 
                     <div className="hidden md:block text-right">
                       <div className="text-sm text-white">
-                        {user.stats?.totalGamesPlayed || 0}
+                        {user.stats?.totalGames || 0}
                       </div>
                       <div className="text-xs text-white/60">Games</div>
                     </div>
 
                     <div className="hidden md:block text-right">
                       <div className="text-sm text-white">
-                        {user.stats?.achievements?.length || 0}
+                        {user.stats?.achievementsCompleted || 0}
                       </div>
                       <div className="text-xs text-white/60">Achievements</div>
                     </div>
@@ -146,6 +146,14 @@ export const UsersTab = ({
 
                     {/* Actions */}
                     <div className="flex space-x-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        icon={<ExternalLink size={14} />}
+                        onClick={() => window.open(`/player/${user.id}`, '_blank', 'noopener,noreferrer')}
+                      >
+                        View
+                      </Button>
                       <Button
                         variant={user.banned ? "ghost" : "danger"}
                         size="sm"
@@ -162,15 +170,15 @@ export const UsersTab = ({
                 <div className="md:hidden mt-3 pt-3 border-t border-white/10">
                   <div className="grid grid-cols-3 gap-4 text-center text-xs">
                     <div>
-                      <div className="text-white font-medium">{formatScore(user.stats?.highestScore || 0)}</div>
+                      <div className="text-white font-medium">{formatScore(user.stats?.bestScore || 0)}</div>
                       <div className="text-white/60">High Score</div>
                     </div>
                     <div>
-                      <div className="text-white font-medium">{user.stats?.totalGamesPlayed || 0}</div>
+                      <div className="text-white font-medium">{user.stats?.totalGames || 0}</div>
                       <div className="text-white/60">Games</div>
                     </div>
                     <div>
-                      <div className="text-white font-medium">{user.stats?.achievements?.length || 0}</div>
+                      <div className="text-white font-medium">{user.stats?.achievementsCompleted || 0}</div>
                       <div className="text-white/60">Achievements</div>
                     </div>
                   </div>
