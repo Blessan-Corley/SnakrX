@@ -1,129 +1,92 @@
-/**
- * Friends Management Hook
- * Handles fetching, sending, and managing friend requests
- */
-
-import { useState, useEffect, useCallback } from 'react';
-import { friendOperations } from '../services/firebase/friends.js';
+import { createElement, useCallback, useMemo } from 'react';
 import { useAuth } from './useAuth';
-import toast from 'react-hot-toast';
+import { FriendsContext, useFriends } from './friends/context.js';
+import {
+  buildFriendRelationshipMap,
+  getRelationshipState
+} from './friends/relationshipState.js';
+import useFriendActions from './friends/useFriendActions.js';
+import useFriendsData from './friends/useFriendsData.js';
 
-export const useFriends = () => {
+export const FriendsProvider = ({ children }) => {
   const { user } = useAuth();
-  const [friends, setFriends] = useState([]);
-  const [pendingRequests, setPendingRequests] = useState([]);
-  const [searchResults, setSearchResults] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [searching, setSearching] = useState(false);
-
-  // Fetch data
-  const fetchData = useCallback(async () => {
-    if (!user) return;
-    
-    try {
-      const [friendsList, requests] = await Promise.all([
-        friendOperations.getFriends(user.uid),
-        friendOperations.getFriendRequests(user.uid)
-      ]);
-      
-      setFriends(friendsList);
-      setPendingRequests(requests);
-    } catch (error) {
-      console.error("Error fetching friends:", error);
-    }
-  }, [user]);
-
-  // Initial fetch
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  /**
-   * Search for users
-   */
-  const searchUsers = useCallback(async (term) => {
-    if (!term || term.length < 3) {
-      setSearchResults([]);
-      return;
-    }
-
-    setSearching(true);
-    try {
-      const results = await friendOperations.searchUsers(term);
-      // Filter out self and existing friends
-      const filtered = results.filter(u => 
-        u.id !== user.uid && 
-        !friends.some(f => f.id === u.id)
-      );
-      setSearchResults(filtered);
-    } catch (error) {
-      toast.error("Search failed");
-    } finally {
-      setSearching(false);
-    }
-  }, [user, friends]);
-
-  /**
-   * Send Request
-   */
-  const sendRequest = useCallback(async (targetId) => {
-    setLoading(true);
-    try {
-      await friendOperations.sendFriendRequest(user.uid, targetId);
-      toast.success("Friend request sent!");
-      // Optimistic update: remove from search results
-      setSearchResults(prev => prev.filter(u => u.id !== targetId));
-    } catch (error) {
-      toast.error(error.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [user]);
-
-  /**
-   * Accept Request
-   */
-  const acceptRequest = useCallback(async (requesterId) => {
-    setLoading(true);
-    try {
-      await friendOperations.acceptFriendRequest(user.uid, requesterId);
-      toast.success("Friend request accepted!");
-      await fetchData(); // Refresh lists
-    } catch (error) {
-      toast.error(error.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [user, fetchData]);
-
-  /**
-   * Reject/Remove Friend
-   */
-  const removeFriend = useCallback(async (targetId) => {
-    if (!confirm("Are you sure you want to remove this friend?")) return;
-    
-    setLoading(true);
-    try {
-      await friendOperations.removeFriend(user.uid, targetId);
-      toast.success("Friend removed");
-      await fetchData();
-    } catch (error) {
-      toast.error("Failed to remove friend");
-    } finally {
-      setLoading(false);
-    }
-  }, [user, fetchData]);
-
-  return {
+  const {
+    activeTargetId,
+    error,
+    fetchData,
     friends,
+    loading,
+    outgoingRequests,
     pendingRequests,
     searchResults,
-    loading,
     searching,
+    setActiveTargetId,
+    setFriends,
+    setLoading,
+    setOutgoingRequests,
+    setPendingRequests,
+    setSearchResults,
+    setSearching
+  } = useFriendsData({ userId: user?.uid });
+
+  const relationshipMap = useMemo(() => buildFriendRelationshipMap({
+    currentUserId: user?.uid || null,
+    friends,
+    pendingRequests,
+    outgoingRequests
+  }), [friends, outgoingRequests, pendingRequests, user?.uid]);
+
+  const getRelationship = useCallback((targetId) => (
+    getRelationshipState(relationshipMap, targetId, user?.uid || null)
+  ), [relationshipMap, user?.uid]);
+
+  const getRelationshipStatus = useCallback((targetId) => (
+    getRelationship(targetId).status
+  ), [getRelationship]);
+
+  const {
+    acceptRequest,
+    cancelRequest,
+    rejectRequest,
+    removeFriend,
+    searchUsers,
+    sendRequest
+  } = useFriendActions({
+    fetchData,
+    getRelationship,
+    searchResults,
+    setActiveTargetId,
+    setFriends,
+    setLoading,
+    setOutgoingRequests,
+    setPendingRequests,
+    setSearchResults,
+    setSearching,
+    user
+  });
+
+  const value = {
+    friends,
+    pendingRequests,
+    outgoingRequests,
+    searchResults,
+    loading,
+    error,
+    searching,
+    activeTargetId,
+    relationshipMap,
     searchUsers,
     sendRequest,
     acceptRequest,
     removeFriend,
-    refreshFriends: fetchData
+    cancelRequest,
+    rejectRequest,
+    refreshFriends: fetchData,
+    getRelationship,
+    getRelationshipStatus
   };
+
+  return createElement(FriendsContext.Provider, { value }, children);
 };
+
+export { useFriends };
