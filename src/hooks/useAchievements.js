@@ -25,12 +25,25 @@ export const AchievementProvider = ({ children }) => {
   // Update unlocked achievements when user profile changes
   useEffect(() => {
     if (userProfile?.stats?.achievements) {
-      const unlocked = userProfile.stats.achievements.map(ach => ({
-        ...getAchievementById(ach.id),
-        unlockedAt: ach.unlockedAt,
-        timestamp: ach.timestamp,
-        collected: ach.collected || false
-      })).filter(Boolean);
+      const unlocked = userProfile.stats.achievements.map((ach) => {
+        const achievementId = typeof ach === 'string' ? ach : ach?.id;
+        const catalogAchievement = achievementId ? getAchievementById(achievementId) : null;
+        if (!catalogAchievement) return null;
+
+        const unlockedAtMs =
+          typeof ach?.unlockedAt === 'number'
+            ? ach.unlockedAt
+            : ach?.unlockedAt?.seconds
+              ? ach.unlockedAt.seconds * 1000
+              : (typeof ach?.timestamp === 'number' ? ach.timestamp : Date.now());
+
+        return {
+          ...catalogAchievement,
+          unlockedAt: unlockedAtMs,
+          timestamp: typeof ach?.timestamp === 'number' ? ach.timestamp : unlockedAtMs,
+          collected: typeof ach === 'object' ? !!ach.collected : false
+        };
+      }).filter(Boolean);
 
       setUnlockedAchievements(unlocked);
 
@@ -38,13 +51,18 @@ export const AchievementProvider = ({ children }) => {
       const uncollected = unlocked.filter(ach => !ach.collected);
       setUncollectedAchievements(uncollected);
 
-      // Set recent unlocks
-      const recent = unlocked
-        .filter(ach => ach.collected)
+      // Set recent unlocks (newest first)
+      const recent = [...unlocked]
         .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
         .slice(0, 5);
       setRecentUnlocks(recent);
+      return;
     }
+
+    setUnlockedAchievements([]);
+    setUncollectedAchievements([]);
+    setAchievementProgress({});
+    setRecentUnlocks([]);
   }, [userProfile]);
 
   const value = {
