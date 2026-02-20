@@ -1,17 +1,33 @@
-import { useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Crown, Edit3, Save, X, User } from 'lucide-react';
+import toast from 'react-hot-toast';
 import Card from '@/components/ui/Card';
-import Button from '@/components/ui/Button';
+import { removeUserAvatar, uploadUserAvatar } from '@/services/firebase/profileAvatar';
+import logger from '@/utils/logger.js';
 import { playClick } from '@/utils/sound';
+import ProfileHeaderIdentity from './profileHeader/ProfileHeaderIdentity.jsx';
+import ProfileHeaderLevelSummary from './profileHeader/ProfileHeaderLevelSummary.jsx';
+import { formatMembershipSummary, resolveProfileDate } from './profileHeader/profileDateUtils.js';
 
 /**
- * Profile Header Component
- * Displays user info, avatar, level, and edit functionality
+ * Profile Header Component.
  */
-export const ProfileHeader = ({ userProfile, playerLevel, levelProgress, nextLevelScore, userStats, onUpdate }) => {
+export const ProfileHeader = ({
+  userProfile,
+  playerLevel,
+  levelProgress,
+  nextLevelScore,
+  currentLevelScore = 0,
+  xpNeededForNext = 0,
+  totalXp = 0,
+  isMaxLevel = false,
+  userStats: _userStats,
+  onUpdate
+}) => {
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const avatarInputRef = useRef(null);
   const [editForm, setEditForm] = useState({
     displayName: userProfile.displayName || '',
     favoriteGameMode: userProfile.preferences?.favoriteGameMode || 'classic'
@@ -43,91 +59,122 @@ export const ProfileHeader = ({ userProfile, playerLevel, levelProgress, nextLev
       });
       setEditing(false);
     } catch (error) {
-      console.error('Error updating profile:', error);
+      logger.error('Failed to update profile header settings:', error);
+      toast.error(error.message || 'Failed to update profile.');
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: -20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="mb-8"
-    >
-      <Card variant="glass" padding="lg">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
-          {/* User Info */}
-          <div className="flex items-center space-x-4">
-            <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg shadow-purple-500/20 text-white overflow-hidden">
-              {userProfile.photoURL ? (
-                <img src={userProfile.photoURL} alt="Profile" className="w-full h-full object-cover" />
-              ) : (
-                <span className="text-3xl font-bold">
-                  {userProfile.displayName?.charAt(0).toUpperCase() || <User size={32} />}
-                </span>
-              )}
-            </div>
-            <div>
-              {editing ? (
-                <div className="space-y-2">
-                  <input
-                    type="text"
-                    value={editForm.displayName}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, displayName: e.target.value }))}
-                    className="bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white text-lg font-bold focus:outline-none focus:ring-2 focus:ring-primary-500/50"
-                    placeholder="Display Name"
-                  />
-                  <div className="flex space-x-2">
-                    <Button size="sm" onClick={handleSaveEdit} loading={loading} disabled={loading}>
-                      <Save size={14} />
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={handleCancelEdit}>
-                      <X size={14} />
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div>
-                  <div className="flex items-center space-x-3">
-                    <h1 className="text-2xl font-bold text-white">
-                      {userProfile.displayName || 'Player'}
-                    </h1>
-                    <Button variant="minimal" size="icon" onClick={handleStartEdit}>
-                      <Edit3 size={16} />
-                    </Button>
-                  </div>
-                  <p className="text-white/70">@{userProfile.username}</p>
-                  <p className="text-white/50 text-sm">
-                    Member since {new Date(userProfile.createdAt?.toDate?.() || Date.now()).toLocaleDateString()}
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
+  const handleUploadAvatarClick = () => {
+    avatarInputRef.current?.click();
+  };
 
-          {/* Player Level */}
-          <div className="text-center md:text-right">
-            <div className="flex items-center justify-center md:justify-end space-y-1">
-              <div className="flex items-center space-x-2 mb-2">
-                <Crown size={24} className="text-amber-400 fill-amber-400/20" />
-                <span className="text-2xl font-bold text-white">Level {playerLevel}</span>
-              </div>
-            </div>
-            <div className="w-48 bg-black/30 rounded-full h-3 backdrop-blur-sm overflow-hidden border border-white/5">
-              <div
-                className="bg-gradient-to-r from-blue-500 to-purple-500 h-full rounded-full transition-all duration-500 relative"
-                style={{ width: `${Math.min(100, levelProgress)}%` }}
-              >
-                <div className="absolute inset-0 bg-white/20 animate-pulse" />
-              </div>
-            </div>
-            <p className="text-white/60 text-xs mt-2 font-mono">
-              {Math.max(0, nextLevelScore - (userStats.totalScore || 0))} XP to next level
-            </p>
-          </div>
+  const handleAvatarSelected = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file || !userProfile?.uid) return;
+
+    setUploadingAvatar(true);
+    let uploadedAvatarPath = null;
+    try {
+      const { avatar, avatarPath } = await uploadUserAvatar({
+        uid: userProfile.uid,
+        file,
+        previousAvatarPath: userProfile.avatarPath || null
+      });
+      uploadedAvatarPath = avatarPath;
+      const result = await onUpdate({ avatar, avatarPath });
+      if (!result?.success) {
+        throw new Error(result?.error || 'Failed to save avatar in profile.');
+      }
+      toast.success('Profile photo updated.');
+    } catch (error) {
+      logger.error('Failed to upload profile avatar:', error);
+      if (uploadedAvatarPath) {
+        await removeUserAvatar(uploadedAvatarPath).catch((cleanupError) => {
+          logger.warn('Failed to roll back uploaded avatar after profile update error:', cleanupError);
+        });
+      }
+      toast.error(error.message || 'Failed to upload profile photo.');
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  const handleRemoveAvatar = async () => {
+    if (!userProfile?.uid) return;
+    setUploadingAvatar(true);
+    try {
+      const result = await onUpdate({ avatar: null, avatarPath: null });
+      if (!result?.success) {
+        throw new Error(result?.error || 'Failed to remove profile photo.');
+      }
+      if (userProfile.avatarPath) {
+        await removeUserAvatar(userProfile.avatarPath);
+      }
+      toast.success('Profile photo removed.');
+    } catch (error) {
+      logger.error('Failed to remove profile avatar:', error);
+      toast.error(error.message || 'Failed to remove profile photo.');
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  const createdAtDate = useMemo(
+    () => resolveProfileDate(userProfile.createdAt),
+    [userProfile.createdAt]
+  );
+
+  const joinedDate = createdAtDate ? formatMembershipSummary(createdAtDate) : 'New player';
+
+  return (
+    <Card variant="glass" padding="lg" className="relative overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-r from-primary-500/5 to-secondary-500/5" />
+
+      <div className="relative z-10">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center gap-8">
+          <ProfileHeaderIdentity
+            avatarInputRef={avatarInputRef}
+            editing={editing}
+            editForm={editForm}
+            onAvatarSelected={handleAvatarSelected}
+            onChangeDisplayName={(displayName) => setEditForm((prev) => ({ ...prev, displayName }))}
+            onRemoveAvatar={handleRemoveAvatar}
+            onStartEdit={handleStartEdit}
+            onUploadAvatarClick={handleUploadAvatarClick}
+            uploadingAvatar={uploadingAvatar}
+            userProfile={userProfile}
+          />
+
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="flex-1 min-w-0"
+          >
+            <ProfileHeaderLevelSummary
+              currentLevelScore={currentLevelScore}
+              editing={editing}
+              editForm={editForm}
+              isMaxLevel={isMaxLevel}
+              joinedDate={joinedDate}
+              levelProgress={levelProgress}
+              loading={loading}
+              nextLevelScore={nextLevelScore}
+              onCancelEdit={handleCancelEdit}
+              onChangeFavoriteMode={(favoriteGameMode) => setEditForm((prev) => ({ ...prev, favoriteGameMode }))}
+              onSaveEdit={handleSaveEdit}
+              playerLevel={playerLevel}
+              totalXp={totalXp}
+              userProfile={userProfile}
+              xpNeededForNext={xpNeededForNext}
+            />
+          </motion.div>
         </div>
-      </Card>
-    </motion.div>
+      </div>
+    </Card>
   );
 };
+
+export default ProfileHeader;
