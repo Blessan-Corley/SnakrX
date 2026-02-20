@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
-import { UserMinus, MessageSquare, Calendar } from 'lucide-react';
+import { UserMinus, Calendar } from 'lucide-react';
 import Button from '@/components/ui/Button';
+import UserAvatar from '@/components/ui/UserAvatar';
 
 const formatDate = (timestamp) => {
   if (!timestamp) return 'Recently';
@@ -22,11 +23,11 @@ const getFriendshipDuration = (timestamp) => {
   return `Friends for ${Math.floor(diffDays / 365)} years`;
 };
 
-export const FriendList = ({ friends, onRemove }) => {
+export const FriendList = ({ friends, onRemove, onView }) => {
   if (friends.length === 0) {
     return (
       <div className="text-center py-8 text-white/50 bg-black/20 rounded-xl border border-white/5">
-        <p>You haven't added any friends yet.</p>
+        <p>You haven&apos;t added any friends yet.</p>
         <p className="text-sm mt-2">Search for users above to build your squad!</p>
       </div>
     );
@@ -42,9 +43,7 @@ export const FriendList = ({ friends, onRemove }) => {
           className="flex flex-col sm:flex-row sm:items-center justify-between bg-white/5 p-4 rounded-xl border border-white/10 hover:border-primary-500/30 transition-colors gap-4"
         >
           <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-xl font-bold shadow-lg shadow-purple-500/20">
-              {friend.displayName?.[0]?.toUpperCase() || 'U'}
-            </div>
+            <UserAvatar profile={friend} size="md" enablePreview className="shadow-lg shadow-purple-500/20 border border-white/20" />
             <div>
               <h4 className="font-bold text-white text-lg">{friend.displayName}</h4>
               <p className="text-sm text-white/60 font-mono">@{friend.username}</p>
@@ -52,14 +51,18 @@ export const FriendList = ({ friends, onRemove }) => {
               <div className="flex items-center text-xs text-primary-300 mt-1 space-x-2">
                 <Calendar size={12} />
                 <span>{getFriendshipDuration(friend.timestamp)}</span>
-                <span className="text-white/20">•</span>
+                <span className="text-white/20">-</span>
                 <span className="text-white/40">Since {formatDate(friend.timestamp)}</span>
               </div>
             </div>
           </div>
           
           <div className="flex space-x-2 self-end sm:self-auto">
-            <Button size="sm" variant="ghost" icon={<MessageSquare size={16} />} aria-label="Message">Message</Button>
+            {onView && (
+              <Button size="sm" variant="ghost" onClick={() => onView(friend.id)} aria-label="View Profile">
+                View
+              </Button>
+            )}
             <Button 
               size="sm" 
               variant="ghost-danger" 
