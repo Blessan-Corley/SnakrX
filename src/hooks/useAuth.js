@@ -10,15 +10,23 @@ import {
   auth,
   db,
   onAuthStateChanged,
+  signOut,
   doc,
-  serverTimestamp,
-  COLLECTIONS,
-  firestoreOperations
-} from '../services/firebase/index.js';
-import toast from 'react-hot-toast';
+  COLLECTIONS
+} from '../services/firebase/config.js';
+import { firestoreOperations } from '../services/firebase/firestore.js';
 import logger from '../utils/logger.js';
 import { AuthContext } from './auth/context.js';
-import { createDefaultUserProfile, createBasicProfile } from './auth/constants.js';
+import { createBasicProfile } from './auth/constants.js';
+import {
+  bindRealtimeProfileSnapshot,
+  ensurePublicProfileDocument,
+  ensureUsernameReservation,
+  handleAuthStateError,
+  syncProfileActivityTimestamps
+} from './auth/authProviderHelpers.js';
+import { buildHydratedUserProfile, refreshUserProfile } from './auth/profileRefresh.js';
+import { useMountedState } from './auth/useMountedState.js';
 
 /**
  * AuthProvider Component
@@ -28,76 +36,119 @@ export const AuthProvider = ({ children }) => {
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [initialized, setInitialized] = useState(false);
+  const { isMountedRef, setIfMounted } = useMountedState();
 
   // Refresh user profile
   const refreshProfile = useCallback(async () => {
     if (user) {
-      await refreshUserProfile(user, setUserProfile);
+      return refreshUserProfile(user, (nextProfile) => {
+        setIfMounted(() => setUserProfile(nextProfile));
+      });
     }
-  }, [user]);
+    return null;
+  }, [setIfMounted, user]);
 
   // Auth state listener
   useEffect(() => {
+    isMountedRef.current = true;
+    let profileSnapshotUnsubscribe = null;
+    let isActive = true;
+
+    const stopProfileSnapshot = () => {
+      if (profileSnapshotUnsubscribe) {
+        profileSnapshotUnsubscribe();
+        profileSnapshotUnsubscribe = null;
+      }
+    };
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (!isActive || !isMountedRef.current) {
+        return;
+      }
+
       try {
         if (firebaseUser) {
-          setUser(firebaseUser);
+          setIfMounted(() => setUser(firebaseUser));
 
           try {
             const userDocRef = doc(db, COLLECTIONS.USERS, firebaseUser.uid);
             const userDoc = await firestoreOperations.getDocument(userDocRef);
+            if (!isActive || !isMountedRef.current) {
+              return;
+            }
 
             if (userDoc.exists()) {
               const userData = userDoc.data();
-              setUserProfile({
-                uid: firebaseUser.uid,
-                email: firebaseUser.email,
-                ...userData
+              await ensureUsernameReservation(
+                firebaseUser,
+                userData.username || firebaseUser.email.split('@')[0]
+              );
+              if (!isActive || !isMountedRef.current) {
+                return;
+              }
+
+              setIfMounted(() => {
+                setUserProfile(buildHydratedUserProfile(firebaseUser, userData));
               });
 
-              // Update last login
-              firestoreOperations.updateDocument(userDocRef, {
-                lastLoginAt: serverTimestamp()
-              }).catch(logger.warn);
+              const publicProfileRef = await ensurePublicProfileDocument(firebaseUser, userData);
+              if (!isActive || !isMountedRef.current) return;
+
+              syncProfileActivityTimestamps(userDocRef, publicProfileRef);
+
+              stopProfileSnapshot();
+              if (!isActive || !isMountedRef.current) return;
+              profileSnapshotUnsubscribe = bindRealtimeProfileSnapshot({
+                firebaseUser,
+                isMountedRef,
+                setIfMounted,
+                setUserProfile,
+                userDocRef
+              });
             } else {
-              // Create profile
-              logger.warn(`User ${firebaseUser.uid} exists in Auth but not in Firestore. Creating profile...`);
-              const newProfile = createDefaultUserProfile(firebaseUser);
-              await firestoreOperations.setDocument(userDocRef, newProfile);
-              logger.log('✅ New user profile created:', newProfile);
-              setUserProfile({ uid: firebaseUser.uid, ...newProfile });
+              logger.warn(
+                `User ${firebaseUser.uid} exists in Auth but not in Firestore. Refusing implicit profile creation.`
+              );
+              await signOut(auth);
+              if (!isActive || !isMountedRef.current) {
+                return;
+              }
+
+              setIfMounted(() => {
+                setUser(null);
+                setUserProfile(null);
+              });
+              return;
             }
           } catch (error) {
             logger.warn("Could not load user profile:", error.message);
             const basicProfile = createBasicProfile(firebaseUser);
-            setUserProfile(basicProfile);
+            setIfMounted(() => setUserProfile(basicProfile));
           }
         } else {
-          setUser(null);
-          setUserProfile(null);
+          stopProfileSnapshot();
+          setIfMounted(() => {
+            setUser(null);
+            setUserProfile(null);
+          });
         }
       } catch (error) {
-        logger.error("Auth State Change Error:", error);
-
-        if (error.code === 'auth/invalid-api-key') {
-          toast.error("Authentication configuration error. Please check your settings.");
-        } else if (error.code === 'auth/network-request-failed' || error.message?.includes('offline')) {
-          logger.info("Working in offline mode - authentication features will be limited");
-          setUser(null);
-          setUserProfile(null);
-        } else if (error.code === 'auth/web-storage-unsupported') {
-          toast.error("Browser storage is not available. Please enable cookies.");
-        } else {
-          logger.warn("Auth error (non-critical):", error.message);
-        }
+        handleAuthStateError({ error, setIfMounted, setUser, setUserProfile });
       } finally {
-        setLoading(false);
-        setInitialized(true);
+        setIfMounted(() => {
+          setLoading(false);
+          setInitialized(true);
+        });
       }
     });
 
-    return () => unsubscribe();
-  }, []);
+    return () => {
+      isActive = false;
+      isMountedRef.current = false;
+      stopProfileSnapshot();
+      unsubscribe();
+    };
+  }, [isMountedRef, setIfMounted]);
 
   const value = {
     user,
@@ -114,31 +165,7 @@ export const AuthProvider = ({ children }) => {
   );
 };
 
-/**
- * Refresh user profile from Firestore
- */
-export const refreshUserProfile = async (user, setUserProfile) => {
-  if (!user) return;
-
-  try {
-    const userDocRef = doc(db, COLLECTIONS.USERS, user.uid);
-    const userDoc = await firestoreOperations.getDocument(userDocRef);
-
-    if (userDoc.exists()) {
-      const userData = userDoc.data();
-      logger.log('🔄 User profile refreshed:', userData?.stats);
-      setUserProfile({
-        uid: user.uid,
-        email: user.email,
-        ...userData
-      });
-      return userData;
-    }
-  } catch (error) {
-    logger.warn('Error refreshing user profile:', error);
-  }
-  return null;
-};
+export { refreshUserProfile } from './auth/profileRefresh.js';
 
 // Re-export from modular components
 export { useAuth } from './auth/context.js';
