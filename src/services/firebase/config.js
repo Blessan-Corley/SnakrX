@@ -6,14 +6,18 @@
 import { initializeApp } from 'firebase/app';
 import { initializeFirestore, persistentLocalCache } from 'firebase/firestore';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { getStorage } from 'firebase/storage';
+import { deleteDoc as firestoreDeleteDoc } from 'firebase/firestore';
 import logger from '../../utils/logger.js';
+import { normalizeStorageBucket, toStorageBucketUrl } from './storageBucket.js';
 
 // Firebase configuration with validation
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  storageBucket: normalizeStorageBucket(import.meta.env.VITE_FIREBASE_STORAGE_BUCKET),
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
@@ -24,7 +28,7 @@ const requiredKeys = ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'mes
 for (const key of requiredKeys) {
   if (!firebaseConfig[key]) {
     const errorMsg = `
-    ❌ Missing Firebase Configuration: VITE_FIREBASE_${key.replace(/([A-Z])/g, '_$1').toUpperCase()}
+    Missing Firebase Configuration: VITE_FIREBASE_${key.replace(/([A-Z])/g, '_$1').toUpperCase()}
 
     To fix this:
     1. Create a .env file in the project root (copy from .env.example)
@@ -40,7 +44,7 @@ for (const key of requiredKeys) {
 }
 
 // Initialize Firebase
-logger.log('🔥 Initializing Firebase with config:', {
+logger.log('Initializing Firebase with config:', {
   projectId: firebaseConfig.projectId,
   authDomain: firebaseConfig.authDomain
 });
@@ -54,6 +58,7 @@ export const db = initializeFirestore(app, {
 
 // Initialize Auth
 export const auth = getAuth(app);
+export const storage = getStorage(app, toStorageBucketUrl(firebaseConfig.storageBucket));
 
 // Configure Google Auth Provider
 export const googleProvider = new GoogleAuthProvider();
@@ -63,9 +68,14 @@ googleProvider.setCustomParameters({
 
 
 
-logger.log('🔥 Firebase initialized successfully');
-logger.log('📄 Firestore instance:', db.app.name);
-logger.log('🔐 Auth instance:', auth.app.name);
+logger.log('Firebase initialized successfully');
+logger.log('Firestore instance:', db.app.name);
+logger.log('Auth instance:', auth.app.name);
+
+// Initialize Functions
+export const functions = getFunctions(app);
+// Export deleteDoc as a direct binding to avoid stale re-export resolution in dev HMR.
+export const deleteDoc = firestoreDeleteDoc;
 
 // Development emulator connection (only in development)
 if (import.meta.env.DEV && !window.location.hostname.includes('firebase')) {
@@ -75,9 +85,13 @@ if (import.meta.env.DEV && !window.location.hostname.includes('firebase')) {
 // Collection names
 export const COLLECTIONS = {
   USERS: 'users',
+  PUBLIC_PROFILES: 'publicProfiles',
+  USERNAMES: 'usernames',
   GAMES: 'games',
   LEADERBOARDS: 'leaderboards',
-  ACHIEVEMENTS: 'achievements'
+  WEEKLY_LEADERBOARDS: 'weeklyLeaderboards',
+  ACHIEVEMENTS: 'achievements',
+  SUPPORT_TICKETS: 'supportTickets'
 };
 
 // Re-export auth functions
@@ -87,6 +101,7 @@ export {
   signOut,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  deleteUser,
   onAuthStateChanged,
   sendPasswordResetEmail,
   updatePassword,
@@ -98,8 +113,9 @@ export {
   doc,
   setDoc,
   updateDoc,
-  deleteDoc,
   getDoc,
+  runTransaction,
+  onSnapshot,
   collection,
   addDoc,
   getDocs,
@@ -113,3 +129,6 @@ export {
   increment,
   writeBatch
 } from 'firebase/firestore';
+
+// Re-export Functions helper
+export { httpsCallable };
