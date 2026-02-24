@@ -3,9 +3,18 @@
  * Handles fetching and caching leaderboard data from Firebase
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { gameOperations } from '../services/firebase/index.js';
+import { useState, useEffect, useCallback } from 'react';
+import { leaderboardOperations } from '../services/firebase/index.js';
 import { useAuth } from './useAuth';
+import {
+  CACHE_TTL_MS,
+  DEFAULT_LEADERBOARD_RESPONSE,
+  DEFAULT_SUMMARY,
+  USER_RANK_MODES,
+  getLeaderboardErrorMessage
+} from './leaderboard/constants.js';
+import { useTrackedLeaderboardRequests } from './leaderboard/useTrackedLeaderboardRequests.js';
+import logger from '../utils/logger.js';
 
 export const useLeaderboard = () => {
   const [leaderboardData, setLeaderboardData] = useState({});
@@ -13,95 +22,84 @@ export const useLeaderboard = () => {
   const [userRanks, setUserRanks] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  
-  const { user } = useAuth();
-  const cacheRef = useRef({});
-  const lastFetchRef = useRef({});
 
-  /**
-   * Check if cache is valid (5 minutes)
-   */
-  const isCacheValid = useCallback((key) => {
-    const lastFetch = lastFetchRef.current[key];
-    if (!lastFetch) return false;
-    
-    const fiveMinutes = 5 * 60 * 1000;
-    return Date.now() - lastFetch < fiveMinutes;
-  }, []);
+  const { user } = useAuth();
+  const {
+    applyIfMounted,
+    cacheRef,
+    clearCache,
+    isCacheValid,
+    lastFetchRef,
+    runTrackedRequest
+  } = useTrackedLeaderboardRequests({ setLoading });
 
   /**
    * Get leaderboard data for a specific mode
    */
   const getLeaderboard = useCallback(async (mode = 'classic', difficulty = null, limit = 10, useCache = true) => {
     const cacheKey = `${mode}_${difficulty || 'default'}_${limit}`;
-    
+
     // Check cache first
     if (useCache && isCacheValid(cacheKey) && cacheRef.current[cacheKey]) {
       return cacheRef.current[cacheKey];
     }
 
-    setLoading(true);
-    setError(null);
+    return runTrackedRequest(`leaderboard:${cacheKey}`, async () => {
+      applyIfMounted(() => setError(null));
 
-    try {
-      const data = await gameOperations.getLeaderboard(mode, difficulty, limit);
-      
-      // Cache the result
-      cacheRef.current[cacheKey] = data;
-      lastFetchRef.current[cacheKey] = Date.now();
-      
-      // Update state
-      setLeaderboardData(prev => ({
-        ...prev,
-        [cacheKey]: data
-      }));
+      try {
+        const data = await leaderboardOperations.getLeaderboard(mode, difficulty, { page: 1, limit });
 
-      return data;
-    } catch (err) {
-      console.error('Error fetching leaderboard:', err);
-      setError(err.message);
-      return {
-        entries: [],
-        stats: {},
-        lastUpdated: null,
-        totalEntries: 0
-      };
-    } finally {
-      setLoading(false);
-    }
-  }, [isCacheValid]);
+        cacheRef.current[cacheKey] = data;
+        lastFetchRef.current[cacheKey] = Date.now();
+
+        applyIfMounted(() => {
+          setLeaderboardData((prev) => ({
+            ...prev,
+            [cacheKey]: data
+          }));
+        });
+
+        return data;
+      } catch (err) {
+        logger.error('Error fetching leaderboard:', err);
+        applyIfMounted(() => setError(getLeaderboardErrorMessage(err)));
+        return cacheRef.current[cacheKey] || DEFAULT_LEADERBOARD_RESPONSE;
+      }
+    });
+  }, [applyIfMounted, cacheRef, isCacheValid, lastFetchRef, runTrackedRequest]);
 
   /**
    * Get top players across all modes
    */
   const getTopPlayersOverall = useCallback(async (limit = 10, useCache = true) => {
     const cacheKey = `top_players_${limit}`;
-    
+
     // Check cache first
     if (useCache && isCacheValid(cacheKey) && cacheRef.current[cacheKey]) {
       return cacheRef.current[cacheKey];
     }
 
-    setLoading(true);
-    setError(null);
+    return runTrackedRequest(`topPlayers:${cacheKey}`, async () => {
+      applyIfMounted(() => setError(null));
 
-    try {
-      const players = await gameOperations.getTopPlayersOverall(limit);
-      
-      // Cache the result
-      cacheRef.current[cacheKey] = players;
-      lastFetchRef.current[cacheKey] = Date.now();
-      
-      setTopPlayers(players);
-      return players;
-    } catch (err) {
-      console.error('Error fetching top players:', err);
-      setError(err.message);
-      return [];
-    } finally {
-      setLoading(false);
-    }
-  }, [isCacheValid]);
+      try {
+        const players = await leaderboardOperations.getTopPlayersOverall(limit);
+
+        cacheRef.current[cacheKey] = players;
+        lastFetchRef.current[cacheKey] = Date.now();
+
+        applyIfMounted(() => {
+          setTopPlayers(players);
+        });
+        return players;
+      } catch (err) {
+        logger.error('Error fetching top players:', err);
+        applyIfMounted(() => setError(getLeaderboardErrorMessage(err)));
+        return cacheRef.current[cacheKey] || [];
+      }
+    });
+  }, [applyIfMounted, cacheRef, isCacheValid, lastFetchRef, runTrackedRequest]);
 
   /**
    * Get user's rank in specific mode
@@ -116,25 +114,27 @@ export const useLeaderboard = () => {
       return cacheRef.current[cacheKey];
     }
 
-    try {
-      const rankData = await gameOperations.getUserRank(userId, mode, difficulty);
-      
-      // Cache the result
-      cacheRef.current[cacheKey] = rankData;
-      lastFetchRef.current[cacheKey] = Date.now();
-      
-      // Update state
-      setUserRanks(prev => ({
-        ...prev,
-        [cacheKey]: rankData
-      }));
+    return runTrackedRequest(`userRank:${cacheKey}`, async () => {
+      try {
+        const rankData = await leaderboardOperations.getUserRank(userId, mode, difficulty);
 
-      return rankData;
-    } catch (err) {
-      console.error('Error fetching user rank:', err);
-      return null;
-    }
-  }, [isCacheValid]);
+        cacheRef.current[cacheKey] = rankData;
+        lastFetchRef.current[cacheKey] = Date.now();
+
+        applyIfMounted(() => {
+          setUserRanks((prev) => ({
+            ...prev,
+            [cacheKey]: rankData
+          }));
+        });
+
+        return rankData;
+      } catch (err) {
+        logger.error('Error fetching user rank:', err);
+        return cacheRef.current[cacheKey] || null;
+      }
+    });
+  }, [applyIfMounted, cacheRef, isCacheValid, lastFetchRef, runTrackedRequest]);
 
   /**
    * Get user's ranks across all modes
@@ -142,25 +142,17 @@ export const useLeaderboard = () => {
   const getUserRanksAll = useCallback(async (userId, useCache = true) => {
     if (!userId) return {};
 
-    const modes = [
-      { mode: 'classic', difficulty: null },
-      { mode: 'vsai', difficulty: 'easy' },
-      { mode: 'vsai', difficulty: 'medium' },
-      { mode: 'vsai', difficulty: 'impossible' },
-      { mode: 'multiplayer', difficulty: null }
-    ];
-
-    const ranks = {};
-    
-    for (const modeConfig of modes) {
+    const rankEntries = await Promise.all(USER_RANK_MODES.map(async (modeConfig) => {
       const rankData = await getUserRank(userId, modeConfig.mode, modeConfig.difficulty, useCache);
-      if (rankData) {
-        const key = `${modeConfig.mode}_${modeConfig.difficulty || 'default'}`;
-        ranks[key] = rankData;
-      }
-    }
+      if (!rankData) return null;
 
-    return ranks;
+      return [
+        `${modeConfig.mode}_${modeConfig.difficulty || 'default'}`,
+        rankData
+      ];
+    }));
+
+    return Object.fromEntries(rankEntries.filter(Boolean));
   }, [getUserRank]);
 
   /**
@@ -170,37 +162,38 @@ export const useLeaderboard = () => {
     // Clear cache
     cacheRef.current = {};
     lastFetchRef.current = {};
-    
+
     // Fetch fresh data
-    await Promise.all([
+    const refreshTasks = [
       getTopPlayersOverall(10, false),
       getLeaderboard('classic', null, 10, false),
+      getLeaderboard('classic_transparent', null, 10, false),
       getLeaderboard('vsai', 'medium', 10, false)
-    ]);
+    ];
 
     // Fetch user ranks if logged in
     if (user?.uid) {
-      await getUserRanksAll(user.uid, false);
+      refreshTasks.push(getUserRanksAll(user.uid, false));
     }
-  }, [getTopPlayersOverall, getLeaderboard, getUserRanksAll, user]);
+
+    await Promise.all(refreshTasks);
+  }, [cacheRef, getTopPlayersOverall, getLeaderboard, getUserRanksAll, lastFetchRef, user]);
 
   /**
    * Get leaderboard summary for home page
    */
   const getLeaderboardSummary = useCallback(async () => {
     try {
-      setLoading(true);
-      
       // Get top 3 players overall
       const topThree = await getTopPlayersOverall(3);
-      
+
       // Get current user's best rank if logged in
       let userBestRank = null;
       if (user?.uid) {
-        const userRanks = await getUserRanksAll(user.uid);
-        const ranks = Object.values(userRanks).filter(Boolean);
+        const userRankMap = await getUserRanksAll(user.uid);
+        const ranks = Object.values(userRankMap).filter(Boolean);
         if (ranks.length > 0) {
-          userBestRank = ranks.reduce((best, current) => 
+          userBestRank = ranks.reduce((best, current) =>
             !best || current.rank < best.rank ? current : best
           );
         }
@@ -212,29 +205,10 @@ export const useLeaderboard = () => {
         hasData: topThree.length > 0
       };
     } catch (err) {
-      console.error('Error fetching leaderboard summary:', err);
-      return {
-        topThree: [],
-        userBestRank: null,
-        hasData: false
-      };
-    } finally {
-      setLoading(false);
+      logger.error('Error fetching leaderboard summary:', err);
+      return DEFAULT_SUMMARY;
     }
   }, [getTopPlayersOverall, getUserRanksAll, user]);
-
-  /**
-   * Clear cache for specific key
-   */
-  const clearCache = useCallback((key = null) => {
-    if (key) {
-      delete cacheRef.current[key];
-      delete lastFetchRef.current[key];
-    } else {
-      cacheRef.current = {};
-      lastFetchRef.current = {};
-    }
-  }, []);
 
   /**
    * Auto-refresh data every 5 minutes
@@ -242,21 +216,23 @@ export const useLeaderboard = () => {
   useEffect(() => {
     const interval = setInterval(() => {
       // Only refresh if user is active (tab is visible)
-      if (!document.hidden) {
-        refreshAll();
+      if (typeof document === 'undefined' || !document.hidden) {
+        void refreshAll();
       }
-    }, 5 * 60 * 1000); // 5 minutes
+    }, CACHE_TTL_MS);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+    };
   }, [refreshAll]);
 
   /**
    * Initial data load
    */
   useEffect(() => {
-    getTopPlayersOverall(3);
+    void getTopPlayersOverall(3);
     if (user?.uid) {
-      getUserRanksAll(user.uid);
+      void getUserRanksAll(user.uid);
     }
   }, [getTopPlayersOverall, getUserRanksAll, user]);
 
