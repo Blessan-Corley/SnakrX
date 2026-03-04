@@ -4,22 +4,25 @@
  */
 
 import '@testing-library/jest-dom';
+import React, { forwardRef } from 'react';
 import { vi } from 'vitest';
 
-// Mock window.matchMedia
-Object.defineProperty(window, 'matchMedia', {
-  writable: true,
-  value: (query) => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addListener: () => {},
-    removeListener: () => {},
-    addEventListener: () => {},
-    removeEventListener: () => {},
-    dispatchEvent: () => {},
-  }),
-});
+if (typeof window !== 'undefined') {
+  // Mock window.matchMedia
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: (query) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => {},
+    }),
+  });
+}
 
 // Mock ResizeObserver
 Object.defineProperty(globalThis, 'ResizeObserver', {
@@ -45,27 +48,66 @@ Object.defineProperty(globalThis, 'IntersectionObserver', {
   },
 });
 
-// Mock IntersectionObserver
-Object.defineProperty(globalThis, 'IntersectionObserver', {
-  writable: true,
-  value: class IntersectionObserver {
-    constructor() {}
-    observe() {}
-    unobserve() {}
-    disconnect() {}
-  },
-});
+if (typeof globalThis.HTMLMediaElement !== 'undefined') {
+  // Mock window.HTMLMediaElement
+  Object.defineProperty(globalThis.HTMLMediaElement.prototype, 'play', {
+    writable: true,
+    value: () => Promise.resolve(),
+  });
 
-// Mock window.HTMLMediaElement
-Object.defineProperty(globalThis.HTMLMediaElement.prototype, 'play', {
-  writable: true,
-  value: () => Promise.resolve(),
-});
+  Object.defineProperty(globalThis.HTMLMediaElement.prototype, 'pause', {
+    writable: true,
+    value: () => {},
+  });
+}
 
-Object.defineProperty(globalThis.HTMLMediaElement.prototype, 'pause', {
-  writable: true,
-  value: () => {},
-});
+// Mock AudioContext for sound utilities
+class MockAudioContext {
+  constructor() {
+    this.state = 'running';
+    this.currentTime = 0;
+    this.destination = {};
+  }
+  resume() {
+    this.state = 'running';
+    return Promise.resolve();
+  }
+  suspend() {
+    this.state = 'suspended';
+    return Promise.resolve();
+  }
+  createOscillator() {
+    return {
+      connect: () => {},
+      frequency: { setValueAtTime: () => {} },
+      type: 'sine',
+      start: () => {},
+      stop: () => {}
+    };
+  }
+  createGain() {
+    return {
+      connect: () => {},
+      gain: {
+        setValueAtTime: () => {},
+        linearRampToValueAtTime: () => {},
+        exponentialRampToValueAtTime: () => {}
+      }
+    };
+  }
+}
+
+if (typeof window !== 'undefined') {
+  Object.defineProperty(window, 'AudioContext', {
+    writable: true,
+    value: MockAudioContext
+  });
+
+  Object.defineProperty(window, 'webkitAudioContext', {
+    writable: true,
+    value: MockAudioContext
+  });
+}
 
 // Mock Firebase
 vi.mock('firebase/app', () => ({
@@ -81,22 +123,15 @@ vi.mock('firebase/auth', () => ({
 }));
 
 vi.mock('firebase/firestore', () => ({
-  getFirestore: vi.fn(() => ({})),
+  initializeFirestore: vi.fn(() => ({})),
+  persistentLocalCache: vi.fn(() => ({})),
   doc: vi.fn(),
   collection: vi.fn(),
   getDoc: vi.fn(),
   setDoc: vi.fn(),
   updateDoc: vi.fn(),
+  runTransaction: vi.fn(),
   serverTimestamp: vi.fn(() => new Date()),
-}));
-
-// Mock Howler (audio library)
-vi.mock('howler', () => ({
-  Howl: vi.fn().mockImplementation(() => ({
-    play: vi.fn(),
-    stop: vi.fn(),
-    volume: vi.fn(),
-  })),
 }));
 
 // Mock react-hot-toast
@@ -111,13 +146,76 @@ vi.mock('react-hot-toast', () => ({
 }));
 
 // Mock framer-motion
+const MOTION_ONLY_PROPS = new Set([
+  'initial',
+  'animate',
+  'exit',
+  'variants',
+  'transition',
+  'whileHover',
+  'whileTap',
+  'whileInView',
+  'layout',
+  'layoutId',
+  'drag',
+  'dragConstraints',
+  'dragElastic',
+  'dragTransition',
+  'viewport'
+]);
+
+const stripMotionProps = (props = {}) => {
+  const rest = { ...props };
+  MOTION_ONLY_PROPS.forEach((key) => {
+    delete rest[key];
+  });
+  return rest;
+};
+
+const createMotionComponent = (tag) => {
+  const MotionComponent = forwardRef(({ children, ...props }, ref) => (
+    React.createElement(tag, { ref, ...stripMotionProps(props) }, children)
+  ));
+  MotionComponent.displayName = `MockMotion(${tag})`;
+  return MotionComponent;
+};
+
+const motionComponentCache = new Map();
+
 vi.mock('framer-motion', () => ({
-  motion: {
-    div: 'div',
-    button: 'button',
-    span: 'span',
-  },
+  motion: new Proxy({}, {
+    get: (_, tag) => {
+      const tagName = typeof tag === 'string' ? tag : 'div';
+      if (!motionComponentCache.has(tagName)) {
+        motionComponentCache.set(tagName, createMotionComponent(tagName));
+      }
+      return motionComponentCache.get(tagName);
+    }
+  }),
   AnimatePresence: ({ children }) => children,
+  useScroll: () => ({ scrollYProgress: 0 }),
+  useTransform: () => 0
+}));
+
+// Mock sound utilities
+vi.mock('@/utils/sound', () => ({
+  playClick: vi.fn(),
+  playHover: vi.fn(),
+  playFoodEat: vi.fn(),
+  playBonusFoodSpawn: vi.fn(),
+  playBonusFoodCollect: vi.fn(),
+  playDeath: vi.fn(),
+  playVictory: vi.fn(),
+  playAchievement: vi.fn(),
+  playPause: vi.fn(),
+  playResume: vi.fn(),
+  playGameStart: vi.fn(),
+  playCountdown: vi.fn(),
+  setMuted: vi.fn(),
+  getMuted: vi.fn(),
+  toggleMute: vi.fn(),
+  setVolume: vi.fn(),
+  getVolume: vi.fn()
 }));
 
 // Global test utilities
