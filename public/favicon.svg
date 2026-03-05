@@ -1,0 +1,26 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="snakrx-bg" x1="36" y1="28" x2="220" y2="230" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#11233F"/>
+      <stop offset="0.5" stop-color="#0C1730"/>
+      <stop offset="1" stop-color="#08101F"/>
+    </linearGradient>
+    <linearGradient id="snakrx-snake" x1="70" y1="66" x2="188" y2="198" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#34D399"/>
+      <stop offset="0.55" stop-color="#10B981"/>
+      <stop offset="1" stop-color="#F97316"/>
+    </linearGradient>
+    <linearGradient id="snakrx-glow" x1="96" y1="52" x2="188" y2="146" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FBBF24"/>
+      <stop offset="1" stop-color="#F97316"/>
+    </linearGradient>
+  </defs>
+  <rect x="18" y="18" width="220" height="220" rx="58" fill="url(#snakrx-bg)"/>
+  <rect x="18" y="18" width="220" height="220" rx="58" stroke="rgba(255,255,255,0.16)" stroke-width="4"/>
+  <path d="M177 79C177 61 163 48 145 48H111C83 48 60 71 60 99C60 127 83 150 111 150H147C163 150 176 163 176 179C176 196 163 208 146 208H97C80 208 66 196 66 179" stroke="url(#snakrx-snake)" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="177" cy="79" r="22" fill="url(#snakrx-glow)"/>
+  <circle cx="184" cy="73" r="4.5" fill="#08101F"/>
+  <path d="M189 80L206 70" stroke="#FDE68A" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="101" cy="180" r="8" fill="#34D399"/>
+  <circle cx="81" cy="180" r="8" fill="#F97316"/>
+</svg>
