@@ -1,19 +1,24 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <!-- Use a self-contained SVG for the icon to prevent 404 errors -->
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐍</text></svg>">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="description" content="SnakrX - Modern Snake Game with Multiple Modes" />
+    <meta name="theme-color" content="#0f172a" />
+    <meta name="application-name" content="SnakrX" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="SnakrX" />
     <title>SnakrX - Modern Snake Game</title>
-    
-    <!-- Preload Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    
-    <!-- Prevent flash of unstyled content -->
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
     <style>
       body {
         margin: 0;
@@ -23,12 +28,11 @@
         font-family: 'Inter', sans-serif;
         overflow-x: hidden;
       }
-      
+
       #root {
         min-height: 100vh;
       }
-      
-      /* Loading screen */
+
       .loading-screen {
         position: fixed;
         top: 0;
@@ -41,7 +45,7 @@
         justify-content: center;
         z-index: 9999;
       }
-      
+
       .loading-spinner {
         width: 50px;
         height: 50px;
@@ -50,16 +54,19 @@
         border-radius: 50%;
         animation: spin 1s linear infinite;
       }
-      
+
       @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
       }
     </style>
   </head>
   <body>
     <div id="root">
-      <!-- Initial loading screen -->
       <div class="loading-screen">
         <div class="loading-spinner"></div>
       </div>
@@ -67,4 +74,3 @@
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
- 
