@@ -1,11 +1,34 @@
 import { Trophy, Star, Gamepad2, TrendingUp } from 'lucide-react';
 import Card, { StatsCard } from '@/components/ui/Card';
 import { formatScore, formatTime } from '@/utils/gameUtils';
+import { getMostPlayedMode } from '@/utils/gamePreferences';
 
 /**
  * Profile Overview Tab Component
  */
 export const OverviewTab = ({ userStats, achievementStats, totalAchievementPoints, mockMatchHistory }) => {
+  const mostPlayedMode = getMostPlayedMode(userStats);
+  const competitiveGames =
+    Number(userStats.competitiveGames) ||
+    (Number(userStats.vsaiGames) || 0) + (Number(userStats.multiplayerGames) || 0);
+  const competitiveWins = Number(userStats.competitiveWins) || Number(userStats.totalWins) || 0;
+  const winRate = competitiveGames > 0 ? Math.round((competitiveWins / competitiveGames) * 100) : 0;
+  const modeLabelMap = {
+    classic: 'Classic',
+    classic_transparent: 'Transparent',
+    vsai: 'VS AI',
+    multiplayer: 'Multiplayer'
+  };
+  const bestGameMode = modeLabelMap[userStats.bestScoreMode] || null;
+  const bestScoreDate = (() => {
+    const value = userStats.bestScoreAt;
+    if (!value) return null;
+    if (typeof value?.toDate === 'function') return value.toDate();
+    if (typeof value?.seconds === 'number') return new Date(value.seconds * 1000);
+    if (typeof value === 'number' || typeof value === 'string') return new Date(value);
+    return null;
+  })();
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
       {/* Stats Overview */}
@@ -23,7 +46,7 @@ export const OverviewTab = ({ userStats, achievementStats, totalAchievementPoint
             title="Best Game"
             value={formatScore(userStats.bestScore || 0)}
             icon={<Star size={20} />}
-            subtitle="Personal record"
+            subtitle={bestScoreDate ? `${bestGameMode || 'Best run'} - ${bestScoreDate.toLocaleDateString()} ${bestScoreDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Personal record'}
           />
           <StatsCard
             title="Games Played"
@@ -33,9 +56,9 @@ export const OverviewTab = ({ userStats, achievementStats, totalAchievementPoint
           />
           <StatsCard
             title="Win Rate"
-            value={`${userStats.totalGames > 0 ? Math.round((userStats.totalWins || 0) / userStats.totalGames * 100) : 0}%`}
+            value={`${winRate}%`}
             icon={<TrendingUp size={20} />}
-            subtitle="Success rate"
+            subtitle="Competitive modes"
           />
         </div>
 
@@ -48,7 +71,7 @@ export const OverviewTab = ({ userStats, achievementStats, totalAchievementPoint
                 <div>
                   <div className="font-medium text-white">{match.mode}</div>
                   <div className="text-sm text-white/60">
-                    {formatScore(match.score)} • {formatTime(match.time)}
+                    {formatScore(match.score)} - {formatTime(match.time)}
                   </div>
                 </div>
                 <div className="text-right">
@@ -102,13 +125,23 @@ export const OverviewTab = ({ userStats, achievementStats, totalAchievementPoint
         <Card variant="glass" padding="md">
           <h3 className="text-lg font-semibold text-white mb-4">Game Modes</h3>
           <div className="space-y-3">
+            <div className="flex justify-between items-center border-b border-white/10 pb-2 mb-2">
+              <span className="text-white/70">Most Played</span>
+              <span className="text-primary-300 font-semibold">
+                {mostPlayedMode.label} ({mostPlayedMode.count})
+              </span>
+            </div>
             <div className="flex justify-between items-center">
               <span className="text-white/70">Classic</span>
               <span className="text-white font-medium">{userStats.classicGames || 0} games</span>
             </div>
             <div className="flex justify-between items-center">
+              <span className="text-white/70">Transparent</span>
+              <span className="text-white font-medium">{userStats.transparentGames || 0} games</span>
+            </div>
+            <div className="flex justify-between items-center">
               <span className="text-white/70">VS AI</span>
-              <span className="text-white font-medium">{userStats.vsAIGames || 0} games</span>
+              <span className="text-white font-medium">{userStats.vsaiGames || 0} games</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-white/70">Multiplayer</span>
@@ -135,7 +168,7 @@ export const OverviewTab = ({ userStats, achievementStats, totalAchievementPoint
             </div>
             <div className="flex justify-between">
               <span className="text-white/70">Play Time:</span>
-              <span className="text-white">{formatTime(Math.floor((userStats.totalPlayTime || 0) / 60))}</span>
+              <span className="text-white">{formatTime(userStats.totalPlayTime || 0)}</span>
             </div>
           </div>
         </Card>
