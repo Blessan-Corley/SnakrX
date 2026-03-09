@@ -3,7 +3,7 @@ import { Loader2 } from 'lucide-react';
 
 const LoadingSpinner = ({ fullScreen = false, text = 'Loading...' }) => {
   const content = (
-    <div className="flex flex-col items-center justify-center p-8">
+    <div className="flex flex-col items-center justify-center p-8" role="status" aria-live="polite">
       <motion.div
         animate={{ rotate: 360 }}
         transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
@@ -26,7 +26,7 @@ const LoadingSpinner = ({ fullScreen = false, text = 'Loading...' }) => {
 
   if (fullScreen) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-dark-bg/80 backdrop-blur-sm">
         {content}
       </div>
     );
