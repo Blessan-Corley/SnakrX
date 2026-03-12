@@ -1,141 +1,60 @@
-/**
- * Leaderboard Page Component - V3 (Fully Functional)
- * Shows top players fetched from Firebase with working filters and live stats.
- *
- * @version 3.0.0
- */
-
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Trophy, Crown, Target, RefreshCw, Gamepad2, Zap, Search, Users, Medal } from 'lucide-react';
-import { useAuth } from '../hooks/useAuth.js';
-import Button from '../components/ui/Button.jsx';
-import Card, { StatsCard } from '../components/ui/Card.jsx';
-import { ListSkeleton } from '../components/ui/LoadingSpinner.jsx';
-import { playClick } from '../utils/sound.js';
-import { formatScore } from '../utils/gameUtils.js';
-import { collection, getDocs, db, query, where, limit } from '../services/firebase/index.js';
+import LeaderboardEntriesSection from './leaderboard/LeaderboardEntriesSection.jsx';
+import LeaderboardFiltersSection from './leaderboard/LeaderboardFiltersSection.jsx';
+import LeaderboardPageHeader from './leaderboard/LeaderboardPageHeader.jsx';
+import LeaderboardStatsSection from './leaderboard/LeaderboardStatsSection.jsx';
+import { useLeaderboardController } from './leaderboard/useLeaderboardController.js';
 
 const LeaderboardPage = () => {
-  const { userProfile } = useAuth();
-  
-  // ... (rest of the state logic remains same)
-
-  const getRankBadge = (rank) => {
-    if (rank === 1) return { icon: <Crown size={20} />, color: 'text-amber-400', bg: 'bg-amber-500/20' };
-    if (rank === 2) return { icon: <Medal size={20} />, color: 'text-gray-300', bg: 'bg-gray-500/20' };
-    if (rank === 3) return { icon: <Medal size={20} />, color: 'text-amber-600', bg: 'bg-amber-700/20' };
-    return { icon: <span className="font-mono text-sm">#{rank}</span>, color: 'text-white/70', bg: 'bg-white/10' };
-  };
+  const {
+    selectedMode,
+    searchTerm,
+    entries,
+    loading,
+    error,
+    activeTargetId,
+    stats,
+    activeWeekKey,
+    isAchievementMode,
+    isOverallMode,
+    isWeeklyMode,
+    getDisplayName,
+    handleModeSelect,
+    handleRefresh,
+    setSearchTerm,
+    handleSendInvite,
+    handleOpenProfile
+  } = useLeaderboardController();
 
   return (
-    // ... (rest of the render logic remains same until getRankBadge usage)
     <div className="min-h-screen relative overflow-hidden">
       <div className="absolute inset-0 z-0 bg-gradient-dark" />
       <div className="relative z-10 max-w-6xl mx-auto px-4 py-8">
-        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-8">
-          <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-            <Trophy className="inline mr-3" size={48} /> Leaderboards
-          </h1>
-          <p className="text-xl text-white/70">See how you stack up against the best players.</p>
-        </motion.div>
-
-        {/* REAL STATS, NOT PLACEHOLDERS */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <StatsCard title="Ranked Players" value={stats.totalPlayers} icon={<Users size={20} />} subtitle="Who have played" />
-          <StatsCard title="Top Score" value={formatScore(stats.topScore)} icon={<Crown size={20} />} subtitle="All Time High" />
-          <StatsCard title="Your Rank" value={stats.yourRank ? `#${stats.yourRank}` : 'N/A'} icon={<Target size={20} />} subtitle={stats.yourRank ? 'In current filter' : 'Play to get ranked!'} />
-        </motion.div>
-
-        {/* FILTERS ARE BACK */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mb-8">
-          <Card variant="glass" padding="md">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <div className="flex flex-wrap gap-2">
-                {gameModes.map((mode) => (
-                  <Button
-                    key={mode.id}
-                    variant={selectedMode === mode.id ? "primary" : "ghost"}
-                    size="sm"
-                    icon={mode.icon}
-                    onClick={() => { playClick(); setSelectedMode(mode.id); }}
-                  >
-                    {mode.name}
-                  </Button>
-                ))}
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="relative">
-                  <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
-                  <input
-                    type="text"
-                    placeholder="Search player..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="bg-white/10 border border-white/20 rounded-lg pl-10 pr-4 py-2 text-white text-sm w-full md:w-48"
-                  />
-                </div>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  onClick={() => {
-                    playClick();
-                    fetchAllUsers();
-                  }} 
-                  disabled={loading} 
-                  aria-label="Refresh"
-                >
-                  <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-                </Button>
-              </div>
-            </div>
-          </Card>
-        </motion.div>
-
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-          <Card variant="glass" padding="lg">
-            <h2 className="text-2xl font-bold text-white mb-6">Top Players</h2>
-            {loading ? (
-              <ListSkeleton items={10} />
-            ) : error ? (
-              <div className="text-center py-12 text-red-400">{error}</div>
-            ) : (
-              <div className="space-y-3">
-                <AnimatePresence>
-                  {filteredUsers.slice(0, 100).map((entry, index) => {
-                    const badge = getRankBadge(entry.rank);
-                    return (
-                      <motion.div
-                        key={entry.id}
-                        layout
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -20 }}
-                        transition={{ delay: index * 0.05 }}
-                        className={`p-3 rounded-xl border transition-all duration-200 ${entry.isCurrentUser ? 'bg-primary-500/20 border-primary-500/40' : 'bg-white/5 border-white/10'}`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-4">
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${badge.bg} ${badge.color}`}>
-                              {badge.icon}
-                            </div>
-                            <div>
-                              <p className={`font-bold truncate ${entry.isCurrentUser ? 'text-primary-300' : 'text-white'}`}>{entry.displayName || entry.username || 'Unknown Player'}</p>
-                              <p className="text-xs text-white/60">{gameModes.find(m => m.id === selectedMode)?.name || 'Score'}</p>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-bold text-white text-lg">{formatScore(entry.stats?.[selectedMode] || 0)}</p>
-                          </div>
-                        </div>
-                      </motion.div>
-                    );
-                  })}
-                </AnimatePresence>
-              </div>
-            )}
-          </Card>
-        </motion.div>
+        <LeaderboardPageHeader isWeeklyMode={isWeeklyMode} activeWeekKey={activeWeekKey} />
+        <LeaderboardStatsSection
+          stats={stats}
+          isAchievementMode={isAchievementMode}
+          isWeeklyMode={isWeeklyMode}
+        />
+        <LeaderboardFiltersSection
+          selectedMode={selectedMode}
+          searchTerm={searchTerm}
+          loading={loading}
+          onModeSelect={handleModeSelect}
+          onSearchTermChange={setSearchTerm}
+          onRefresh={handleRefresh}
+        />
+        <LeaderboardEntriesSection
+          loading={loading}
+          error={error}
+          entries={entries}
+          selectedMode={selectedMode}
+          isAchievementMode={isAchievementMode}
+          isOverallMode={isOverallMode}
+          activeTargetId={activeTargetId}
+          getDisplayName={getDisplayName}
+          onOpenProfile={handleOpenProfile}
+          onSendInvite={handleSendInvite}
+        />
       </div>
     </div>
   );
