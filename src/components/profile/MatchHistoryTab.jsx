@@ -23,7 +23,7 @@ export const MatchHistoryTab = ({ mockMatchHistory }) => {
                 <div>
                   <div className="font-semibold text-white">{match.mode}</div>
                   <div className="text-sm text-white/60">
-                    {match.date.toLocaleDateString()} • {match.date.toLocaleTimeString()}
+                    {match.date.toLocaleDateString()} - {match.date.toLocaleTimeString()}
                   </div>
                 </div>
               </div>
