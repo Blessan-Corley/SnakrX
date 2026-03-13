@@ -9,6 +9,7 @@ import { Trophy, Target, Sparkles } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.js';
 import { useAchievementOperations } from '../hooks/useAchievements.js';
 import { ACHIEVEMENT_TIERS } from '../data/achievements.js';
+import { getIconComponent } from '../utils/iconMap.js';
 
 const AchievementProgress = ({ gameStats, isVisible = true, maxDisplay = 3 }) => {
   const { userProfile } = useAuth();
@@ -78,7 +79,10 @@ const AchievementProgress = ({ gameStats, isVisible = true, maxDisplay = 3 }) =>
               <div className="flex items-start space-x-3">
                 {/* Achievement Icon */}
                 <div className="text-2xl relative">
-                  {achievement.icon}
+                  {(() => {
+                    const Icon = getIconComponent(achievement.icon);
+                    return <Icon size={24} />;
+                  })()}
                   {achievement.isClose && (
                     <div className="absolute -top-1 -right-1">
                       <Sparkles size={12} className="text-yellow-400 animate-pulse" />

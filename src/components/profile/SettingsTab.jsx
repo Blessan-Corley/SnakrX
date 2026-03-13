@@ -1,12 +1,13 @@
-import { useState, useEffect } from 'react';
-import { User, Shield, Volume2, VolumeX, Gamepad2, Eye, EyeOff } from 'lucide-react';
-import Card from '@/components/ui/Card';
+import { useEffect, useState } from 'react';
+import { Eye, EyeOff, Gamepad2, Shield, User, Volume2, VolumeX } from 'lucide-react';
 import Button from '@/components/ui/Button';
-import { getMuted, getVolume, setVolume, toggleMute } from '@/utils/sound';
-import { playClick } from '@/utils/sound';
+import Card from '@/components/ui/Card';
+import Select from '@/components/ui/Select';
+import logger from '@/utils/logger.js';
+import * as sound from '@/utils/sound';
 
 /**
- * Profile Settings Tab Component
+ * Profile Settings Tab Component.
  */
 export const SettingsTab = ({ userProfile, onSaveProfile }) => {
   const [loading, setLoading] = useState(false);
@@ -14,9 +15,9 @@ export const SettingsTab = ({ userProfile, onSaveProfile }) => {
     displayName: userProfile.displayName || '',
     favoriteGameMode: userProfile.preferences?.favoriteGameMode || 'classic'
   });
-  const [soundEnabled, setSoundEnabled] = useState(!getMuted());
-  const [soundVolume, setSoundVolume] = useState(getVolume());
-  const [showStats, setShowStats] = useState(true);
+  const [soundEnabled, setSoundEnabled] = useState(!sound.getMuted());
+  const [soundVolume, setSoundVolume] = useState(sound.getVolume());
+  const [privateLeaderboard, setPrivateLeaderboard] = useState(Boolean(userProfile.preferences?.privateLeaderboard));
 
   useEffect(() => {
     if (userProfile) {
@@ -24,17 +25,26 @@ export const SettingsTab = ({ userProfile, onSaveProfile }) => {
         displayName: userProfile.displayName || '',
         favoriteGameMode: userProfile.preferences?.favoriteGameMode || 'classic'
       });
+      setPrivateLeaderboard(Boolean(userProfile.preferences?.privateLeaderboard));
     }
   }, [userProfile]);
 
+  useEffect(() => {
+    const unsubscribe = sound.subscribeSoundSettings(({ muted, volume }) => {
+      setSoundEnabled(!muted);
+      setSoundVolume(volume);
+    });
+    return unsubscribe;
+  }, []);
+
   const handleSoundToggle = () => {
-    const newMuted = toggleMute();
+    const newMuted = sound.toggleMute();
     setSoundEnabled(!newMuted);
-    if (!newMuted) playClick();
+    if (!newMuted) sound.playClick();
   };
 
   const handleVolumeChange = (newVolume) => {
-    setVolume(newVolume);
+    sound.setVolume(newVolume);
     setSoundVolume(newVolume);
   };
 
@@ -45,11 +55,12 @@ export const SettingsTab = ({ userProfile, onSaveProfile }) => {
         displayName: editForm.displayName,
         preferences: {
           ...userProfile.preferences,
-          favoriteGameMode: editForm.favoriteGameMode
+          favoriteGameMode: editForm.favoriteGameMode,
+          privateLeaderboard
         }
       });
     } catch (error) {
-      console.error('Error updating profile:', error);
+      logger.error('Failed to update profile settings:', error);
     } finally {
       setLoading(false);
     }
@@ -60,7 +71,6 @@ export const SettingsTab = ({ userProfile, onSaveProfile }) => {
       <h2 className="text-2xl font-bold text-white">Settings</h2>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Account Settings */}
         <div className="space-y-6">
           <Card variant="glass" padding="md">
             <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
@@ -73,7 +83,7 @@ export const SettingsTab = ({ userProfile, onSaveProfile }) => {
                 <input
                   type="text"
                   value={editForm.displayName}
-                  onChange={(e) => setEditForm(prev => ({ ...prev, displayName: e.target.value }))}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, displayName: e.target.value }))}
                   className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500/50"
                 />
               </div>
@@ -107,80 +117,76 @@ export const SettingsTab = ({ userProfile, onSaveProfile }) => {
               Privacy
             </h3>
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-4">
                 <div>
-                  <div className="text-white font-medium">Show Statistics</div>
-                  <div className="text-white/60 text-sm">Allow others to see your game statistics</div>
+                  <div className="text-white font-medium">Private leaderboard</div>
+                  <div className="text-sm text-white/60">
+                    Hide your score from public leaderboards and profile ranking views.
+                  </div>
                 </div>
                 <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setShowStats(!showStats)}
-                  icon={showStats ? <Eye size={18} /> : <EyeOff size={18} />}
-                />
+                  variant={privateLeaderboard ? 'ghost-primary' : 'ghost'}
+                  size="sm"
+                  onClick={() => setPrivateLeaderboard((previous) => !previous)}
+                  icon={privateLeaderboard ? <EyeOff size={16} /> : <Eye size={16} />}
+                >
+                  {privateLeaderboard ? 'Private' : 'Public'}
+                </Button>
               </div>
             </div>
           </Card>
         </div>
 
-        {/* Game Settings */}
         <div className="space-y-6">
           <Card variant="glass" padding="md">
             <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-              <Volume2 className="mr-2" size={20} />
-              Audio Settings
+              <Gamepad2 className="mr-2" size={20} />
+              Preferences
             </h3>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-white font-medium">Sound Effects</div>
-                  <div className="text-white/60 text-sm">Game sounds and music</div>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={handleSoundToggle}
-                  icon={soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
-                />
-              </div>
-
-              {soundEnabled && (
-                <div>
-                  <label className="block text-sm text-white/70 mb-2">Volume</label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.1"
-                    value={soundVolume}
-                    onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
-                    className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer slider"
-                  />
-                  <div className="text-right text-sm text-white/60 mt-1">
-                    {Math.round(soundVolume * 100)}%
-                  </div>
-                </div>
-              )}
+            <div className="space-y-5">
+              <Select
+                label="Favorite game mode"
+                options={[
+                  { value: 'classic', label: 'Classic' },
+                  { value: 'classic_transparent', label: 'Classic Transparent' },
+                  { value: 'vsai', label: 'VS AI' },
+                  { value: 'multiplayer', label: 'Multiplayer' }
+                ]}
+                value={editForm.favoriteGameMode}
+                onChange={(value) => setEditForm((prev) => ({ ...prev, favoriteGameMode: value }))}
+              />
             </div>
           </Card>
 
           <Card variant="glass" padding="md">
             <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-              <Gamepad2 className="mr-2" size={20} />
-              Game Preferences
+              {soundEnabled ? <Volume2 className="mr-2" size={20} /> : <VolumeX className="mr-2" size={20} />}
+              Sound
             </h3>
-            <div className="space-y-4">
+            <div className="space-y-5">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <div className="text-white font-medium">Enable sound effects</div>
+                  <div className="text-sm text-white/60">Toggle UI and gameplay audio feedback.</div>
+                </div>
+                <Button variant={soundEnabled ? 'ghost-primary' : 'ghost'} size="sm" onClick={handleSoundToggle}>
+                  {soundEnabled ? 'On' : 'Off'}
+                </Button>
+              </div>
+
               <div>
-                <label className="block text-sm text-white/70 mb-2">Favorite Game Mode</label>
-                <select
-                  value={editForm.favoriteGameMode}
-                  onChange={(e) => setEditForm(prev => ({ ...prev, favoriteGameMode: e.target.value }))}
-                  className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500/50"
-                >
-                  <option value="classic" className="bg-dark-surface">Classic Mode</option>
-                  <option value="vsai" className="bg-dark-surface">VS AI</option>
-                  <option value="multiplayer" className="bg-dark-surface">Multiplayer</option>
-                </select>
+                <label className="block text-sm text-white/70 mb-2">
+                  Volume: {Math.round(soundVolume * 100)}%
+                </label>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  value={soundVolume}
+                  onChange={(e) => handleVolumeChange(Number(e.target.value))}
+                  className="w-full accent-primary-500"
+                />
               </div>
             </div>
           </Card>
@@ -189,3 +195,5 @@ export const SettingsTab = ({ userProfile, onSaveProfile }) => {
     </div>
   );
 };
+
+export default SettingsTab;
