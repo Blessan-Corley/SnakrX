@@ -1,271 +1,73 @@
-/**
- * Leaderboard Operations Module
- * Handles leaderboard data and rankings
- */
-
-import { db, doc, serverTimestamp, COLLECTIONS } from './config.js';
-import { firestoreOperations } from './firestore.js';
 import logger from '../../utils/logger.js';
+import { getAchievementLeaderboard, getOverallScoreLeaderboard } from './leaderboard/profileLeaderboards.js';
+import { getLeaderboard, getWeeklyLeaderboard } from './leaderboard/standardLeaderboards.js';
+import { updateLeaderboard } from './leaderboard/updateLeaderboard.js';
 
-/**
- * Create standardized leaderboard entry
- */
-const createLeaderboardEntry = (data) => ({
-  userId: data.userId,
-  username: data.username,
-  score: data.score,
-  duration: data.duration,
-  foodEaten: data.foodEaten,
-  mode: data.mode,
-  difficulty: data.difficulty,
-  speedReached: data.speedReached || 1,
-  timestamp: serverTimestamp(),
-  rank: 0 // Will be calculated
-});
+const OVERALL_MODE_CONFIGS = [
+  { mode: 'classic', difficulty: null },
+  { mode: 'classic_transparent', difficulty: null },
+  { mode: 'vsai', difficulty: 'easy' },
+  { mode: 'vsai', difficulty: 'medium' },
+  { mode: 'vsai', difficulty: 'impossible' },
+  { mode: 'multiplayer', difficulty: null }
+];
 
-/**
- * Leaderboard-specific Firebase operations
- */
 export const leaderboardOperations = {
-  /**
-    * Update leaderboard with optimized batch operations
-    */
-  async updateLeaderboard(userId, gameData) {
-    try {
-      logger.log('Starting leaderboard update for user:', userId);
-      logger.log('Game data for leaderboard:', gameData);
+  updateLeaderboard,
+  getLeaderboard,
+  getAchievementLeaderboard,
+  getOverallScoreLeaderboard,
+  getWeeklyLeaderboard,
 
-      const leaderboardId = `${gameData.mode}_${gameData.difficulty || 'default'}`;
-      logger.log('Leaderboard ID:', leaderboardId);
-
-      const leaderboardRef = doc(db, COLLECTIONS.LEADERBOARDS, leaderboardId);
-
-      // Get current leaderboard with retry logic
-      logger.log('Fetching current leaderboard...');
-      const leaderboardDoc = await firestoreOperations.getDocument(leaderboardRef);
-      let currentEntries = [];
-
-      if (leaderboardDoc.exists()) {
-        currentEntries = leaderboardDoc.data()?.entries || [];
-        logger.log('Found existing leaderboard with', currentEntries.length, 'entries');
-      } else {
-        logger.log('Creating new leaderboard');
-      }
-
-      // Create new entry with validation
-      const newEntry = createLeaderboardEntry({
-        userId,
-        username: gameData.username,
-        score: gameData.score,
-        duration: gameData.duration,
-        foodEaten: gameData.foodEaten,
-        mode: gameData.mode,
-        difficulty: gameData.difficulty || null,
-        speedReached: gameData.speedReached
-      });
-
-      logger.log('Created leaderboard entry:', newEntry);
-
-      // Check if user already has an entry
-      const existingEntryIndex = currentEntries.findIndex(entry => entry.userId === userId);
-
-      if (existingEntryIndex >= 0) {
-        // Update existing entry if new score is better
-        if (newEntry.score > currentEntries[existingEntryIndex].score) {
-          currentEntries[existingEntryIndex] = { ...newEntry, rank: 0 };
-          logger.log('Updated existing user entry with better score');
-        } else {
-          logger.log('User score not better than existing entry, skipping update');
-          return true; // Not an error, just no update needed
-        }
-      } else {
-        // Add new entry
-        currentEntries.push(newEntry);
-        logger.log('Added new user entry to leaderboard');
-      }
-
-      // Sort by score (descending)
-      currentEntries.sort((a, b) => b.score - a.score);
-
-      // Keep only top 100 entries to maintain performance
-      const topEntries = currentEntries.slice(0, 100);
-      logger.log('Updated entries count:', topEntries.length);
-
-      // Update ranks efficiently
-      topEntries.forEach((entry, index) => {
-        entry.rank = index + 1;
-      });
-
-      // Create optimized leaderboard data
-      const leaderboardData = {
-        mode: gameData.mode,
-        difficulty: gameData.difficulty || null,
-        entries: topEntries,
-        lastUpdated: serverTimestamp(),
-        totalEntries: topEntries.length,
-        stats: {
-          highestScore: topEntries[0]?.score || 0,
-          averageScore: topEntries.length > 0 ?
-            Math.round(topEntries.reduce((sum, e) => sum + e.score, 0) / topEntries.length) : 0,
-          totalGames: topEntries.length,
-          lastUpdated: serverTimestamp()
-        }
-      };
-
-      logger.log('Saving optimized leaderboard data to Firestore...');
-      const success = await firestoreOperations.setDocument(leaderboardRef, leaderboardData);
-
-      if (success) {
-        logger.log('Leaderboard updated successfully in Firestore');
-        return true;
-      } else {
-        logger.error('Leaderboard update failed - setDocument returned false');
-        return false;
-      }
-    } catch (error) {
-      logger.error('Error updating leaderboard:', error);
-      logger.error('Full leaderboard error:', error);
-      return false;
-    }
-  },
-
-  /**
-    * Get leaderboard data with pagination support
-    */
-  async getLeaderboard(mode = 'classic', difficulty = null, options = {}) {
-    try {
-      const { page = 1, limit: pageLimit = 50, includeStats = true } = options;
-      const leaderboardId = `${mode}_${difficulty || 'default'}`;
-      const leaderboardRef = doc(db, COLLECTIONS.LEADERBOARDS, leaderboardId);
-
-      const leaderboardDoc = await firestoreOperations.getDocument(leaderboardRef);
-
-      if (leaderboardDoc.exists()) {
-        const data = leaderboardDoc.data();
-        const allEntries = data.entries || [];
-
-        // Implement pagination
-        const startIndex = (page - 1) * pageLimit;
-        const endIndex = startIndex + pageLimit;
-        const paginatedEntries = allEntries.slice(startIndex, endIndex);
-
-        const result = {
-          entries: paginatedEntries,
-          pagination: {
-            page,
-            limit: pageLimit,
-            total: allEntries.length,
-            totalPages: Math.ceil(allEntries.length / pageLimit),
-            hasNext: endIndex < allEntries.length,
-            hasPrev: page > 1
-          },
-          lastUpdated: data.lastUpdated,
-          totalEntries: data.totalEntries || 0
-        };
-
-        // Include stats if requested
-        if (includeStats) {
-          result.stats = data.stats || {};
-        }
-
-        return result;
-      }
-
-      return {
-        entries: [],
-        pagination: {
-          page: 1,
-          limit: pageLimit,
-          total: 0,
-          totalPages: 0,
-          hasNext: false,
-          hasPrev: false
-        },
-        stats: includeStats ? {} : undefined,
-        lastUpdated: null,
-        totalEntries: 0
-      };
-    } catch (error) {
-      logger.error('Error fetching leaderboard:', error);
-      return {
-        entries: [],
-        pagination: {
-          page: 1,
-          limit: options.limit || 50,
-          total: 0,
-          totalPages: 0,
-          hasNext: false,
-          hasPrev: false
-        },
-        stats: options.includeStats !== false ? {} : undefined,
-        lastUpdated: null,
-        totalEntries: 0
-      };
-    }
-  },
-
-  /**
-   * Get top players across all modes
-   */
   async getTopPlayersOverall(limit = 10) {
     try {
-      // Get leaderboards for all modes
-      const modes = [
-        { mode: 'classic', difficulty: null },
-        { mode: 'vsai', difficulty: 'easy' },
-        { mode: 'vsai', difficulty: 'medium' },
-        { mode: 'vsai', difficulty: 'impossible' },
-        { mode: 'multiplayer', difficulty: null }
-      ];
-
       const allEntries = [];
 
-      for (const modeConfig of modes) {
-        const leaderboard = await this.getLeaderboard(modeConfig.mode, modeConfig.difficulty, 50);
+      for (const modeConfig of OVERALL_MODE_CONFIGS) {
+        const leaderboard = await this.getLeaderboard(modeConfig.mode, modeConfig.difficulty, {
+          page: 1,
+          limit: 50,
+          includeStats: false
+        });
         allEntries.push(...leaderboard.entries);
       }
 
-      // Group by user and get their best scores
       const userBestScores = {};
-      allEntries.forEach(entry => {
+      allEntries.forEach((entry) => {
         if (!userBestScores[entry.userId] || userBestScores[entry.userId].score < entry.score) {
           userBestScores[entry.userId] = entry;
         }
       });
 
-      // Convert to array and sort
-      const topPlayers = Object.values(userBestScores)
+      return Object.values(userBestScores)
         .sort((a, b) => b.score - a.score)
         .slice(0, limit)
         .map((entry, index) => ({
           ...entry,
           rank: index + 1
         }));
-
-      return topPlayers;
     } catch (error) {
       logger.error('Error fetching top players:', error);
       return [];
     }
   },
 
-  /**
-   * Get user's rank in a specific leaderboard
-   */
   async getUserRank(userId, mode = 'classic', difficulty = null) {
     try {
-      const leaderboard = await this.getLeaderboard(mode, difficulty, 1000);
-      const userEntry = leaderboard.entries.find(entry => entry.userId === userId);
+      const leaderboard = await this.getLeaderboard(mode, difficulty, {
+        page: 1,
+        limit: 1000,
+        includeStats: false
+      });
+      const userEntry = leaderboard.entries.find((entry) => entry.userId === userId);
 
-      if (userEntry) {
-        return {
-          rank: userEntry.rank,
-          score: userEntry.score,
-          totalPlayers: leaderboard.totalEntries
-        };
-      }
+      if (!userEntry) return null;
 
-      return null;
+      return {
+        rank: userEntry.rank,
+        score: userEntry.score,
+        totalPlayers: leaderboard.totalEntries
+      };
     } catch (error) {
       logger.error('Error fetching user rank:', error);
       return null;
