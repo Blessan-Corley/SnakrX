@@ -7,6 +7,7 @@ const games = require('./src/games');
 const registration = require('./src/registration');
 const achievements = require('./src/achievements');
 const friends = require('./src/friends');
+const passwordReset = require('./src/passwordReset');
 
 module.exports = {
   ...otp,
@@ -18,4 +19,5 @@ module.exports = {
   ...registration,
   ...achievements,
   ...friends,
+  ...passwordReset,
 };

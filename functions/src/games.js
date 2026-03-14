@@ -1,7 +1,8 @@
 const { functions, admin, crypto, db } = require('./runtime');
 const { sanitizeText, toMillis } = require('./shared/utils');
 const {
-  buildStatUpdatesFromSession
+  buildStatUpdatesFromSession,
+  resolveGameXpGain
 } = require('./shared/gameFinalization');
 const { buildPublicProfilePayload } = require('./shared/publicProfilePayload');
 const { createLeaderboardEntryCore } = require('./shared/leaderboardCore');
@@ -127,6 +128,16 @@ const mapPublicGame = (docSnap) => {
     difficulty: data.difficulty == null ? null : sanitizeText(data.difficulty, 32),
     score: Math.max(0, Number(data.score) || 0),
     duration: Math.max(0, Number(data.duration) || 0),
+    foodEaten: Math.max(0, Number(data.foodEaten) || 0),
+    xpGained: resolveGameXpGain({
+      xpGained: data.xpGained,
+      mode: data.mode,
+      difficulty: data.difficulty,
+      duration: data.duration,
+      foodEaten: data.foodEaten,
+      score: data.score,
+      result: data.result
+    }),
     result: sanitizeText(data.result || 'completed', 32) || 'completed',
     endedAt: toMillis(data.endedAt) || null
   };
@@ -265,7 +276,7 @@ const finalizeGameSession = functions.https.onCall(async (data, context) => {
       };
     }
 
-    const { nextStats } = buildStatUpdatesFromSession({
+    const { nextStats, xpGain } = buildStatUpdatesFromSession({
       sessionData: {
         ...session,
         startedAt: toMillis(session.startedAt),
@@ -285,6 +296,7 @@ const finalizeGameSession = functions.https.onCall(async (data, context) => {
       ...session,
       userId,
       username: sanitizeText(userData.username || userData.displayName || 'player', 64) || 'player',
+      xpGained: xpGain,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       finalizedAt: admin.firestore.FieldValue.serverTimestamp(),
       sourceGameId: session.gameId
@@ -402,7 +414,8 @@ const getPublicRecentGames = functions.https.onCall(async (data) => {
 const __private__ = {
   clampLimit,
   getGameDocumentId,
-  normalizeSessionPayload
+  normalizeSessionPayload,
+  mapPublicGame
 };
 
 module.exports = {
