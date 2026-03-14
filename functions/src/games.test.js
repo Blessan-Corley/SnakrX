@@ -2,6 +2,10 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 
 let gamesPrivate;
+const createDocSnap = (id, data) => ({
+  id,
+  data: () => data
+});
 
 beforeAll(async () => {
   const gamesModule = await import('./games.js');
@@ -83,5 +87,36 @@ describe('games helpers', () => {
       startedAt: 5000,
       endedAt: 2000
     }, 'user-1')).toThrow(/timestamps are invalid/i);
+  });
+
+  it('maps public games with stored or derived xp gain', () => {
+    const storedXpGame = gamesPrivate.mapPublicGame(createDocSnap('game-1', {
+      mode: 'vsai',
+      difficulty: 'medium',
+      score: 900,
+      duration: 45,
+      foodEaten: 12,
+      result: 'won',
+      xpGained: 77,
+      endedAt: { toMillis: () => 5000 }
+    }));
+
+    const derivedXpGame = gamesPrivate.mapPublicGame(createDocSnap('game-2', {
+      mode: 'classic',
+      score: 200,
+      duration: 60,
+      foodEaten: 4,
+      result: 'completed',
+      endedAt: { toMillis: () => 6000 }
+    }));
+
+    expect(storedXpGame).toMatchObject({
+      id: 'game-1',
+      xpGained: 77
+    });
+    expect(derivedXpGame).toMatchObject({
+      id: 'game-2',
+      xpGained: 25
+    });
   });
 });
