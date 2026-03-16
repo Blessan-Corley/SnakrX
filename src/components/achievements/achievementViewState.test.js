@@ -184,4 +184,141 @@ describe('buildAchievementViewState', () => {
 
     expect(result.filteredAchievements).toHaveLength(0);
   });
+
+  it('shows a chain under a tier filter when any contained tier matches and focuses that tier on the card', () => {
+    const result = buildAchievementViewState({
+      achievements: [
+        {
+          id: 'level_5',
+          title: 'Rookie Grinder',
+          description: 'Reach level 5',
+          tier: 'common',
+          category: 'gameplay',
+          chainId: 'xp_grindset',
+          chainOrder: 1,
+          chainTitle: 'XP Grindset',
+          chainDescription: 'Reach higher levels'
+        },
+        {
+          id: 'level_30',
+          title: 'Legend In Progress',
+          description: 'Reach level 30',
+          tier: 'legendary',
+          category: 'gameplay',
+          chainId: 'xp_grindset',
+          chainOrder: 2,
+          chainTitle: 'XP Grindset',
+          chainDescription: 'Reach higher levels'
+        }
+      ],
+      recentUnlocks: [],
+      searchTerm: '',
+      selectedCategory: 'all',
+      selectedTier: 'legendary',
+      showUnlockedOnly: false,
+      unlockedAchievements: [],
+      uncollectedAchievements: []
+    });
+
+    expect(result.filteredAchievements).toHaveLength(1);
+    expect(result.filteredAchievements[0]).toMatchObject({
+      chainId: 'xp_grindset',
+      title: 'Legend In Progress',
+      tier: 'legendary'
+    });
+    expect(result.filteredAchievements[0].displayTier).toMatchObject({
+      id: 'level_30',
+      tier: 'legendary'
+    });
+  });
+
+  it('shows the matching tier for mixed-category chains when category filters are applied', () => {
+    const result = buildAchievementViewState({
+      achievements: [
+        {
+          id: 'level_30',
+          title: 'Legend In Progress',
+          description: 'Reach level 30',
+          tier: 'legendary',
+          category: 'gameplay',
+          chainId: 'xp_grindset',
+          chainOrder: 1,
+          chainTitle: 'XP Grindset',
+          chainDescription: 'Reach higher levels'
+        },
+        {
+          id: 'level_35',
+          title: 'Level Cap Overlord',
+          description: 'Reach max player level 35',
+          tier: 'legendary',
+          category: 'special',
+          chainId: 'xp_grindset',
+          chainOrder: 2,
+          chainTitle: 'XP Grindset',
+          chainDescription: 'Reach higher levels'
+        }
+      ],
+      recentUnlocks: [],
+      searchTerm: '',
+      selectedCategory: 'special',
+      selectedTier: 'all',
+      showUnlockedOnly: false,
+      unlockedAchievements: [],
+      uncollectedAchievements: []
+    });
+
+    expect(result.filteredAchievements).toHaveLength(1);
+    expect(result.filteredAchievements[0]).toMatchObject({
+      chainId: 'xp_grindset',
+      title: 'Level Cap Overlord',
+      category: 'special'
+    });
+    expect(result.filteredAchievements[0].displayTier).toMatchObject({
+      id: 'level_35',
+      category: 'special'
+    });
+  });
+
+  it('surfaces the searched chain tier instead of the current grind tier when search filters are active', () => {
+    const result = buildAchievementViewState({
+      achievements: [
+        {
+          id: 'level_5',
+          title: 'Rookie Grinder',
+          description: 'Reach level 5',
+          tier: 'common',
+          category: 'gameplay',
+          chainId: 'xp_grindset',
+          chainOrder: 1,
+          chainTitle: 'XP Grindset',
+          chainDescription: 'Reach higher levels'
+        },
+        {
+          id: 'level_35',
+          title: 'Level Cap Overlord',
+          description: 'Reach max player level 35',
+          tier: 'legendary',
+          category: 'special',
+          chainId: 'xp_grindset',
+          chainOrder: 2,
+          chainTitle: 'XP Grindset',
+          chainDescription: 'Reach higher levels'
+        }
+      ],
+      recentUnlocks: [],
+      searchTerm: 'overlord',
+      selectedCategory: 'all',
+      selectedTier: 'all',
+      showUnlockedOnly: false,
+      unlockedAchievements: [],
+      uncollectedAchievements: []
+    });
+
+    expect(result.filteredAchievements).toHaveLength(1);
+    expect(result.filteredAchievements[0]).toMatchObject({
+      chainId: 'xp_grindset',
+      title: 'Level Cap Overlord',
+      tier: 'legendary'
+    });
+  });
 });
