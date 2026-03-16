@@ -21,6 +21,14 @@ export const useAchievementCollectionOperations = ({
     [unlockedAchievements]
   );
 
+  const refreshProfileInBackground = useCallback(() => {
+    if (!refreshProfile) return;
+
+    void Promise.resolve(refreshProfile()).catch((error) => {
+      logger.warn('Profile refresh after achievement collection failed:', error);
+    });
+  }, [refreshProfile]);
+
   const collectAchievement = useCallback(async (achievementId) => {
     if (!auth.currentUser) return false;
 
@@ -54,10 +62,7 @@ export const useAchievementCollectionOperations = ({
       setUnlockedAchievements(result.updated || unlockedAchievements);
       setUncollectedAchievements((result.updated || unlockedAchievements).filter((achievement) => !achievement.collected));
       setRecentUnlocks((previous) => previous.filter((achievement) => !collectedIds.has(achievement.id)));
-
-      if (refreshProfile) {
-        await refreshProfile();
-      }
+      refreshProfileInBackground();
 
       toast.success(`Collected: ${catalog?.title || 'Achievement'}`);
       logger.log(`Achievement collected: ${achievementId}`);
@@ -67,11 +72,11 @@ export const useAchievementCollectionOperations = ({
       return false;
     }
   }, [
-    refreshProfile,
     setRecentUnlocks,
     setUncollectedAchievements,
     setUnlockedAchievements,
     syncCollectedAchievements,
+    refreshProfileInBackground,
     unlockedAchievements
   ]);
 
@@ -117,20 +122,18 @@ export const useAchievementCollectionOperations = ({
       setRecentUnlocks((previous) => previous.filter((achievement) => !collectedIds.has(achievement.id)));
 
       toast.success(`Collected ${collectedIds.size} achievement${collectedIds.size > 1 ? 's' : ''}`);
-      if (refreshProfile) {
-        await refreshProfile();
-      }
+      refreshProfileInBackground();
       return true;
     } catch (error) {
       logger.error('Error collecting all achievements:', error);
       return false;
     }
   }, [
-    refreshProfile,
     setRecentUnlocks,
     setUncollectedAchievements,
     setUnlockedAchievements,
     syncCollectedAchievements,
+    refreshProfileInBackground,
     unlockedAchievements,
     uncollectedAchievements
   ]);

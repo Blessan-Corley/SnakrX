@@ -138,16 +138,11 @@ export const AchievementProvider = ({ children }) => {
 
     const syncMissingAchievements = async () => {
       try {
-        const results = [];
-        for (const achievementId of missingIds) {
-          if (cancelled) return;
-          const result = await achievementOperations.unlockAchievement(achievementId);
-          results.push(result);
-        }
+        const result = await achievementOperations.syncAchievements(missingIds);
 
         if (cancelled) return;
 
-        if (results.some((result) => result?.success === true) && refreshProfile) {
+        if ((result?.syncedIds?.length || 0) > 0 && refreshProfile) {
           await refreshProfile();
         }
       } catch (error) {
