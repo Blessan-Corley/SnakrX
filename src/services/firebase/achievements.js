@@ -1,6 +1,7 @@
 import { functions, httpsCallable } from './config.js';
 
 let collectUserAchievementsCallable;
+let syncUserAchievementsCallable;
 let unlockUserAchievementCallable;
 
 const getCollectUserAchievementsCallable = () => {
@@ -19,11 +20,25 @@ const getUnlockUserAchievementCallable = () => {
   return unlockUserAchievementCallable;
 };
 
+const getSyncUserAchievementsCallable = () => {
+  if (!syncUserAchievementsCallable) {
+    syncUserAchievementsCallable = httpsCallable(functions, 'syncUserAchievements');
+  }
+
+  return syncUserAchievementsCallable;
+};
+
 export const achievementOperations = {
   async collectAchievements(achievementIds = []) {
     const callable = getCollectUserAchievementsCallable();
     const response = await callable({ achievementIds });
     return response?.data || { collectedIds: [], achievementPoints: 0 };
+  },
+
+  async syncAchievements(achievementIds = []) {
+    const callable = getSyncUserAchievementsCallable();
+    const response = await callable({ achievementIds });
+    return response?.data || { syncedIds: [] };
   },
 
   async unlockAchievement(achievementId) {
@@ -36,6 +51,7 @@ export const achievementOperations = {
 export const __private__ = {
   resetCallables() {
     collectUserAchievementsCallable = undefined;
+    syncUserAchievementsCallable = undefined;
     unlockUserAchievementCallable = undefined;
   }
 };
