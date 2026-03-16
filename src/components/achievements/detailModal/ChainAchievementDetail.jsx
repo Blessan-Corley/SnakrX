@@ -15,128 +15,93 @@ const ChainAchievementDetail = ({
   selectedChainTierProgress,
   selectedChainTierStyling,
   userStats
-}) => (
-  <div className="space-y-3">
-    <h3 className="text-lg sm:text-[1.15rem] font-bold text-white">{selectedChain.chainTitle}</h3>
-    <p className="mx-auto max-w-[26rem] text-sm text-white/65 leading-relaxed">
-      {selectedChain.chainDescription}
-    </p>
+}) => {
+  const TierIcon = getIconComponent(selectedChainTier.icon);
+  const tierStatus = getTierStatusCopy(selectedChainTier);
+  const isFirstTier = selectedChainTierIndex === 0;
+  const isLastTier = selectedChainTierIndex === selectedChain.tiers.length - 1;
 
-    <div className="mx-auto w-full max-w-[24.75rem] bg-white/5 rounded-xl border border-white/10 px-3 py-2.5">
-      <div className="flex justify-between text-[12px] text-white/75 mb-1.5">
-        <span>Chain Progress</span>
-        <span>{selectedChain.progressLabel}</span>
+  return (
+    <div className="space-y-2.5 text-left">
+      <div className="space-y-1 text-center">
+        <h3 className="text-[1.25rem] sm:text-[1.35rem] font-bold text-white">{selectedChain.chainTitle}</h3>
+        <p className="mx-auto max-w-[34rem] text-[13px] text-white/65 leading-relaxed">
+          {selectedChain.chainDescription}
+        </p>
       </div>
-      <div className="w-full bg-white/10 rounded-full h-1 overflow-hidden">
-        <div
-          className="h-1 rounded-full transition-all duration-500"
-          style={{
-            width: `${selectedChain.progressPercent}%`,
-            backgroundColor: selectedChainTierStyling.color
-          }}
-        />
-      </div>
-      <div className="flex items-center justify-between text-[10px] text-white/45 mt-1.5">
-        <span>{selectedChain.progressPercent}% complete</span>
-        <span>
-          {selectedChain.nextTier?.title && !selectedChain.nextTier.isUnlocked
-            ? `Next target: ${selectedChain.nextTier.title}`
-            : 'Chain complete'}
-        </span>
-      </div>
-    </div>
-
-    <div className="flex items-center justify-center gap-2.5 sm:gap-3">
-      {selectedChainTierIndex > 0 ? (
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label="Previous tier"
-          onClick={() => navigateChainTier(selectedChainTierIndex - 1)}
-          icon={<ChevronLeft size={18} />}
-          className="h-10 w-10 shrink-0 rounded-2xl border border-white/15 bg-white/5"
-          style={{
-            borderColor: `${selectedChainTierStyling.color}55`,
-            color: selectedChainTierStyling.color,
-            boxShadow: `0 0 24px ${selectedChainTierStyling.color}18`
-          }}
-        />
-      ) : (
-        <div className="h-10 w-10 shrink-0" aria-hidden="true" />
-      )}
 
       <AnimatePresence mode="wait">
-        <motion.div
+        <motion.section
           key={selectedChainTier?.id}
-          initial={{ opacity: 0, x: chainTransitionDirection > 0 ? 18 : -18, scale: 0.98 }}
+          initial={{ opacity: 0, x: chainTransitionDirection > 0 ? 18 : -18, scale: 0.99 }}
           animate={{ opacity: 1, x: 0, scale: 1 }}
-          exit={{ opacity: 0, x: chainTransitionDirection > 0 ? -18 : 18, scale: 0.98 }}
+          exit={{ opacity: 0, x: chainTransitionDirection > 0 ? -18 : 18, scale: 0.99 }}
           transition={{ duration: 0.22 }}
-          className="relative w-full max-w-[18.75rem] sm:max-w-[22.25rem] overflow-hidden rounded-[1.2rem] border p-3.5 sm:p-4 text-left"
+          className="relative mx-auto w-full max-w-[36rem] overflow-hidden rounded-[1.5rem] border p-3.5 sm:p-4"
           style={{
-            borderColor: `${selectedChainTierStyling.color}88`,
-            background: `linear-gradient(155deg, ${selectedChainTierStyling.color}22, rgba(15, 23, 42, 0.88) 48%, rgba(15, 23, 42, 0.96))`,
-            boxShadow: `0 0 0 1px ${selectedChainTierStyling.color}30, 0 18px 42px ${selectedChainTierStyling.color}24`
+            borderColor: `${selectedChainTierStyling.color}66`,
+            background: `linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(15, 23, 42, 0.92) 26%, rgba(15, 23, 42, 0.97) 100%)`,
+            boxShadow: `0 0 0 1px ${selectedChainTierStyling.color}22, 0 22px 48px ${selectedChainTierStyling.color}16`
           }}
         >
           <div
-            className="absolute -top-12 -right-10 h-28 w-28 rounded-full blur-3xl opacity-45"
+            className="pointer-events-none absolute inset-x-12 top-0 h-24 rounded-full blur-3xl opacity-30"
             style={{ backgroundColor: selectedChainTierStyling.color }}
           />
-          <div
-            className="absolute top-0 right-0 h-20 w-20 rounded-bl-[2.75rem] border-l border-b"
-            style={{
-              borderColor: `${selectedChainTierStyling.color}66`,
-              background: `linear-gradient(135deg, ${selectedChainTierStyling.color}55, transparent 72%)`
-            }}
-          />
 
-          <div className="relative z-10">
-            <div className="flex items-start justify-between gap-2.5 mb-2.5">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[1rem] border"
-                  style={{
-                    borderColor: `${selectedChainTierStyling.color}88`,
-                    backgroundColor: `${selectedChainTierStyling.color}18`,
-                    color: selectedChainTierStyling.color
-                  }}
-                >
-                  {(() => {
-                    const TierIcon = getIconComponent(selectedChainTier.icon);
-                    return <TierIcon size={20} />;
-                  })()}
+          <div className="relative z-10 space-y-2.5">
+            <div className="flex flex-wrap items-start justify-between gap-2.5">
+              <div>
+                <div className="text-[10px] uppercase tracking-[0.24em] text-white/45">Active tier</div>
+                <div className="mt-1 text-[13px] font-semibold text-white/75">
+                  Tier {selectedChainTierIndex + 1} of {selectedChain.tiers.length}
                 </div>
-                <div className="min-w-0">
-                  <div className="text-[10px] uppercase tracking-[0.22em] text-white/42 mb-1">
-                    Tier {selectedChainTierIndex + 1} of {selectedChain.tiers.length}
-                  </div>
-                  <h4 className="text-lg sm:text-[1.25rem] font-bold text-white leading-tight break-words">
-                    {selectedChainTier.title}
-                  </h4>
-                  <div className="text-[13px] mt-0.5" style={{ color: selectedChainTierStyling.color }}>
-                    {selectedChainTier.tier} / +{selectedChainTier.points} points
-                  </div>
+                <div className="mt-1 text-[11px] text-white/50">
+                  {selectedChain.nextTier?.title && !selectedChain.nextTier.isUnlocked
+                    ? `Next target: ${selectedChain.nextTier.title}`
+                    : `${selectedChain.progressLabel} tiers unlocked`}
                 </div>
               </div>
 
-              <span className={`text-[11px] px-2.5 py-1 rounded-full font-semibold whitespace-nowrap ${getTierStatusCopy(selectedChainTier).className}`}>
-                {getTierStatusCopy(selectedChainTier).label}
+              <span className={`text-[10px] px-2.5 py-1 rounded-full font-semibold whitespace-nowrap ${tierStatus.className}`}>
+                {tierStatus.label}
               </span>
             </div>
 
-            <p className="text-[13px] sm:text-sm text-white/72 leading-relaxed mb-2.5">
-              {selectedChainTier.description}
-            </p>
+            <div className="flex items-start gap-2.5">
+              <div
+                className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.9rem] border"
+                style={{
+                  borderColor: `${selectedChainTierStyling.color}88`,
+                  backgroundColor: `${selectedChainTierStyling.color}18`,
+                  color: selectedChainTierStyling.color
+                }}
+              >
+                <TierIcon size={18} />
+              </div>
 
-            <div className="bg-black/15 border border-white/10 rounded-[1rem] p-3 mb-2.5">
-              <div className="flex items-center justify-between text-[13px] text-white/75 mb-1.5">
+              <div className="min-w-0">
+                <h4 className="text-[1.25rem] sm:text-[1.45rem] font-bold text-white leading-tight break-words">
+                  {selectedChainTier.title}
+                </h4>
+                <div className="mt-0.5 text-[13px] font-semibold" style={{ color: selectedChainTierStyling.color }}>
+                  {selectedChainTier.tier} / +{selectedChainTier.points} points
+                </div>
+                <p className="mt-1.5 text-[13px] text-white/72 leading-relaxed">
+                  {selectedChainTier.description}
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-[1.1rem] border border-white/10 bg-black/15 p-3">
+              <div className="flex items-center justify-between gap-3 text-[13px] text-white/78">
                 <span>{selectedChainTierProgress.label}</span>
                 <span>
                   {selectedChainTier.isUnlocked ? 'Completed' : `${selectedChainTierProgress.percentage}%`}
                 </span>
               </div>
-              <div className="w-full bg-white/10 rounded-full h-2 overflow-hidden">
+
+              <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-white/10">
                 <div
                   className="h-2 rounded-full transition-all duration-500"
                   style={{
@@ -145,7 +110,8 @@ const ChainAchievementDetail = ({
                   }}
                 />
               </div>
-              <div className="flex items-center justify-between text-[11px] text-white/55 mt-1.5">
+
+              <div className="mt-1.5 flex items-center justify-between gap-3 text-[10px] text-white/55">
                 <span>
                   {selectedChainTier.isUnlocked ? 'Target met' : `${selectedChainTierProgress.current}/${selectedChainTierProgress.target}`}
                 </span>
@@ -153,63 +119,95 @@ const ChainAchievementDetail = ({
               </div>
             </div>
 
+            <nav
+              aria-label="Chain tiers"
+              className="rounded-[1.1rem] border border-white/10 bg-white/[0.04] p-2.5"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-[10px] uppercase tracking-[0.24em] text-white/45">Tier journey</div>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Previous tier"
+                    onClick={() => navigateChainTier(selectedChainTierIndex - 1)}
+                    disabled={isFirstTier}
+                    icon={<ChevronLeft size={18} />}
+                    className="h-8 w-8 shrink-0 rounded-xl border border-white/15 bg-white/5"
+                    style={{
+                      borderColor: `${selectedChainTierStyling.color}55`,
+                      color: selectedChainTierStyling.color
+                    }}
+                  />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Next tier"
+                    onClick={() => navigateChainTier(selectedChainTierIndex + 1)}
+                    disabled={isLastTier}
+                    icon={<ChevronRight size={18} />}
+                    className="h-8 w-8 shrink-0 rounded-xl border border-white/15 bg-white/5"
+                    style={{
+                      borderColor: `${selectedChainTierStyling.color}55`,
+                      color: selectedChainTierStyling.color
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                {selectedChain.tiers.map((tierAchievement, index) => {
+                  const tierAccent = getTierStyling(tierAchievement.tier).color;
+                  const isActiveTier = index === selectedChainTierIndex;
+
+                  return (
+                    <button
+                      key={tierAchievement.id}
+                      type="button"
+                      aria-label={`Go to ${tierAchievement.title}`}
+                      onClick={() => navigateChainTier(index)}
+                      className="flex h-7 min-w-7 items-center justify-center rounded-full border px-2.5 text-[11px] font-semibold transition-all duration-200 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-primary-500/40"
+                      style={{
+                        borderColor: isActiveTier ? `${selectedChainTierStyling.color}88` : 'rgba(255,255,255,0.12)',
+                        backgroundColor: isActiveTier
+                          ? `${selectedChainTierStyling.color}16`
+                          : tierAchievement.isUnlocked
+                            ? `${tierAccent}12`
+                            : 'rgba(255,255,255,0.03)'
+                      }}
+                    >
+                      <span
+                        aria-hidden="true"
+                        style={{ color: isActiveTier || tierAchievement.isUnlocked ? '#ffffff' : 'rgba(255,255,255,0.72)' }}
+                      >
+                        {index + 1}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </nav>
+
             <RequirementPanel
               achievement={selectedChainTier}
               accentColor={selectedChainTierStyling.color}
+              compact
               userStats={userStats}
               heading="Tier requirements"
             />
 
             {selectedChainTier.mustDo && (
-              <div className="mt-2.5 bg-amber-500/10 border border-amber-400/25 rounded-xl p-3 text-left">
-                <div className="text-[11px] uppercase tracking-[0.2em] text-amber-300 mb-1.5">Must do</div>
+              <div className="rounded-xl border border-amber-400/25 bg-amber-500/10 p-2.5">
+                <div className="text-[10px] uppercase tracking-[0.2em] text-amber-300 mb-1">Must do</div>
                 <div className="text-[13px] text-amber-100 leading-relaxed">{selectedChainTier.mustDo}</div>
               </div>
             )}
-
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-2.5">
-              <div className="flex flex-wrap gap-2">
-                {selectedChain.tiers.map((tierAchievement, index) => (
-                  <button
-                    key={tierAchievement.id}
-                    type="button"
-                    aria-label={`View ${tierAchievement.title}`}
-                    onClick={() => navigateChainTier(index)}
-                    className={`h-2.5 rounded-full transition-all duration-300 ${index === selectedChainTierIndex ? 'w-10' : 'w-2.5'}`}
-                    style={{
-                      backgroundColor: index === selectedChainTierIndex
-                        ? selectedChainTierStyling.color
-                        : tierAchievement.isUnlocked
-                          ? `${getTierStyling(tierAchievement.tier).color}99`
-                          : 'rgba(255,255,255,0.18)'
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
           </div>
-        </motion.div>
+        </motion.section>
       </AnimatePresence>
-
-      {selectedChainTierIndex < selectedChain.tiers.length - 1 ? (
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label="Next tier"
-          onClick={() => navigateChainTier(selectedChainTierIndex + 1)}
-          icon={<ChevronRight size={18} />}
-          className="h-10 w-10 shrink-0 rounded-2xl border border-white/15 bg-white/5"
-          style={{
-            borderColor: `${selectedChainTierStyling.color}55`,
-            color: selectedChainTierStyling.color,
-            boxShadow: `0 0 24px ${selectedChainTierStyling.color}18`
-          }}
-        />
-      ) : (
-        <div className="h-10 w-10 shrink-0" aria-hidden="true" />
-      )}
     </div>
-  </div>
-);
+  );
+};
 
 export default ChainAchievementDetail;
