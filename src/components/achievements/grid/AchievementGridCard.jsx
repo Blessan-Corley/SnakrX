@@ -133,11 +133,11 @@ const AchievementGridCard = ({
             <AchievementGridProgressBar
               color={tierStyling.color}
               currentText={
-                item.activeTierState === 'ready_to_collect'
+                item.displayTier?.isUncollected
                   ? 'Reward can be collected now'
                   : `${progressSnapshot.current}/${progressSnapshot.target}`
               }
-              label={item.activeTierState === 'ready_to_collect' ? 'Current Tier' : progressSnapshot.label}
+              label={item.displayTier?.isUncollected ? 'Current Tier' : progressSnapshot.label}
               progress={progress}
               progressLabel={`Chain ${item.progressLabel}`}
             />
@@ -152,7 +152,7 @@ const AchievementGridCard = ({
             />
           )}
 
-          {isChain && item.collectableId && (
+          {isChain && item.displayTier?.isUncollected && (
             <div className="absolute top-2 right-2">
               <Button
                 variant="primary"
@@ -160,13 +160,13 @@ const AchievementGridCard = ({
                 onClick={async (event) => {
                   event.stopPropagation();
                   await onCollect({
-                    achievementId: item.collectableId,
+                    achievementId: item.displayTier.id,
                     accentColor: tierStyling.color
                   });
                 }}
                 icon={<Sparkles size={16} />}
                 className="animate-pulse"
-                loading={collectingAchievementId === item.collectableId}
+                loading={collectingAchievementId === item.displayTier.id}
               >
                 Collect
               </Button>

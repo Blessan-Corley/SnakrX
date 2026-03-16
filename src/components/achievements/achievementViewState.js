@@ -32,6 +32,25 @@ export const buildAchievementViewState = ({
     return searchableText.includes(loweredSearch);
   };
 
+  const hasActiveFilters = selectedCategory !== 'all'
+    || selectedTier !== 'all'
+    || showUnlockedOnly
+    || loweredSearch.length > 0;
+
+  const matchesTierFilters = (tier) => {
+    if (selectedCategory !== 'all' && tier.category !== selectedCategory) return false;
+    if (selectedTier !== 'all' && tier.tier !== selectedTier) return false;
+    if (showUnlockedOnly && !tier.isUnlocked) return false;
+    if (loweredSearch && !passesSearch(
+      tier.title,
+      tier.description,
+      tier.chainTitle,
+      tier.chainDescription
+    )) return false;
+
+    return true;
+  };
+
   const passesSingleFilters = (achievement) => {
     if (selectedCategory !== 'all' && achievement.category !== selectedCategory) return false;
     if (selectedTier !== 'all' && achievement.tier !== selectedTier) return false;
@@ -103,6 +122,24 @@ export const buildAchievementViewState = ({
       .find((tier) => tier.isUnlocked);
     const representative = tiers[0];
     const activeTier = readyToCollectTiers[0] || nextTier || highestUnlockedTier || tiers[0];
+    const matchingTiers = tiers.filter(matchesTierFilters);
+    const displayTier = (() => {
+      if (!hasActiveFilters) return activeTier;
+      if (!matchingTiers.length) return activeTier;
+      if (matchingTiers.some((tier) => tier.id === activeTier?.id)) return activeTier;
+
+      const readyMatchingTier = matchingTiers.find((tier) => tier.isUncollected);
+      if (readyMatchingTier) return readyMatchingTier;
+
+      if (showUnlockedOnly) {
+        const unlockedMatchingTiers = matchingTiers.filter((tier) => tier.isUnlocked);
+        if (unlockedMatchingTiers.length > 0) {
+          return unlockedMatchingTiers[unlockedMatchingTiers.length - 1];
+        }
+      }
+
+      return matchingTiers[0];
+    })();
     const isFullyCollected = totalTiers > 0 && collectedCount === totalTiers;
     const activeTierState = readyToCollectTiers.length > 0
       ? 'ready_to_collect'
@@ -114,14 +151,14 @@ export const buildAchievementViewState = ({
       type: 'chain',
       id: `chain-${achievement.chainId}`,
       chainId: achievement.chainId,
-      title: activeTier?.title || representative?.title || 'Achievement Chain',
-      description: activeTier?.description || representative?.description || '',
+      title: displayTier?.title || activeTier?.title || representative?.title || 'Achievement Chain',
+      description: displayTier?.description || activeTier?.description || representative?.description || '',
       chainTitle: representative?.chainTitle || representative?.title || 'Achievement Chain',
       chainDescription: representative?.chainDescription || representative?.description || '',
-      icon: activeTier?.icon || representative?.icon || 'award',
-      category: activeTier?.category || representative?.category || 'gameplay',
-      tier: activeTier?.tier || representative?.tier || 'common',
-      points: activeTier?.points || 0,
+      icon: displayTier?.icon || activeTier?.icon || representative?.icon || 'award',
+      category: displayTier?.category || activeTier?.category || representative?.category || 'gameplay',
+      tier: displayTier?.tier || activeTier?.tier || representative?.tier || 'common',
+      points: displayTier?.points || activeTier?.points || 0,
       tiers,
       totalTiers,
       unlockedCount,
@@ -132,8 +169,10 @@ export const buildAchievementViewState = ({
       progressLabel: `${unlockedCount}/${totalTiers}`,
       nextTier,
       activeTier,
+      displayTier,
       activeTierState,
       activeTierIndex: Math.max(tiers.findIndex((tier) => tier.id === activeTier?.id), 0),
+      displayTierIndex: Math.max(tiers.findIndex((tier) => tier.id === displayTier?.id), 0),
       readyToCollectCount: readyToCollectTiers.length,
       collectableId: readyToCollectTiers[0]?.id || '',
       isFullyCollected
@@ -143,15 +182,15 @@ export const buildAchievementViewState = ({
       return;
     }
 
-    if (selectedCategory !== 'all' && chainCard.category !== selectedCategory) {
+    if (selectedCategory !== 'all' && !tiers.some((tier) => tier.category === selectedCategory)) {
       return;
     }
 
-    if (selectedTier !== 'all' && chainCard.tier !== selectedTier) {
+    if (selectedTier !== 'all' && !tiers.some((tier) => tier.tier === selectedTier)) {
       return;
     }
 
-    if (showUnlockedOnly && chainCard.unlockedCount === 0) {
+    if (showUnlockedOnly && !tiers.some((tier) => tier.isUnlocked)) {
       return;
     }
 

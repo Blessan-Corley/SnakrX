@@ -17,28 +17,31 @@ export const buildAchievementGridCardState = ({
   userStats
 }) => {
   const isChain = item.type === 'chain';
+  const chainDisplayTier = isChain
+    ? (item.displayTier || item.activeTier || item.tiers?.[0] || null)
+    : null;
   const achievement = isChain
-    ? (item.activeTier || item.tiers?.[0] || null)
+    ? chainDisplayTier
     : item.achievement;
   const visualTier = isChain
-    ? (item.activeTier?.tier || item.tier)
+    ? (chainDisplayTier?.tier || item.tier)
     : achievement?.tier;
   const isUnlocked = isChain
-    ? item.unlockedCount > 0
+    ? !!chainDisplayTier?.isUnlocked
     : isAchievementUnlocked(achievement?.id);
   const tierStyling = getTierStyling(visualTier);
   const isUncollected = isChain
-    ? item.hasUncollected
+    ? !!chainDisplayTier?.isUncollected
     : uncollectedIds.has(achievement?.id);
   const isCollected = isChain
-    ? item.isFullyCollected
+    ? !!chainDisplayTier?.isCollected
     : isUnlocked && !isUncollected;
   const progressSnapshot = userStats && achievement
     ? getAchievementProgressSnapshot(achievement, userStats)
     : defaultProgressSnapshot;
   const progress = isChain
     ? (
-      item.activeTierState === 'ready_to_collect'
+      chainDisplayTier?.isUncollected
         ? 100
         : progressSnapshot.percentage
     )
@@ -50,18 +53,24 @@ export const buildAchievementGridCardState = ({
   const Icon = getIconComponent(isChain ? item.icon : achievement?.icon);
   const statusLabel = isChain
     ? (
-      item.activeTierState === 'ready_to_collect'
+      chainDisplayTier?.isUncollected
         ? 'Reward Ready'
-        : (item.unlockedCount > 0 ? 'Chain In Progress' : 'Locked')
+        : (
+          chainDisplayTier?.isCollected
+            ? 'Collected'
+            : (chainDisplayTier?.isUnlocked ? 'Unlocked' : 'Locked')
+        )
     )
     : (isUncollected ? 'Completed' : (isCollected ? 'Collected' : null));
   const statusClassName = isChain
     ? (
-      item.activeTierState === 'ready_to_collect'
+      chainDisplayTier?.isUncollected
         ? 'bg-amber-500/20 text-amber-300 border border-amber-400/30'
-        : item.unlockedCount > 0
-          ? 'bg-sky-500/20 text-sky-200 border border-sky-400/30'
-          : 'bg-white/10 text-white/65 border border-white/15'
+        : chainDisplayTier?.isCollected
+          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/30'
+          : chainDisplayTier?.isUnlocked
+            ? 'bg-sky-500/20 text-sky-200 border border-sky-400/30'
+            : 'bg-white/10 text-white/65 border border-white/15'
     )
     : (
       isUncollected
