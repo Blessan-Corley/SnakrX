@@ -102,7 +102,10 @@ const useAchievementSelectionState = ({
       setSelectedAchievement(achievementOrChain);
       if (achievementOrChain.type === 'chain') {
         setChainTransitionDirection(1);
-        setActiveChainTierIndex(getPreferredChainTierIndex(achievementOrChain));
+        const preferredTierIndex = Number.isInteger(achievementOrChain.displayTierIndex)
+          ? achievementOrChain.displayTierIndex
+          : getPreferredChainTierIndex(achievementOrChain);
+        setActiveChainTierIndex(preferredTierIndex);
       }
     } else {
       setSelectedAchievement({

@@ -5,13 +5,14 @@ import { validators } from '../../utils/validation.js';
 const mockCreateUser = vi.fn();
 const mockDeleteUser = vi.fn();
 const mockSignIn = vi.fn();
-const mockSendPasswordResetEmail = vi.fn();
 const mockUpdateAuthProfile = vi.fn();
 const mockCompleteEmailRegistration = vi.fn();
+const mockRequestPasswordResetEmail = vi.fn();
 const mockGetDoc = vi.fn();
 const mockRunTransaction = vi.fn();
 const mockDoc = vi.fn((_, collectionName, id) => ({ path: `${collectionName}/${id}`, id }));
 const mockServerTimestamp = vi.fn(() => ({ __serverTimestamp: true }));
+const mockGetDocument = vi.fn();
 const mockUpdateDocument = vi.fn();
 
 const transactionGet = vi.fn();
@@ -23,7 +24,6 @@ vi.mock('../../services/firebase/index.js', () => ({
   signInWithEmailAndPassword: (...args) => mockSignIn(...args),
   createUserWithEmailAndPassword: (...args) => mockCreateUser(...args),
   deleteUser: (...args) => mockDeleteUser(...args),
-  sendPasswordResetEmail: (...args) => mockSendPasswordResetEmail(...args),
   signOut: vi.fn(),
   updateProfile: (...args) => mockUpdateAuthProfile(...args),
   doc: (...args) => mockDoc(...args),
@@ -36,12 +36,17 @@ vi.mock('../../services/firebase/index.js', () => ({
     USERNAMES: 'usernames'
   },
   firestoreOperations: {
+    getDocument: (...args) => mockGetDocument(...args),
     updateDocument: (...args) => mockUpdateDocument(...args)
   }
 }));
 
 vi.mock('../../services/firebase/emailRegistration.js', () => ({
   completeEmailRegistration: (...args) => mockCompleteEmailRegistration(...args)
+}));
+
+vi.mock('../../services/firebase/passwordReset.js', () => ({
+  requestPasswordResetEmail: (...args) => mockRequestPasswordResetEmail(...args)
 }));
 
 vi.mock('react-hot-toast', () => ({
@@ -89,6 +94,7 @@ describe('useAuthOperations', () => {
       set: transactionSet
     }));
     mockCompleteEmailRegistration.mockReset();
+    mockRequestPasswordResetEmail.mockReset();
   });
 
   it('checks username availability from the reservation document', async () => {
@@ -187,10 +193,18 @@ describe('useAuthOperations', () => {
     const currentUser = {
       uid: 'user-9',
       displayName: 'Old Name',
+      email: 'old-name@example.com',
       photoURL: null
     };
     const { auth } = await import('../../services/firebase/index.js');
     auth.currentUser = currentUser;
+    mockGetDocument.mockResolvedValueOnce({
+      exists: () => true,
+      data: () => ({
+        username: 'oldname',
+        displayName: 'Old Name'
+      })
+    });
 
     const { useAuthOperations } = await import('./authOperations.js');
     const { result } = renderHook(() => useAuthOperations());
@@ -202,6 +216,10 @@ describe('useAuthOperations', () => {
         username: 'hijack-attempt',
         avatar: 'avatar.png',
         avatarPath: '/avatars/user-9.png',
+        settings: {
+          soundEnabled: false,
+          soundVolume: 0.25
+        },
         preferences: {
           favoriteGameMode: 'classic',
           privateLeaderboard: true
@@ -221,7 +239,11 @@ describe('useAuthOperations', () => {
     expect(userWrite?.[1]).toMatchObject({
       displayName: 'New Name',
       avatar: 'avatar.png',
-      avatarPath: '/avatars/user-9.png'
+      avatarPath: '/avatars/user-9.png',
+      settings: {
+        soundEnabled: false,
+        soundVolume: 0.25
+      }
     });
     expect(userWrite?.[1]).not.toHaveProperty('username');
     expect(publicWrite?.[1]).toMatchObject({
@@ -231,5 +253,20 @@ describe('useAuthOperations', () => {
       isPrivateLeaderboard: true
     });
     expect(publicWrite?.[1]).not.toHaveProperty('username');
+  });
+
+  it('delegates password reset requests to the custom reset service', async () => {
+    mockRequestPasswordResetEmail.mockResolvedValue({ success: true });
+
+    const { useAuthOperations } = await import('./authOperations.js');
+    const { result } = renderHook(() => useAuthOperations());
+
+    let response;
+    await act(async () => {
+      response = await result.current.resetPassword('Player@Example.com');
+    });
+
+    expect(response).toEqual({ success: true });
+    expect(mockRequestPasswordResetEmail).toHaveBeenCalledWith('Player@Example.com');
   });
 });

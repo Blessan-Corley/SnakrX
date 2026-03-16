@@ -202,12 +202,13 @@ describe('AchievementsPage', () => {
     const dialogs = await screen.findAllByRole('dialog');
     const modal = dialogs[dialogs.length - 1];
 
-    expect(within(modal).getByText('Chain Progress')).toBeInTheDocument();
-    expect(within(modal).getByText('Rookie Grinder')).toBeInTheDocument();
+    expect(within(modal).queryByText(/chain progress/i)).not.toBeInTheDocument();
+    expect(within(modal).getAllByText('Rookie Grinder').length).toBeGreaterThan(0);
     expect(within(modal).getByText('Tier 1 of 2')).toBeInTheDocument();
+    expect(within(modal).getByText(/Next target: Rank Up/i)).toBeInTheDocument();
     expect(within(modal).getByText('Reward Ready')).toBeInTheDocument();
-    expect(within(modal).queryByRole('button', { name: /previous tier/i })).not.toBeInTheDocument();
-    expect(within(modal).getByRole('button', { name: /next tier/i })).toBeInTheDocument();
+    expect(within(modal).getByRole('button', { name: /previous tier/i })).toBeDisabled();
+    expect(within(modal).getByRole('button', { name: /next tier/i })).toBeEnabled();
     expect(within(modal).queryByRole('button', { name: /collect this tier/i })).not.toBeInTheDocument();
 
     await act(async () => {
@@ -220,12 +221,12 @@ describe('AchievementsPage', () => {
     });
 
     expect(within(modal).getByText('Tier 2 of 2')).toBeInTheDocument();
-    expect(within(modal).getByText('Rank Up')).toBeInTheDocument();
+    expect(within(modal).getAllByText('Rank Up').length).toBeGreaterThan(0);
     expect(within(modal).getAllByText('Player level').length).toBeGreaterThan(0);
     expect(within(modal).getAllByText('7/10').length).toBeGreaterThan(0);
     expect(within(modal).getByText(/Keep your profile level climbing/i)).toBeInTheDocument();
-    expect(within(modal).getByRole('button', { name: /previous tier/i })).toBeInTheDocument();
-    expect(within(modal).queryByRole('button', { name: /next tier/i })).not.toBeInTheDocument();
+    expect(within(modal).getByRole('button', { name: /previous tier/i })).toBeEnabled();
+    expect(within(modal).getByRole('button', { name: /next tier/i })).toBeDisabled();
   }, 10000);
 
   it('supports keyboard navigation for chain tiers', async () => {
@@ -311,7 +312,7 @@ describe('AchievementsPage', () => {
       fireEvent.keyDown(document, { key: 'ArrowRight' });
     });
     expect(within(modal).getByText('Tier 3 of 3')).toBeInTheDocument();
-    expect(within(modal).getByText('Snake Veteran')).toBeInTheDocument();
+    expect(within(modal).getAllByText('Snake Veteran').length).toBeGreaterThan(0);
 
     await act(async () => {
       fireEvent.keyDown(document, { key: 'Home' });
@@ -403,5 +404,65 @@ describe('AchievementsPage', () => {
     });
 
     expect(collectAchievementMock).toHaveBeenCalledWith('level_5');
+  });
+
+  it('shows the matched chain tier under filters and opens the modal on that filtered tier', async () => {
+    operationsState.achievements = [
+      {
+        id: 'level_5',
+        title: 'Rookie Grinder',
+        description: 'Reach level 5',
+        tier: 'common',
+        category: 'gameplay',
+        points: 15,
+        icon: 'star',
+        chainId: 'xp_grindset',
+        chainOrder: 1,
+        chainTitle: 'XP Grindset',
+        chainDescription: 'Reach higher levels',
+        requirements: { level: 5 }
+      },
+      {
+        id: 'level_30',
+        title: 'Legend In Progress',
+        description: 'Reach level 30',
+        tier: 'legendary',
+        category: 'gameplay',
+        points: 90,
+        icon: 'crown',
+        chainId: 'xp_grindset',
+        chainOrder: 2,
+        chainTitle: 'XP Grindset',
+        chainDescription: 'Reach higher levels',
+        requirements: { level: 30 }
+      }
+    ];
+    operationsState.unlockedAchievements = [];
+    operationsState.uncollectedAchievements = [];
+    operationsState.recentUnlocks = [];
+    operationsState.isAchievementUnlocked = () => false;
+    operationsState.calculateAchievementProgress = (achievement) => (achievement.id === 'level_30' ? 77 : 20);
+    authState.userProfile.stats.level = 23;
+
+    render(<AchievementsPage />);
+
+    fireEvent.change(screen.getByLabelText(/filter by achievement tier/i), {
+      target: { value: 'legendary' }
+    });
+
+    expect(screen.getByText('Legend In Progress')).toBeInTheDocument();
+    expect(screen.queryByText('Rookie Grinder')).not.toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Legend In Progress'));
+    });
+
+    const dialogs = await screen.findAllByRole('dialog');
+    const modal = dialogs[dialogs.length - 1];
+
+    expect(within(modal).getByText('Tier 2 of 2')).toBeInTheDocument();
+    expect(within(modal).getAllByText('Legend In Progress').length).toBeGreaterThan(0);
+    expect(within(modal).getAllByText('Player level').length).toBeGreaterThan(0);
+    expect(within(modal).getAllByText('23/30').length).toBeGreaterThan(0);
   });
 });
