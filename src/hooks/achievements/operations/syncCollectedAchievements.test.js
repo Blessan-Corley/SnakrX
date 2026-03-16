@@ -32,11 +32,6 @@ describe('syncCollectedAchievementsWithTransaction', () => {
   });
 
   it('ensures missing achievement records exist before collecting them', async () => {
-    mockUnlockAchievement.mockResolvedValueOnce({
-      success: true,
-      unlocked: true,
-      alreadyUnlocked: false
-    });
     mockCollectAchievements.mockResolvedValueOnce({
       collectedIds: ['first_game'],
       achievementPoints: 5
@@ -58,7 +53,6 @@ describe('syncCollectedAchievementsWithTransaction', () => {
       })
     });
 
-    expect(mockUnlockAchievement).toHaveBeenCalledWith('first_game');
     expect(mockCollectAchievements).toHaveBeenCalledWith(['first_game']);
     expect(result.success).toBe(true);
     expect(result.collectedIds).toEqual(['first_game']);
@@ -71,10 +65,9 @@ describe('syncCollectedAchievementsWithTransaction', () => {
   });
 
   it('keeps achievements uncollected when the backend cannot confirm them', async () => {
-    mockUnlockAchievement.mockResolvedValueOnce({
-      success: true,
-      unlocked: false,
-      alreadyUnlocked: false
+    mockCollectAchievements.mockResolvedValueOnce({
+      collectedIds: [],
+      achievementPoints: 0
     });
 
     const result = await syncCollectedAchievementsWithTransaction({
@@ -93,7 +86,7 @@ describe('syncCollectedAchievementsWithTransaction', () => {
       })
     });
 
-    expect(mockCollectAchievements).not.toHaveBeenCalled();
+    expect(mockCollectAchievements).toHaveBeenCalledWith(['first_game']);
     expect(result.success).toBe(false);
     expect(result.collectedIds).toEqual([]);
     expect(result.updated).toEqual([
@@ -136,5 +129,30 @@ describe('syncCollectedAchievementsWithTransaction', () => {
         isPersisted: true
       })
     ]);
+  });
+
+  it('never calls unlockAchievement during collection sync', async () => {
+    mockCollectAchievements.mockResolvedValueOnce({
+      collectedIds: ['first_game'],
+      achievementPoints: 5
+    });
+
+    await syncCollectedAchievementsWithTransaction({
+      achievements: [
+        {
+          id: 'first_game',
+          collected: false,
+          isPersisted: false,
+          unlockedAt: 1000,
+          timestamp: 1000
+        }
+      ],
+      transformAchievements: (currentAchievements) => ({
+        success: true,
+        updated: currentAchievements.map((achievement) => ({ ...achievement, collected: true }))
+      })
+    });
+
+    expect(mockUnlockAchievement).not.toHaveBeenCalled();
   });
 });
