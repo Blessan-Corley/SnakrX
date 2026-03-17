@@ -4,9 +4,12 @@ import { vi } from 'vitest';
 import RegisterPage from './RegisterPage.jsx';
 import LoginPage from './LoginPage.jsx';
 import ForgotPasswordPage from './ForgotPasswordPage.jsx';
+import ResetPasswordPage from './ResetPasswordPage.jsx';
 import { requestEmailOtp, verifyEmailOtp } from '@/services/firebase/emailOtp';
 
 const navigateSpy = vi.fn();
+const mockVerifyPasswordResetCode = vi.fn();
+const mockConfirmPasswordReset = vi.fn();
 
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');
@@ -16,6 +19,12 @@ vi.mock('react-router-dom', async () => {
     useLocation: () => ({ state: { from: '/profile' } })
   };
 });
+
+vi.mock('@/services/firebase/index.js', () => ({
+  auth: {},
+  verifyPasswordResetCode: (...args) => mockVerifyPasswordResetCode(...args),
+  confirmPasswordReset: (...args) => mockConfirmPasswordReset(...args)
+}));
 
 const signUp = vi.fn();
 const signIn = vi.fn();
@@ -58,6 +67,8 @@ describe('Auth Pages', () => {
     checkUsernameAvailability.mockReset();
     requestEmailOtp.mockReset();
     verifyEmailOtp.mockReset();
+    mockVerifyPasswordResetCode.mockReset();
+    mockConfirmPasswordReset.mockReset();
   });
 
   afterEach(() => {
@@ -147,5 +158,46 @@ describe('Auth Pages', () => {
       expect(resetPassword).toHaveBeenCalledWith('reset@example.com');
     });
     expect(screen.getByText(/reset link sent/i)).toBeInTheDocument();
+  });
+
+  it('shows an invalid-link state when the reset code is missing', async () => {
+    render(
+      <MemoryRouter initialEntries={['/reset-password']} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <ResetPasswordPage />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByRole('heading', { name: /invalid reset link/i })).toBeInTheDocument();
+  });
+
+  it('completes the password reset from a valid custom reset link', async () => {
+    mockVerifyPasswordResetCode.mockResolvedValue('player@example.com');
+    mockConfirmPasswordReset.mockResolvedValue(undefined);
+
+    render(
+      <MemoryRouter
+        initialEntries={['/reset-password?mode=resetPassword&oobCode=reset-123']}
+        future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+      >
+        <ResetPasswordPage />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText(/create a new password/i)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText(/^new password$/i), {
+      target: { value: 'StrongPass123' }
+    });
+    fireEvent.change(screen.getByPlaceholderText(/^confirm new password$/i), {
+      target: { value: 'StrongPass123' }
+    });
+    fireEvent.click(screen.getByRole('button', { name: /save new password/i }));
+
+    await waitFor(() => {
+      expect(mockVerifyPasswordResetCode).toHaveBeenCalledWith({}, 'reset-123');
+      expect(mockConfirmPasswordReset).toHaveBeenCalledWith({}, 'reset-123', 'StrongPass123');
+    });
+
+    expect(await screen.findByText(/password updated successfully/i)).toBeInTheDocument();
   });
 });

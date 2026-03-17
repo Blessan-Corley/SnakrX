@@ -11,25 +11,52 @@ vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => authState
 }));
 
-vi.mock('@/services/firebase', () => ({
-  adminOperations: {
-    getUsers: vi.fn().mockResolvedValue([]),
-    getRecentGames: vi.fn().mockResolvedValue([]),
-    setUserBanState: vi.fn().mockResolvedValue({ id: 'admin-1', banned: true })
-  },
-}));
-
-vi.mock('@/services/firebase/support.js', () => ({
-  supportOperations: {
-    getRecentTickets: vi.fn(),
-    updateTicketStatus: vi.fn(),
-    updateTicket: vi.fn(),
-    subscribeToRecentTickets: vi.fn(() => vi.fn())
-  }
-}));
-
 vi.mock('@/utils/sound', () => ({
   playClick: vi.fn()
+}));
+
+vi.mock('./useAdminDataController.js', () => ({
+  useAdminDataController: () => ({
+    error: '',
+    applyGameFilters: vi.fn(),
+    applyTicketFilters: vi.fn(),
+    applyUserFilters: vi.fn(),
+    fetchSupportTickets: vi.fn(),
+    gameFilters: { draft: {}, active: {} },
+    handleTicketUpdate: vi.fn(),
+    handleUserBan: vi.fn(),
+    historyLoading: false,
+    matchHistory: [],
+    moderatingUserId: null,
+    overviewLoading: false,
+    previousGamesPage: vi.fn(),
+    previousUsersPage: vi.fn(),
+    refreshMatchHistory: vi.fn(),
+    gamesPagination: { page: 1, limit: 20, hasNext: false, hasPrev: false },
+    refreshUsers: vi.fn(),
+    setError: vi.fn(),
+    stats: {},
+    supportInboxBadge: 0,
+    supportTicketSummary: { open: 0, needsReply: 0, resolved: 0 },
+    supportTickets: [],
+    supportTicketsPagination: { page: 1, limit: 10, hasNext: false, hasPrev: false },
+    ticketFilters: { draft: {}, active: {} },
+    ticketsLoading: false,
+    updateGameDraftFilter: vi.fn(),
+    updateTicketDraftFilter: vi.fn(),
+    updateUserDraftFilter: vi.fn(),
+    users: [],
+    userFilters: { draft: {}, active: {} },
+    usersLoading: false,
+    usersPagination: { page: 1, limit: 25, hasNext: false, hasPrev: false },
+    nextGamesPage: vi.fn(),
+    nextSupportTicketsPage: vi.fn(),
+    nextUsersPage: vi.fn(),
+    previousSupportTicketsPage: vi.fn(),
+    resetGameFilters: vi.fn(),
+    resetTicketFilters: vi.fn(),
+    resetUserFilters: vi.fn()
+  })
 }));
 
 vi.mock('@/components/admin', () => ({
