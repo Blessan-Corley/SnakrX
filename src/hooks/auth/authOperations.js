@@ -8,7 +8,6 @@ import {
   auth,
   db,
   signInWithEmailAndPassword,
-  sendPasswordResetEmail,
   signOut,
   updateProfile as updateAuthProfile,
   COLLECTIONS
@@ -21,6 +20,7 @@ import {
   getSignInErrorMessage,
   getSignUpErrorMessage
 } from './authOperationErrors.js';
+import { requestPasswordResetEmail } from '../../services/firebase/passwordReset.js';
 import { checkUsernameAvailabilityRequest } from './operations/usernameAvailability.js';
 import { registerUserAccount } from './operations/signUpWorkflow.js';
 import { updateUserProfileData } from './operations/profileUpdates.js';
@@ -117,7 +117,7 @@ export const useAuthOperations = () => {
     setError(null);
 
     try {
-      await sendPasswordResetEmail(auth, email);
+      await requestPasswordResetEmail(email);
       toast.success(`Password reset link sent to ${email}. Please check your inbox.`);
       return { success: true };
     } catch (err) {

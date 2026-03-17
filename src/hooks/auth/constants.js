@@ -113,7 +113,7 @@ export const createDefaultUserProfile = (firebaseUser) => ({
   },
   settings: {
     soundEnabled: true,
-    soundVolume: 0.7,
+    soundVolume: 1,
     showGrid: true,
   },
   preferences: {

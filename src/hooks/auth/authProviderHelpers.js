@@ -12,7 +12,7 @@ import {
   buildPublicProfilePreferences
 } from '../../services/firebase/publicProfileStats.js';
 import logger from '../../utils/logger.js';
-import { buildHydratedUserProfile } from './profileRefresh.js';
+import { hydrateUserProfileState } from './profileRefresh.js';
 
 export const ensureUsernameReservation = async (firebaseUser, username) => {
   const normalizedUsername = typeof username === 'string' ? username.trim().toLowerCase() : '';
@@ -73,7 +73,7 @@ export const bindRealtimeProfileSnapshot = ({
     if (!snapshot.exists() || !isMountedRef.current) return;
     const userData = snapshot.data();
     setIfMounted(() => {
-      setUserProfile(buildHydratedUserProfile(firebaseUser, userData));
+      hydrateUserProfileState(firebaseUser, userData, setUserProfile);
     });
   },
   (error) => {
