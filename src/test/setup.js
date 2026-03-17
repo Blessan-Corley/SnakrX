@@ -215,7 +215,9 @@ vi.mock('@/utils/sound', () => ({
   getMuted: vi.fn(),
   toggleMute: vi.fn(),
   setVolume: vi.fn(),
-  getVolume: vi.fn()
+  getVolume: vi.fn(),
+  subscribeSoundSettings: vi.fn(),
+  applyProfileSoundSettings: vi.fn()
 }));
 
 // Global test utilities

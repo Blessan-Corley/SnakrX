@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT_ENV_PATH = path.resolve(__dirname, '..', '.env');
+const FUNCTIONS_ENV_PATH = path.resolve(__dirname, '..', 'functions', '.env');
 
 const parseEnvFile = (filePath) => {
   if (!fs.existsSync(filePath)) {
@@ -24,13 +25,7 @@ const parseEnvFile = (filePath) => {
     }, {});
 };
 
-const envFile = parseEnvFile(ROOT_ENV_PATH);
-const env = {
-  ...envFile,
-  ...process.env
-};
-
-const requiredKeys = [
+const REQUIRED_KEYS = [
   'VITE_FIREBASE_API_KEY',
   'VITE_FIREBASE_AUTH_DOMAIN',
   'VITE_FIREBASE_PROJECT_ID',
@@ -40,18 +35,53 @@ const requiredKeys = [
   'EMAIL_USER',
   'EMAIL_PASS',
   'EMAIL_FROM',
-  'SUPPORT_EMAIL_TO',
   'OTP_SALT'
 ];
 
-const missingKeys = requiredKeys.filter((key) => !String(env[key] || '').trim());
+const resolveDeployEnv = ({
+  rootEnvPath = ROOT_ENV_PATH,
+  functionsEnvPath = FUNCTIONS_ENV_PATH,
+  processEnv = process.env
+} = {}) => {
+  const rootEnv = parseEnvFile(rootEnvPath);
+  const functionsEnv = parseEnvFile(functionsEnvPath);
 
-if (missingKeys.length > 0) {
-  console.error('Missing deploy environment variables:');
-  missingKeys.forEach((key) => {
-    console.error(`- ${key}`);
-  });
-  process.exit(1);
+  return {
+    ...functionsEnv,
+    ...rootEnv,
+    ...processEnv
+  };
+};
+
+const getMissingKeys = (env, requiredKeys = REQUIRED_KEYS) => (
+  requiredKeys.filter((key) => !String(env[key] || '').trim())
+);
+
+const main = () => {
+  const env = resolveDeployEnv();
+  const missingKeys = getMissingKeys(env);
+
+  if (missingKeys.length > 0) {
+    console.error('Missing deploy environment variables:');
+    missingKeys.forEach((key) => {
+      console.error(`- ${key}`);
+    });
+    process.exit(1);
+  }
+
+  console.log('Deploy environment validation passed.');
+};
+
+if (require.main === module) {
+  main();
 }
 
-console.log('Deploy environment validation passed.');
+module.exports = {
+  FUNCTIONS_ENV_PATH,
+  REQUIRED_KEYS,
+  ROOT_ENV_PATH,
+  getMissingKeys,
+  main,
+  parseEnvFile,
+  resolveDeployEnv
+};
