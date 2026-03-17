@@ -21,21 +21,47 @@ const AdminPage = () => {
   const { userProfile } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'users');
-  const [searchTerm, setSearchTerm] = useState('');
   const isAdmin = userProfile?.role === 'admin';
   const {
     error,
+    applyGameFilters,
+    applyTicketFilters,
+    applyUserFilters,
     fetchSupportTickets,
-    fetchUsers,
+    gameFilters,
     handleTicketUpdate,
     handleUserBan,
-    loading,
+    historyLoading,
     matchHistory,
+    moderatingUserId,
+    overviewLoading,
+    previousGamesPage,
+    previousUsersPage,
+    refreshMatchHistory,
+    gamesPagination,
+    refreshUsers,
     setError,
     stats,
     supportInboxBadge,
+    supportTicketSummary,
     supportTickets,
-    users
+    supportTicketsPagination,
+    ticketFilters,
+    ticketsLoading,
+    updateGameDraftFilter,
+    updateTicketDraftFilter,
+    updateUserDraftFilter,
+    users,
+    userFilters,
+    usersLoading,
+    usersPagination,
+    nextGamesPage,
+    nextSupportTicketsPage,
+    nextUsersPage,
+    previousSupportTicketsPage,
+    resetGameFilters,
+    resetTicketFilters,
+    resetUserFilters
   } = useAdminDataController({ activeTab, isAdmin });
 
   useEffect(() => {
@@ -103,7 +129,7 @@ const AdminPage = () => {
         </motion.div>
 
         {/* Stats Overview */}
-        <AdminStats stats={stats} />
+        <AdminStats stats={stats} loading={overviewLoading} />
 
         {/* Navigation Tabs */}
         <AdminTabs activeTab={activeTab} onTabChange={setActiveTab} ticketBadge={supportInboxBadge} />
@@ -120,16 +146,33 @@ const AdminPage = () => {
             {activeTab === 'users' && (
               <UsersTab
                 users={users}
-                loading={loading}
-                searchTerm={searchTerm}
-                onSearchChange={setSearchTerm}
-                onRefresh={fetchUsers}
+                loading={usersLoading}
+                moderatingUserId={moderatingUserId}
+                filters={userFilters}
+                onFilterChange={updateUserDraftFilter}
+                onApplyFilters={applyUserFilters}
+                onResetFilters={resetUserFilters}
+                onRefresh={refreshUsers}
                 onBanUser={handleUserBan}
+                pagination={usersPagination}
+                onPrevPage={previousUsersPage}
+                onNextPage={nextUsersPage}
               />
             )}
 
             {activeTab === 'history' && (
-              <MatchHistoryTab matchHistory={matchHistory} loading={loading} />
+              <MatchHistoryTab
+                matchHistory={matchHistory}
+                loading={historyLoading}
+                filters={gameFilters}
+                onFilterChange={updateGameDraftFilter}
+                onApplyFilters={applyGameFilters}
+                onResetFilters={resetGameFilters}
+                pagination={gamesPagination}
+                onPrevPage={previousGamesPage}
+                onNextPage={nextGamesPage}
+                onRefresh={refreshMatchHistory}
+              />
             )}
 
             {activeTab === 'analytics' && (
@@ -139,9 +182,17 @@ const AdminPage = () => {
             {activeTab === 'tickets' && (
               <SupportTicketsTab
                 tickets={supportTickets}
-                loading={loading}
+                loading={ticketsLoading}
+                filters={ticketFilters}
+                summary={supportTicketSummary}
+                onFilterChange={updateTicketDraftFilter}
+                onApplyFilters={applyTicketFilters}
+                onResetFilters={resetTicketFilters}
                 onRefresh={fetchSupportTickets}
                 onUpdateTicket={handleTicketUpdate}
+                pagination={supportTicketsPagination}
+                onPrevPage={previousSupportTicketsPage}
+                onNextPage={nextSupportTicketsPage}
               />
             )}
           </motion.div>
