@@ -128,4 +128,48 @@ describe('PublicProfilePage', () => {
     });
     expect(screen.getByRole('button', { name: /request sent/i })).toBeDisabled();
   });
+
+  it('shows per-match xp in recent public match history', async () => {
+    getDocumentMock.mockResolvedValue({
+      exists: () => true,
+      data: () => ({
+        displayName: 'Teammate',
+        username: 'teammate',
+        stats: {
+          totalGames: 12,
+          bestScore: 450,
+          xp: 100
+        },
+        createdAt: Date.now(),
+        lastActiveAt: Date.now()
+      })
+    });
+    getPublicRecentGamesMock.mockResolvedValue([
+      {
+        id: 'game-1',
+        mode: 'vsai',
+        difficulty: 'medium',
+        score: 900,
+        duration: 45,
+        result: 'won',
+        xpGained: 63,
+        endedAt: Date.now()
+      }
+    ]);
+
+    render(
+      <MemoryRouter
+        initialEntries={['/player/u2']}
+        future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+      >
+        <Routes>
+          <Route path="/player/:userId" element={<PublicProfilePage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('+63 XP')).toBeInTheDocument();
+    });
+  });
 });
