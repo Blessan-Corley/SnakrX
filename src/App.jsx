@@ -17,6 +17,7 @@ import RegisterPage from './pages/auth/RegisterPage.jsx';
 // Lazy load other components
 const LandingPage = lazy(() => import('./pages/LandingPage.jsx'));
 const ForgotPasswordPage = lazy(() => import('./pages/auth/ForgotPasswordPage.jsx'));
+const ResetPasswordPage = lazy(() => import('./pages/auth/ResetPasswordPage.jsx'));
 const HomePage = lazy(() => import('./pages/HomePage.jsx'));
 const GamePage = lazy(() => import('./pages/game/GamePage.jsx'));
 const Game = lazy(() => import('./pages/game/Game.jsx'));
@@ -51,6 +52,7 @@ function App() {
                 <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
                 <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
                 <Route path="/forgot-password" element={<PublicRoute><ForgotPasswordPage /></PublicRoute>} />
+                <Route path="/reset-password" element={<PublicRoute><ResetPasswordPage /></PublicRoute>} />
                 <Route path="/privacy" element={<PrivacyPage />} />
                 <Route path="/terms" element={<TermsPage />} />
                 <Route path="/support" element={<SupportPage />} />
