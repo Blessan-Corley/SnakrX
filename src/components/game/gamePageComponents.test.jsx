@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import AchievementUnlockModal from './AchievementUnlockModal.jsx';
+import GameModeConfigurationPanel from './GameModeConfigurationPanel.jsx';
 import GameReadyOverlay from './GameReadyOverlay.jsx';
 import GameResultModal from './GameResultModal.jsx';
+import { Cpu } from 'lucide-react';
 
 const gameStates = {
   READY: 'ready'
@@ -94,5 +96,37 @@ describe('game page components', () => {
     expect(screen.getByTestId('achievement-icon')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Awesome!' }));
     expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it('renders VS AI difficulty cards in a multiplayer-style compact grid', () => {
+    const onBack = vi.fn();
+
+    render(
+      <GameModeConfigurationPanel
+        aiDifficulty="medium"
+        bonusFoodToggle={() => <div>Bonus toggle</div>}
+        onBack={onBack}
+        onDifficultySelect={vi.fn()}
+        onPlayerCountChange={vi.fn()}
+        onPlayerCountSelect={vi.fn()}
+        onStartGame={vi.fn()}
+        playerCount={2}
+        selectedMode={{
+          id: 'vsai',
+          title: 'VS AI Mode',
+          Icon: Cpu
+        }}
+      />
+    );
+
+    const difficultyGrid = screen.getByTestId('vsai-difficulty-grid');
+
+    expect(difficultyGrid.className).toContain('md:grid-cols-3');
+    expect(screen.getByRole('button', { name: /easy/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /medium/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /impossible/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /view all modes/i }));
+    expect(onBack).toHaveBeenCalledOnce();
   });
 });

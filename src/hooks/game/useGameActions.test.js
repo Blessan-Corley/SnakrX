@@ -34,7 +34,8 @@ vi.mock('../../utils/logger.js', () => ({
 
 vi.mock('react-hot-toast', () => ({
   default: {
-    error: vi.fn()
+    error: vi.fn(),
+    success: vi.fn()
   }
 }));
 
@@ -136,5 +137,39 @@ describe('useGameActions', () => {
       playerCount: 1
     });
     expect(props.setGameState).toHaveBeenCalledWith(nextState);
+  });
+
+  it('shows a start toast with the selected session details during initialization', async () => {
+    const nextState = { gameState: GAME_STATES.READY };
+    mockBuildInitialGameSessionState.mockReturnValue(nextState);
+    const props = createProps();
+    const toast = (await import('react-hot-toast')).default;
+
+    const { result } = renderHook(() => useGameActions(props));
+
+    await act(async () => {
+      await result.current.initializeGame(GAME_MODES.MULTIPLAYER, 'medium', 3, true);
+    });
+
+    expect(toast.success).toHaveBeenCalledWith('Starting Multiplayer Mode - 3 Players', {
+      id: 'session-start:multiplayer:medium:3'
+    });
+  });
+
+  it('uses a stable toast id for session start notifications', async () => {
+    const nextState = { gameState: GAME_STATES.READY };
+    mockBuildInitialGameSessionState.mockReturnValue(nextState);
+    const props = createProps();
+    const toast = (await import('react-hot-toast')).default;
+
+    const { result } = renderHook(() => useGameActions(props));
+
+    await act(async () => {
+      await result.current.initializeGame(GAME_MODES.MULTIPLAYER, 'medium', 3, true);
+    });
+
+    expect(toast.success).toHaveBeenCalledWith('Starting Multiplayer Mode - 3 Players', {
+      id: 'session-start:multiplayer:medium:3'
+    });
   });
 });
