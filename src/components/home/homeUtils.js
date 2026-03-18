@@ -31,7 +31,6 @@ export const buildQuickStats = ({
   {
     title: 'Total Score',
     value: formatScore(userStats.totalScore || 0),
-    trend: userStats.totalScore > 0 ? 15 : 0,
     subtitle: 'All time points'
   },
   {
@@ -42,7 +41,6 @@ export const buildQuickStats = ({
   {
     title: 'Games Played',
     value: userStats.totalGames || 0,
-    trend: userStats.totalGames > 10 ? 8 : 0,
     subtitle: 'Total matches'
   },
   {

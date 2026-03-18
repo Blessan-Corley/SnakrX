@@ -1,7 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import {
-  Gamepad2,
   Menu,
   Volume2,
   VolumeX,
@@ -11,6 +10,7 @@ import { useAuth, useAuthOperations } from '../../hooks/useAuth.js';
 import { useFriends } from '../../hooks/useFriends.js';
 import { useAchievements } from '../../hooks/useAchievements.js';
 import Button from '../ui/Button.jsx';
+import SnakrXLogo from '../ui/SnakrXLogo.jsx';
 import UserAvatar from '../ui/UserAvatar.jsx';
 import * as sound from '@/utils/sound';
 import HeaderNavItem from './header/HeaderNavItem.jsx';
@@ -53,21 +53,7 @@ const Header = ({ onToggleSidebar, sidebarOpen }) => {
               className="flex items-center space-x-3 group"
               onClick={() => sound.playClick()}
             >
-              <motion.div
-                whileHover={{ rotate: 360 }}
-                transition={{ duration: 0.6 }}
-                className="flex items-center justify-center text-2xl text-white"
-              >
-                <Gamepad2 size={24} />
-              </motion.div>
-              <div>
-                <h1 className="text-xl font-bold bg-gradient-sunset bg-clip-text text-transparent">
-                  SnakrX
-                </h1>
-                <p className="text-xs text-white/50 leading-none">
-                  Gaming Experience
-                </p>
-              </div>
+              <SnakrXLogo rotateOnHover />
             </Link>
           </div>
 

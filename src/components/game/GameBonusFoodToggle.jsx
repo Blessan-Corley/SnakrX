@@ -1,5 +1,10 @@
-const GameBonusFoodToggle = ({ bonusFoodEnabled, description, onToggle }) => (
-  <div className="bg-white/5 border border-white/10 rounded-2xl p-4 mb-8">
+const GameBonusFoodToggle = ({
+  bonusFoodEnabled,
+  className = '',
+  description,
+  onToggle
+}) => (
+  <div className={`bg-white/5 border border-white/10 rounded-2xl p-4 ${className}`.trim()}>
     <div className="flex items-start justify-between gap-4">
       <div>
         <h3 className="text-lg font-semibold text-white">Large Bonus Food</h3>

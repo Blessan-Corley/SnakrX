@@ -29,11 +29,11 @@ export const useAchievementCollectionOperations = ({
       const result = await syncCollectedAchievements((normalizedAchievements) => {
         const achievementRecord = normalizedAchievements.find((achievement) => achievement.id === achievementId);
         if (!achievementRecord) {
-          return { success: false, updated: normalizedAchievements, pendingIds: [] };
+          return { success: false, updated: normalizedAchievements, attemptedIds: [] };
         }
 
         if (achievementRecord.collected) {
-          return { success: true, updated: normalizedAchievements, pendingIds: [] };
+          return { success: true, updated: normalizedAchievements, attemptedIds: [] };
         }
 
         return {
@@ -41,22 +41,22 @@ export const useAchievementCollectionOperations = ({
           updated: normalizedAchievements.map((achievement) => (
             achievement.id === achievementId ? { ...achievement, collected: true } : achievement
           )),
-          pendingIds: [achievementId]
+          attemptedIds: [achievementId]
         };
       });
 
-      if (!result.success) return false;
+      if (!result.success) {
+        toast.error('Could not collect this achievement right now.');
+        return false;
+      }
 
-      setUnlockedAchievements((previous) =>
-        previous.map((achievement) => (
-          achievement.id === achievementId ? { ...achievement, collected: true } : achievement
-        ))
-      );
-      setUncollectedAchievements((previous) => previous.filter((achievement) => achievement.id !== achievementId));
-      setRecentUnlocks((previous) => previous.filter((achievement) => achievement.id !== achievementId));
+      const collectedIds = new Set(result.collectedIds || []);
+      setUnlockedAchievements(result.updated || unlockedAchievements);
+      setUncollectedAchievements((result.updated || unlockedAchievements).filter((achievement) => !achievement.collected));
+      setRecentUnlocks((previous) => previous.filter((achievement) => !collectedIds.has(achievement.id)));
 
       if (refreshProfile) {
-        refreshProfile();
+        await refreshProfile();
       }
 
       toast.success(`Collected: ${catalog?.title || 'Achievement'}`);
@@ -71,7 +71,8 @@ export const useAchievementCollectionOperations = ({
     setRecentUnlocks,
     setUncollectedAchievements,
     setUnlockedAchievements,
-    syncCollectedAchievements
+    syncCollectedAchievements,
+    unlockedAchievements
   ]);
 
   const collectAllAchievements = useCallback(async () => {
@@ -80,46 +81,44 @@ export const useAchievementCollectionOperations = ({
 
     try {
       const result = await syncCollectedAchievements((normalizedAchievements) => {
-        const pendingIds = normalizedAchievements
+        const attemptedIds = normalizedAchievements
           .filter((achievement) => !achievement.collected)
           .map((achievement) => achievement.id);
 
-        if (!pendingIds.length) {
-          return { success: true, updated: normalizedAchievements, pendingIds: [] };
+        if (!attemptedIds.length) {
+          return { success: true, updated: normalizedAchievements, attemptedIds: [] };
         }
 
         return {
           success: true,
           updated: normalizedAchievements.map((achievement) => (
-            pendingIds.includes(achievement.id)
+            attemptedIds.includes(achievement.id)
               ? { ...achievement, collected: true }
               : achievement
           )),
-          pendingIds
+          attemptedIds
         };
       });
 
       if (!result.success) {
+        toast.error('Could not collect achievements right now.');
         return false;
       }
 
-      const pendingIds = new Set(result.pendingIds || []);
-      if (!pendingIds.size) {
-        setUncollectedAchievements([]);
+      const collectedIds = new Set(result.collectedIds || []);
+      const nextUnlockedAchievements = result.updated || unlockedAchievements;
+
+      if (!collectedIds.size) {
         return true;
       }
 
-      setUnlockedAchievements((previous) => previous.map((achievement) => (
-        pendingIds.has(achievement.id)
-          ? { ...achievement, collected: true }
-          : achievement
-      )));
-      setUncollectedAchievements([]);
-      setRecentUnlocks((previous) => previous.filter((achievement) => !pendingIds.has(achievement.id)));
+      setUnlockedAchievements(nextUnlockedAchievements);
+      setUncollectedAchievements(nextUnlockedAchievements.filter((achievement) => !achievement.collected));
+      setRecentUnlocks((previous) => previous.filter((achievement) => !collectedIds.has(achievement.id)));
 
-      toast.success(`Collected ${pendingIds.size} achievement${pendingIds.size > 1 ? 's' : ''}`);
+      toast.success(`Collected ${collectedIds.size} achievement${collectedIds.size > 1 ? 's' : ''}`);
       if (refreshProfile) {
-        refreshProfile();
+        await refreshProfile();
       }
       return true;
     } catch (error) {
@@ -132,6 +131,7 @@ export const useAchievementCollectionOperations = ({
     setUncollectedAchievements,
     setUnlockedAchievements,
     syncCollectedAchievements,
+    unlockedAchievements,
     uncollectedAchievements
   ]);
 

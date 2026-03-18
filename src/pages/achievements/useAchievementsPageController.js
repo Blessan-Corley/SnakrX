@@ -97,9 +97,11 @@ const useAchievementsPageController = () => {
     collectBurst,
     collectingAchievementId,
     handleCollectAction,
+    handleCollectAllAction,
+    isCollectingAll,
     pendingCollectedTierId,
     setPendingCollectedTierId
-  } = useAchievementCollectionState({ collectAchievement });
+  } = useAchievementCollectionState({ collectAchievement, collectAllAchievements });
   const selectedChainTierStyling = resolveTierStyling(
     selectedChainTier?.tier || selectedChain?.tier || 'common',
     achievementTiers
@@ -154,6 +156,7 @@ const useAchievementsPageController = () => {
     collectingAchievementId,
     collectBurst,
     completionPercentage,
+    handleCollectAllAction,
     filteredAchievements,
     getTierStyling,
     handleAchievementClick,
@@ -163,6 +166,7 @@ const useAchievementsPageController = () => {
     handleShareAchievement,
     handleToggleUnlockedOnly,
     isAchievementUnlocked,
+    isCollectingAll,
     loading,
     navigateChainTier,
     recentUnlockCount: recentUnlocks.length,
@@ -189,7 +193,6 @@ const useAchievementsPageController = () => {
     uncollectedAchievements,
     uncollectedIds,
     userStats: userProfile?.stats,
-    collectAllAchievements,
     calculateAchievementProgress
   };
 };

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-const useAchievementCollectionState = ({ collectAchievement }) => {
+const useAchievementCollectionState = ({ collectAchievement, collectAllAchievements }) => {
   const [collectingAchievementId, setCollectingAchievementId] = useState('');
+  const [isCollectingAll, setIsCollectingAll] = useState(false);
   const [pendingCollectedTierId, setPendingCollectedTierId] = useState('');
   const [collectBurst, setCollectBurst] = useState(null);
   const collectingAchievementIdRef = useRef('');
@@ -45,10 +46,23 @@ const useAchievementCollectionState = ({ collectAchievement }) => {
     }
   }, [collectAchievement]);
 
+  const handleCollectAllAction = useCallback(async () => {
+    if (isCollectingAll) return false;
+
+    setIsCollectingAll(true);
+    try {
+      return await collectAllAchievements();
+    } finally {
+      setIsCollectingAll(false);
+    }
+  }, [collectAllAchievements, isCollectingAll]);
+
   return {
     collectBurst,
     collectingAchievementId,
     handleCollectAction,
+    handleCollectAllAction,
+    isCollectingAll,
     pendingCollectedTierId,
     setPendingCollectedTierId
   };

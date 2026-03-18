@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { Gamepad2, Star, Trophy, Award } from 'lucide-react';
 import { StatsCard } from '@/components/ui/Card';
+import SnakrXLogo from '@/components/ui/SnakrXLogo.jsx';
 import TypewriterText from './TypewriterText.jsx';
 
 const getQuickStatIcon = (title) => {
@@ -27,18 +28,25 @@ const HomeHeroSection = ({
         initial={{ scale: 0 }}
         animate={{ scale: 1 }}
         transition={{ duration: 0.6, type: 'spring', stiffness: 200 }}
-        className="flex items-center justify-center text-6xl mb-4 text-white"
+        className="flex justify-center mb-5"
       >
-        <Gamepad2 size={48} />
+        <SnakrXLogo
+          size="xl"
+          showSubtitle={false}
+          showTitle={false}
+          rotateOnHover
+          className="justify-center"
+          markClassName="mx-auto"
+        />
       </motion.div>
 
-      <h1 className="text-4xl md:text-6xl font-bold mb-4">
+      <h1 className="text-4xl md:text-6xl font-bold mb-5 text-center">
         <span className="bg-gradient-sunset bg-clip-text text-transparent">
           SnakrX
         </span>
       </h1>
 
-      <div className="text-xl md:text-2xl text-white/80 h-8 flex items-center justify-center">
+      <div className="text-xl md:text-2xl text-white/80 h-8 flex items-center justify-center text-center">
         <TypewriterText
           text={`Welcome back, ${userDisplayName}!`}
           onComplete={onTypingComplete}

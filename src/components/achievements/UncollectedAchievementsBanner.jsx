@@ -4,7 +4,11 @@ import Button from '@/components/ui/Button.jsx';
 import Card from '@/components/ui/Card.jsx';
 import { getIconComponent } from '@/utils/iconMap.js';
 
-const UncollectedAchievementsBanner = ({ uncollectedAchievements, onCollectAll }) => {
+const UncollectedAchievementsBanner = ({
+  isCollectingAll = false,
+  uncollectedAchievements,
+  onCollectAll
+}) => {
   if (!uncollectedAchievements.length) return null;
 
   return (
@@ -31,11 +35,12 @@ const UncollectedAchievementsBanner = ({ uncollectedAchievements, onCollectAll }
           </div>
           <div className="flex space-x-3">
             <Button
-              variant="secondary"
+              variant="primary"
               size="lg"
               onClick={onCollectAll}
               icon={<Sparkles size={20} />}
               className="animate-pulse"
+              loading={isCollectingAll}
             >
               Collect All
             </Button>

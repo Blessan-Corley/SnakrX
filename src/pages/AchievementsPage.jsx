@@ -19,7 +19,6 @@ const AchievementsPage = () => {
     collectedAchievements,
     collectingAchievementId,
     collectBurst,
-    collectAllAchievements,
     completionPercentage,
     filteredAchievements,
     getTierStyling,
@@ -27,9 +26,11 @@ const AchievementsPage = () => {
     handleCategoryChange,
     handleClearFilters,
     handleCollectAction,
+    handleCollectAllAction,
     handleShareAchievement,
     handleToggleUnlockedOnly,
     isAchievementUnlocked,
+    isCollectingAll,
     loading,
     navigateChainTier,
     recentUnlockCount,
@@ -73,8 +74,9 @@ const AchievementsPage = () => {
         />
 
         <UncollectedAchievementsBanner
+          isCollectingAll={isCollectingAll}
           uncollectedAchievements={uncollectedAchievements}
-          onCollectAll={() => collectAllAchievements()}
+          onCollectAll={handleCollectAllAction}
         />
 
         <AchievementFilters

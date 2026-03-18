@@ -91,44 +91,108 @@ export const getAchievementById = (id) => {
   return ACHIEVEMENTS.find((achievement) => achievement.id === id);
 };
 
+const toSafeNumber = (value) => {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : 0;
+};
+
+const normalizeStatsForAchievementChecks = (stats = {}) => {
+  const aiEasyWins = toSafeNumber(stats.aiEasyWins);
+  const aiMediumWins = toSafeNumber(stats.aiMediumWins);
+  const aiImpossibleWins = toSafeNumber(stats.aiImpossibleWins);
+
+  return {
+    ...stats,
+    games: toSafeNumber(stats.games ?? stats.totalGames),
+    wins: toSafeNumber(stats.wins ?? stats.totalWins),
+    totalScore: toSafeNumber(stats.totalScore),
+    singleScore: toSafeNumber(stats.singleScore ?? stats.bestScore),
+    survivalTime: toSafeNumber(stats.survivalTime ?? stats.maxSurvivalTime),
+    totalPlayTime: toSafeNumber(stats.totalPlayTime),
+    maxSpeed: toSafeNumber(stats.maxSpeed),
+    maxLength: toSafeNumber(stats.maxLength),
+    moves: toSafeNumber(stats.moves),
+    foodEaten: toSafeNumber(stats.foodEaten),
+    fastEats: toSafeNumber(stats.fastEats),
+    closeCalls: toSafeNumber(stats.closeCalls),
+    wallHits: toSafeNumber(stats.wallHits),
+    selfHits: toSafeNumber(stats.selfHits),
+    quickDeaths: toSafeNumber(stats.quickDeaths),
+    winStreak: toSafeNumber(stats.winStreak ?? Math.max(
+      toSafeNumber(stats.currentWinStreak),
+      toSafeNumber(stats.bestWinStreak)
+    )),
+    aiEasyWins,
+    aiMediumWins,
+    aiImpossibleWins,
+    aiImpossibleStreak: toSafeNumber(stats.aiImpossibleStreak),
+    aiWins: toSafeNumber(stats.aiWins ?? (aiEasyWins + aiMediumWins + aiImpossibleWins)),
+    multiplayerGames: toSafeNumber(stats.multiplayerGames),
+    multiplayerWins: toSafeNumber(stats.multiplayerWins),
+    multiplayerGames4Player: toSafeNumber(stats.multiplayerGames4Player),
+    multiplayerWins4Player: toSafeNumber(stats.multiplayerWins4Player),
+    multiplayerWins4PlayerAllAbove50: toSafeNumber(stats.multiplayerWins4PlayerAllAbove50),
+    transparentScore: toSafeNumber(stats.transparentScore),
+    friendsCount: toSafeNumber(stats.friendsCount),
+    level: toSafeNumber(stats.level),
+    leaderboardTop100Finishes: toSafeNumber(stats.leaderboardTop100Finishes),
+    leaderboardTop10Finishes: toSafeNumber(stats.leaderboardTop10Finishes),
+    leaderboardTop3Finishes: toSafeNumber(stats.leaderboardTop3Finishes),
+    leaderboardRank1Finishes: toSafeNumber(stats.leaderboardRank1Finishes),
+    achievementLeaderboardTop10Finishes: toSafeNumber(stats.achievementLeaderboardTop10Finishes),
+    overallLeaderboardTop10Finishes: toSafeNumber(stats.overallLeaderboardTop10Finishes),
+    leaderboardTop3BestWeekStreak: toSafeNumber(stats.leaderboardTop3BestWeekStreak),
+    weeklyLeaderboardTop100Finishes: toSafeNumber(stats.weeklyLeaderboardTop100Finishes),
+    weeklyLeaderboardTop10Finishes: toSafeNumber(stats.weeklyLeaderboardTop10Finishes),
+    weeklyLeaderboardTop3Finishes: toSafeNumber(stats.weeklyLeaderboardTop3Finishes),
+    weeklyLeaderboardRank1Finishes: toSafeNumber(stats.weeklyLeaderboardRank1Finishes),
+    weeklyOverallTop10Finishes: toSafeNumber(stats.weeklyOverallTop10Finishes),
+    weeklyTop3BestWeekStreak: toSafeNumber(stats.weeklyTop3BestWeekStreak),
+    perfectGame: stats.perfectGame === true,
+    earlyUser: stats.earlyUser === true,
+    difficulty: typeof stats.difficulty === 'string' ? stats.difficulty : null
+  };
+};
+
 export const checkAchievementRequirements = (achievement, userStats) => {
   if (!achievement || !achievement.requirements || !userStats) {
     return false;
   }
 
+  const normalizedStats = normalizeStatsForAchievementChecks(userStats);
   const { requirements } = achievement;
 
   if (achievement.id === 'ai_slayer') {
-    const aiWins = userStats.aiEasyWins || 0;
+    const aiWins = normalizedStats.aiEasyWins;
     return aiWins >= (requirements.aiWins || 1);
   }
 
   if (achievement.id === 'ai_hunter') {
-    const aiWins = userStats.aiMediumWins || 0;
+    const aiWins = normalizedStats.aiMediumWins;
     return aiWins >= (requirements.aiWins || 1);
   }
 
   if (achievement.id === 'terminator') {
-    const aiWins = userStats.aiImpossibleWins || 0;
+    const aiWins = normalizedStats.aiImpossibleWins;
     return aiWins >= (requirements.aiWins || 1);
   }
 
   if (achievement.id === 'am_i_god') {
-    const aiImpossibleStreak = userStats.aiImpossibleStreak || 0;
+    const aiImpossibleStreak = normalizedStats.aiImpossibleStreak;
     return aiImpossibleStreak >= (requirements.aiStreak || 3);
   }
 
   if (achievement.id === 'perfectionist') {
-    return userStats.perfectGame === true;
+    return normalizedStats.perfectGame === true;
   }
 
   for (const [key, value] of Object.entries(requirements)) {
-    let userValue = userStats[key];
+    let userValue = normalizedStats[key];
 
     if (key === 'earlyUser') {
-      userValue = userStats.earlyUser || false;
+      userValue = normalizedStats.earlyUser;
     } else if (key === 'perfectGame') {
-      userValue = userStats.perfectGame || false;
+      userValue = normalizedStats.perfectGame;
     } else if (typeof userValue === 'undefined') {
       userValue = 0;
     }

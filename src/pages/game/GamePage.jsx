@@ -52,9 +52,10 @@ const GamePage = () => {
     navigate(getGameRouteFromSelection(normalized));
   };
 
-  const renderBonusFoodToggle = (description) => (
+  const renderBonusFoodToggle = (description, className = 'mb-8') => (
     <GameBonusFoodToggle
       bonusFoodEnabled={bonusFoodEnabled}
+      className={className}
       description={description}
       onToggle={() => {
         setBonusFoodEnabled((previous) => !previous);
@@ -182,6 +183,10 @@ const GamePage = () => {
                 playClick();
               }}
               onPlayerCountChange={(count) => {
+                setPlayerCount(count);
+                playClick();
+              }}
+              onPlayerCountSelect={(count) => {
                 setPlayerCount(count);
                 playClick();
               }}

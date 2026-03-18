@@ -127,7 +127,12 @@ export const ProfileHeader = ({
     [userProfile.createdAt]
   );
 
-  const joinedDate = createdAtDate ? formatMembershipSummary(createdAtDate) : 'New player';
+  const lastActiveDate = useMemo(
+    () => resolveProfileDate(userProfile.lastActiveAt ?? userProfile.lastLoginAt),
+    [userProfile.lastActiveAt, userProfile.lastLoginAt]
+  );
+
+  const membershipSummary = createdAtDate ? formatMembershipSummary(createdAtDate) : 'New player';
 
   return (
     <Card variant="glass" padding="lg" className="relative overflow-hidden">
@@ -137,13 +142,19 @@ export const ProfileHeader = ({
         <div className="flex flex-col lg:flex-row items-start lg:items-center gap-8">
           <ProfileHeaderIdentity
             avatarInputRef={avatarInputRef}
+            createdAtDate={createdAtDate}
             editing={editing}
             editForm={editForm}
-            onAvatarSelected={handleAvatarSelected}
-            onChangeDisplayName={(displayName) => setEditForm((prev) => ({ ...prev, displayName }))}
-            onRemoveAvatar={handleRemoveAvatar}
-            onStartEdit={handleStartEdit}
-            onUploadAvatarClick={handleUploadAvatarClick}
+            handleAvatarSelected={handleAvatarSelected}
+            handleCancelEdit={handleCancelEdit}
+            handleRemoveAvatar={handleRemoveAvatar}
+            handleSaveEdit={handleSaveEdit}
+            handleStartEdit={handleStartEdit}
+            handleUploadAvatarClick={handleUploadAvatarClick}
+            lastActiveDate={lastActiveDate}
+            loading={loading}
+            membershipSummary={membershipSummary}
+            setEditForm={setEditForm}
             uploadingAvatar={uploadingAvatar}
             userProfile={userProfile}
           />
@@ -158,7 +169,7 @@ export const ProfileHeader = ({
               editing={editing}
               editForm={editForm}
               isMaxLevel={isMaxLevel}
-              joinedDate={joinedDate}
+              joinedDate={membershipSummary}
               levelProgress={levelProgress}
               loading={loading}
               nextLevelScore={nextLevelScore}

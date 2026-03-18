@@ -1,10 +1,11 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Gamepad2, LogOut, X } from 'lucide-react';
+import { LogOut, X } from 'lucide-react';
 import { useAuth, useAuthOperations } from '../../hooks/useAuth.js';
 import { useAchievementOperations } from '../../hooks/useAchievements.js';
 import { useFriends } from '../../hooks/useFriends.js';
 import Button from '../ui/Button.jsx';
+import SnakrXLogo from '../ui/SnakrXLogo.jsx';
 import UserAvatar from '../ui/UserAvatar.jsx';
 import { buildSidebarNavigation } from './sidebar/navigationConfig.js';
 import SidebarNavItem from './sidebar/SidebarNavItem.jsx';
@@ -40,19 +41,14 @@ const Sidebar = ({ isOpen, onClose }) => {
       className="fixed left-0 top-0 h-full w-64 bg-gradient-card backdrop-blur-md border-r border-white/20 z-50 lg:relative lg:translate-x-0"
     >
       <div className="flex items-center justify-between p-4 border-b border-white/10">
-        <div className="flex items-center space-x-3">
-          <motion.div
-            whileHover={{ rotate: 360 }}
-            transition={{ duration: 0.6 }}
-            className="flex items-center justify-center text-2xl text-white"
-          >
-            <Gamepad2 size={24} />
-          </motion.div>
-          <div>
-            <h2 className="font-bold text-white">Navigation</h2>
-            <p className="text-xs text-white/60">Quick access</p>
-          </div>
-        </div>
+        <SnakrXLogo
+          size="sm"
+          subtitle="Navigation"
+          subtitleClassName="text-white/60"
+          titleClassName="text-base"
+          useGradientTitle={false}
+          rotateOnHover
+        />
 
         <Button
           variant="minimal"

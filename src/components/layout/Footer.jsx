@@ -6,9 +6,9 @@
  */
 
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { LifeBuoy, Shield, FileText, Gamepad2 } from 'lucide-react';
+import { LifeBuoy, Shield, FileText } from 'lucide-react';
 import { playClick } from '@/utils/sound';
+import SnakrXLogo from '@/components/ui/SnakrXLogo.jsx';
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
@@ -19,15 +19,13 @@ const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
           {/* Brand Section */}
           <div className="text-center md:text-left">
-            <div className="flex items-center justify-center md:justify-start space-x-3 mb-4">
-              <motion.div whileHover={{ rotate: 360 }} transition={{ duration: 0.6 }} className="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center text-white">
-                <Gamepad2 size={18} />
-              </motion.div>
-              <div>
-                <h3 className="text-xl font-bold bg-gradient-sunset bg-clip-text text-transparent">SnakrX</h3>
-                <p className="text-xs text-gray-500">Modern Snake Gaming</p>
-              </div>
-            </div>
+            <SnakrXLogo
+              className="justify-center md:justify-start mb-4"
+              rotateOnHover
+              size="sm"
+              subtitle="Modern Snake Gaming"
+              subtitleClassName="text-gray-500"
+            />
             <p className="text-gray-400 text-sm leading-relaxed">
               Play classic snake with modern twists. Challenge AI, compete with friends, and unlock achievements.
             </p>

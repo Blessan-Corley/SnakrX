@@ -41,8 +41,10 @@ describe('homeUtils', () => {
     });
 
     expect(quickStats).toHaveLength(4);
-    expect(quickStats[0]).toMatchObject({ title: 'Total Score', trend: 15 });
-    expect(quickStats[2]).toMatchObject({ title: 'Games Played', trend: 8 });
+    expect(quickStats[0]).toMatchObject({ title: 'Total Score' });
+    expect(quickStats[0].trend).toBeUndefined();
+    expect(quickStats[2]).toMatchObject({ title: 'Games Played' });
+    expect(quickStats[2].trend).toBeUndefined();
     expect(quickStats[3].subtitle).toBe('4/10 unlocked');
   });
 

@@ -185,7 +185,7 @@ export const StatsCard = ({
         <div className="text-primary-400 text-2xl">{icon}</div>
       )}
     </div>
-    {trend !== null && (
+    {typeof trend === 'number' && trend !== 0 && (
       <div className={`mt-2 text-xs flex items-center ${
         trend > 0 ? 'text-emerald-400' : trend < 0 ? 'text-red-400' : 'text-white/70'
       }`}>

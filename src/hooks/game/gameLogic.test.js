@@ -78,6 +78,31 @@ describe('Game Logic - Edge Cases & Modes', () => {
       
       expect(result.snakes[0].isAlive).toBe(false); // Should die
     });
+
+    it('should die when a wall wrap moves the head into its own body', () => {
+      const snakes = [{
+        id: 0,
+        isAlive: true,
+        body: [
+          { x: 0, y: 5 },
+          { x: 0, y: 6 },
+          { x: 9, y: 6 },
+          { x: 9, y: 5 },
+          { x: 8, y: 5 }
+        ],
+        direction: { x: -1, y: 0 }
+      }];
+
+      const result = updateSnakesPosition(snakes, null, boardSize, GAME_MODES.CLASSIC_TRANSPARENT, mockAI);
+
+      expect(result.snakes[0].isAlive).toBe(false);
+      expect(result.events).toContainEqual(expect.objectContaining({
+        type: 'DEATH',
+        cause: 'SELF',
+        snakeId: 0,
+        position: { x: 9, y: 5 }
+      }));
+    });
   });
 
   describe('Classic Mode Edge Cases', () => {

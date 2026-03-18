@@ -123,7 +123,9 @@ describe('AchievementsPage', () => {
     expect(screen.getByText('435/5000')).toBeInTheDocument();
     expect(screen.getByText(/1 Achievement Ready to Collect/i)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /collect all/i }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /collect all/i }));
+    });
     expect(collectAllAchievementsMock).toHaveBeenCalledTimes(1);
   });
 
