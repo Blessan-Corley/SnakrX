@@ -19,12 +19,14 @@ export {
   signInWithPopup,
   signOut,
   signInWithEmailAndPassword,
+  confirmPasswordReset,
   createUserWithEmailAndPassword,
   deleteUser,
   onAuthStateChanged,
   sendPasswordResetEmail,
   updatePassword,
-  updateProfile
+  updateProfile,
+  verifyPasswordResetCode
 } from './config.js';
 
 // Export all Firestore functions

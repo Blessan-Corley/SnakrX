@@ -100,12 +100,14 @@ export {
   signInWithPopup,
   signOut,
   signInWithEmailAndPassword,
+  confirmPasswordReset,
   createUserWithEmailAndPassword,
   deleteUser,
   onAuthStateChanged,
   sendPasswordResetEmail,
   updatePassword,
-  updateProfile
+  updateProfile,
+  verifyPasswordResetCode
 } from 'firebase/auth';
 
 // Re-export Firestore functions
