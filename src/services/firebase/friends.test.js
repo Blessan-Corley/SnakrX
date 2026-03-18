@@ -7,6 +7,7 @@ const mockWhere = vi.fn((...args) => ({ type: 'where', args }));
 const mockOrderBy = vi.fn((...args) => ({ type: 'orderBy', args }));
 const mockLimit = vi.fn((value) => ({ type: 'limit', value }));
 const mockGetDocs = vi.fn();
+const mockGetDoc = vi.fn();
 const mockOnSnapshot = vi.fn();
 const mockServerTimestamp = vi.fn(() => ({ __serverTimestamp: true }));
 
@@ -23,6 +24,7 @@ vi.mock('./config.js', () => ({
   query: (...args) => mockQuery(...args),
   where: (...args) => mockWhere(...args),
   getDocs: (...args) => mockGetDocs(...args),
+  getDoc: (...args) => mockGetDoc(...args),
   orderBy: (...args) => mockOrderBy(...args),
   limit: (...args) => mockLimit(...args),
   onSnapshot: (...args) => mockOnSnapshot(...args),
@@ -86,6 +88,7 @@ describe('friendOperations', () => {
     mockUpdateDocument.mockResolvedValue(true);
     mockDeleteDoc.mockResolvedValue(true);
     mockSyncFriendStats.mockResolvedValue([]);
+    mockGetDoc.mockResolvedValue(createMissingDoc());
     mockOnSnapshot.mockImplementation((_queryRef, onData) => {
       if (typeof onData === 'function') onData({ docs: [] });
       return vi.fn();
@@ -240,10 +243,35 @@ describe('friendOperations', () => {
   });
 
   it('searches public profiles with normalized lowercase prefix query', async () => {
-    mockGetDocs.mockResolvedValueOnce({
-      docs: [
-        createDocSnap('u3', { username: 'alice', displayName: 'Alice' })
-      ]
+    mockGetDocs.mockImplementation(async (queryRef) => {
+      const whereClauses = queryRef.args.filter((entry) => entry?.type === 'where');
+      const whereArgs = whereClauses.map((entry) => entry.args);
+
+      if (whereArgs.some(([field, operator, value]) => (
+        field === 'searchPrefixes' && operator === 'array-contains' && value === 'ali'
+      ))) {
+        return {
+          docs: [
+            createDocSnap('u3', {
+              username: 'alice',
+              displayName: 'Alice',
+              searchPrefixes: ['al', 'ali']
+            })
+          ]
+        };
+      }
+
+      if (whereArgs.some(([field, operator, value]) => (
+        field === 'username' && operator === '>=' && value === 'ali'
+      ))) {
+        return {
+          docs: [
+            createDocSnap('u3', { username: 'alice', displayName: 'Alice' })
+          ]
+        };
+      }
+
+      return { docs: [] };
     });
     const { friendOperations } = await import('./friends.js');
 
@@ -252,9 +280,81 @@ describe('friendOperations', () => {
     expect(mockGetDocs).toHaveBeenCalledTimes(0);
 
     const results = await friendOperations.searchUsers('  Ali ');
-    expect(results).toEqual([{ id: 'u3', username: 'alice', displayName: 'Alice' }]);
+    expect(results).toEqual([{
+      id: 'u3',
+      username: 'alice',
+      displayName: 'Alice',
+      searchPrefixes: ['al', 'ali']
+    }]);
+    expect(mockWhere).toHaveBeenCalledWith('searchPrefixes', 'array-contains', 'ali');
     expect(mockWhere).toHaveBeenCalledWith('username', '>=', 'ali');
     expect(mockWhere).toHaveBeenCalledWith('username', '<=', 'ali\uf8ff');
+  });
+
+  it('finds users through indexed display-name prefixes', async () => {
+    mockGetDocs.mockImplementation(async (queryRef) => {
+      const whereClauses = queryRef.args.filter((entry) => entry?.type === 'where');
+      const whereArgs = whereClauses.map((entry) => entry.args);
+
+      if (whereArgs.some(([field, operator, value]) => (
+        field === 'searchPrefixes' && operator === 'array-contains' && value === 'won'
+      ))) {
+        return {
+          docs: [
+            createDocSnap('u7', {
+              username: 'alice_w',
+              displayName: 'Alice Wonder',
+              searchPrefixes: ['al', 'ali', 'wo', 'won']
+            })
+          ]
+        };
+      }
+
+      return { docs: [] };
+    });
+
+    const { friendOperations } = await import('./friends.js');
+
+    const results = await friendOperations.searchUsers('won');
+
+    expect(results).toEqual([
+      {
+        id: 'u7',
+        username: 'alice_w',
+        displayName: 'Alice Wonder',
+        searchPrefixes: ['al', 'ali', 'wo', 'won']
+      }
+    ]);
+    expect(mockWhere).toHaveBeenCalledWith('searchPrefixes', 'array-contains', 'won');
+  });
+
+  it('falls back to a comprehensive profile scan when indexed queries miss legacy profiles', async () => {
+    mockGetDocs.mockImplementation(async (queryRef) => {
+      if (!queryRef.args) {
+        return {
+          docs: [
+            createDocSnap('u9', {
+              username: 'alice_w',
+              displayName: 'Alice Wonder'
+            })
+          ]
+        };
+      }
+
+      return { docs: [] };
+    });
+
+    const { friendOperations } = await import('./friends.js');
+
+    const results = await friendOperations.searchUsers('won');
+
+    expect(results).toEqual([
+      {
+        id: 'u9',
+        username: 'alice_w',
+        displayName: 'Alice Wonder'
+      }
+    ]);
   });
 
   it('subscribes to friend changes and forwards both updates and errors', async () => {
