@@ -2,6 +2,10 @@ import { useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { friendOperations } from '@/services/firebase/friends.js';
 import {
+  MIN_FRIEND_SEARCH_LENGTH,
+  normalizeFriendSearchTerm
+} from '@/services/firebase/friendSearch.js';
+import {
   FRIENDSHIP_STATUSES,
   upsertRelationshipProfile
 } from './relationshipState.js';
@@ -20,7 +24,9 @@ const useFriendActions = ({
   user
 }) => {
   const searchUsers = useCallback(async (term) => {
-    if (!term || term.length < 3) {
+    const normalizedTerm = normalizeFriendSearchTerm(term);
+
+    if (normalizedTerm.length < MIN_FRIEND_SEARCH_LENGTH) {
       setSearchResults([]);
       return;
     }
