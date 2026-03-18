@@ -4,6 +4,50 @@ export const normalizePlayerCount = (playerCount) => (
   Number.isFinite(playerCount) && playerCount > 0 ? playerCount : 1
 );
 
+const capitalize = (value) => (
+  typeof value === 'string' && value.length > 0
+    ? `${value.charAt(0).toUpperCase()}${value.slice(1)}`
+    : value
+);
+
+export const getSessionStartLabel = ({
+  difficulty,
+  mode,
+  playerCount
+}) => {
+  if (mode === GAME_MODES.MULTIPLAYER) {
+    const normalizedPlayerCount = normalizePlayerCount(playerCount);
+    const playerLabel = normalizedPlayerCount === 1 ? 'Player' : 'Players';
+    return `Starting Multiplayer Mode - ${normalizedPlayerCount} ${playerLabel}`;
+  }
+
+  if (mode === GAME_MODES.VS_AI) {
+    return `Starting VS AI Mode - ${capitalize(difficulty || AI_DIFFICULTIES.MEDIUM)}`;
+  }
+
+  if (mode === 'classic_transparent') {
+    return 'Starting Transparent Mode';
+  }
+
+  return 'Starting Classic Mode';
+};
+
+export const getSessionStartToastId = ({
+  difficulty,
+  mode,
+  playerCount
+}) => {
+  if (mode === GAME_MODES.MULTIPLAYER) {
+    return `session-start:${mode}:${difficulty || AI_DIFFICULTIES.MEDIUM}:${normalizePlayerCount(playerCount)}`;
+  }
+
+  if (mode === GAME_MODES.VS_AI) {
+    return `session-start:${mode}:${difficulty || AI_DIFFICULTIES.MEDIUM}`;
+  }
+
+  return `session-start:${mode || GAME_MODES.CLASSIC}`;
+};
+
 export const getRestartConfiguration = (gameStateRef) => {
   const current = gameStateRef.current || {};
 

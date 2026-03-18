@@ -3,6 +3,7 @@ import {
   GAME_STATES,
   calculatePoints,
   calculateSpeed,
+  getSpeedProgressUnits,
   resolveVsAiWinner
 } from '../../../utils/gameUtils.js';
 import {
@@ -104,7 +105,6 @@ export const buildUpdatedStateFromTick = ({
       updates.score += points;
     }
     updates.foodEaten += playerFoodConsumed;
-    updates.speed = calculateSpeed(updates.foodEaten);
   }
 
   if (
@@ -113,6 +113,15 @@ export const buildUpdatedStateFromTick = ({
   ) {
     updates.score += playerBonusFoodPoints;
   }
+
+  updates.speed = calculateSpeed(getSpeedProgressUnits({
+    bonusFoodPoints: updates.bonusFoodPoints,
+    difficulty: updates.difficulty,
+    foodEaten: updates.foodEaten,
+    mode: updates.gameMode
+  }), {
+    mode: updates.gameMode
+  });
 
   if (gameEnded) {
     updates.gameState = GAME_STATES.GAME_OVER;

@@ -8,6 +8,8 @@ import {
   canResumeGame,
   canStartGame,
   canTogglePause,
+  getSessionStartLabel,
+  getSessionStartToastId,
   getRestartConfiguration,
   isDirectOppositeDirection,
   isDuplicateDirection,
@@ -64,6 +66,17 @@ export const useGameActions = ({
         playerCount: normalizePlayerCount(playerCount)
       });
       setGameState(initialState);
+      toast.success(getSessionStartLabel({
+        difficulty,
+        mode,
+        playerCount
+      }), {
+        id: getSessionStartToastId({
+          difficulty,
+          mode,
+          playerCount
+        })
+      });
     } catch (error) {
       logger.error('Error initializing game:', error);
       toast.error(`Failed to initialize game: ${error.message}`);
