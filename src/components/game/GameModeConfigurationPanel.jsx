@@ -26,24 +26,6 @@ const GameModeConfigurationPanel = ({
 
   const SelectedModeIcon = selectedMode.Icon;
   const handlePlayerCountSelect = onPlayerCountSelect || onPlayerCountChange;
-  const selectedDifficultyConfig = AI_DIFFICULTIES.find((difficulty) => difficulty.id === aiDifficulty);
-  const launchSummary = selectedMode.id === 'vsai'
-    ? [
-        { label: 'Mode', value: selectedMode.title },
-        { label: 'Difficulty', value: selectedDifficultyConfig?.name || 'Medium' },
-        { label: 'Scoring', value: selectedDifficultyConfig?.points || '10 points per food' }
-      ]
-    : selectedMode.id === 'multiplayer'
-      ? [
-          { label: 'Mode', value: selectedMode.title },
-          { label: 'Players', value: `${playerCount} players` },
-          { label: 'Controls', value: 'Split keyboard local match' }
-        ]
-      : [
-          { label: 'Mode', value: selectedMode.title },
-          { label: 'Rules', value: 'Classic survival run' },
-          { label: 'Goal', value: 'Set a new personal best' }
-        ];
 
   return (
     <motion.div
@@ -51,7 +33,7 @@ const GameModeConfigurationPanel = ({
       initial={{ opacity: 0, x: 50 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -50 }}
-      className="max-w-6xl mx-auto"
+      className="mx-auto max-w-[1120px]"
     >
       <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center">
@@ -72,164 +54,149 @@ const GameModeConfigurationPanel = ({
           </div>
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-left md:text-right">
-          <p className="text-[11px] uppercase tracking-[0.22em] text-white/45">Ready To Launch</p>
-          <p className="mt-1 text-sm text-white/80">Pick your setup, then start immediately.</p>
-        </div>
+        <button
+          type="button"
+          onClick={onBack}
+          className="inline-flex self-start rounded-xl border border-white/20 bg-transparent px-6 py-3 text-base font-medium text-white backdrop-blur-sm transition-all duration-200 hover:border-white/40 hover:bg-white/10 hover:shadow-card md:self-auto"
+        >
+          View All Modes
+        </button>
       </div>
 
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.85fr)]">
-        <div className="space-y-6">
-          {selectedMode.id === 'vsai' && (
-            <section className="space-y-5">
-              <div>
-                <h3 className="text-2xl font-semibold text-white">Select Difficulty</h3>
-                <p className="mt-2 max-w-3xl text-white/65">
-                  Choose how aggressive the AI should be. Each difficulty changes the scoring pace and overall match pressure.
-                </p>
-              </div>
+      <div className="space-y-5">
+        {bonusFoodToggle(getBonusFoodDescription(selectedMode.id), 'mb-0')}
 
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {AI_DIFFICULTIES.map((difficulty) => {
-                  const DifficultyIcon = difficulty.Icon;
+        {selectedMode.id === 'vsai' && (
+          <section className="space-y-5">
+            <div>
+              <h3 className="text-2xl font-semibold text-white">Select Difficulty</h3>
+              <p className="mt-2 max-w-3xl text-white/65">
+                Choose how aggressive the AI should be. Each difficulty changes the scoring pace and overall match pressure.
+              </p>
+            </div>
 
-                  return (
-                    <motion.div
-                      key={difficulty.id}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.985 }}
-                      className="h-full"
-                    >
-                      <Card
-                        variant={aiDifficulty === difficulty.id ? 'gradient' : 'glass'}
-                        clickable
-                        onClick={() => onDifficultySelect(difficulty.id)}
-                        className="h-full transition-all duration-200"
-                      >
-                        <div className="flex h-full flex-col p-5">
-                          <div className="flex items-start justify-between gap-4">
-                            <div
-                              className={`flex h-12 w-12 items-center justify-center rounded-2xl border ${
-                                aiDifficulty === difficulty.id ? 'border-white/20 bg-white/10' : 'border-white/10 bg-white/5'
-                              }`}
-                            >
-                              <DifficultyIcon className={difficulty.iconClassName} size={22} />
-                            </div>
+            <div data-testid="vsai-difficulty-grid" className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              {AI_DIFFICULTIES.map((difficulty) => {
+                const DifficultyIcon = difficulty.Icon;
+                const isSelected = aiDifficulty === difficulty.id;
 
-                            {aiDifficulty === difficulty.id && (
-                              <div className="mt-1 flex h-7 w-7 items-center justify-center rounded-full bg-primary-500 shadow-lg shadow-primary-500/30">
-                                <div className="h-2.5 w-2.5 rounded-full bg-white" />
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="mt-5 flex-1">
-                            <h4 className={`text-2xl font-semibold ${difficulty.color}`}>{difficulty.name}</h4>
-                            <p className="mt-2 text-sm leading-relaxed text-white/70">{difficulty.description}</p>
-                          </div>
-
-                          <div className="mt-5 border-t border-white/10 pt-4">
-                            <p className="text-sm font-medium text-primary-300">{difficulty.points}</p>
-                          </div>
-                        </div>
-                      </Card>
-                    </motion.div>
-                  );
-                })}
-              </div>
-            </section>
-          )}
-
-          {selectedMode.id === 'multiplayer' && (
-            <section className="space-y-5">
-              <div>
-                <h3 className="text-2xl font-semibold text-white">Number of Players</h3>
-                <p className="mt-2 text-white/65">
-                  Choose how many players will share the screen. Each player uses a separate control layout.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-3 gap-4 sm:max-w-xl">
-                {PLAYER_COUNTS.map((count) => (
+                return (
                   <motion.button
-                    key={count}
-                    whileHover={{ scale: 1.03 }}
-                    whileTap={{ scale: 0.97 }}
-                    onClick={() => handlePlayerCountSelect?.(count)}
-                    className={`rounded-2xl border px-4 py-6 text-left transition-all duration-200 ${
-                      playerCount === count
-                        ? 'border-primary-500 bg-primary-500/15 text-white shadow-[0_12px_30px_rgba(249,115,22,0.18)]'
-                        : 'border-white/10 bg-white/5 text-white/70 hover:border-white/30'
+                    key={difficulty.id}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => onDifficultySelect(difficulty.id)}
+                    className={`rounded-2xl border px-6 py-6 text-left transition-all duration-200 ${
+                      isSelected
+                        ? 'border-primary-500 text-white shadow-[0_12px_30px_rgba(249,115,22,0.18)]'
+                        : 'border-white/10 text-white/80 hover:border-white/25'
                     }`}
+                    style={{
+                      background: isSelected
+                        ? 'linear-gradient(145deg, rgba(249,115,22,0.12), rgba(15,23,42,0.78))'
+                        : 'linear-gradient(145deg, rgba(255,255,255,0.06), rgba(15,23,42,0.72))'
+                    }}
                   >
-                    <div className="text-3xl font-bold">{count}</div>
-                    <div className="mt-2 text-xs uppercase tracking-[0.18em] text-white/45">Players</div>
-                  </motion.button>
-                ))}
-              </div>
+                    <div className="flex h-full flex-col justify-between gap-5">
+                      <div className="flex items-start justify-between gap-4">
+                        <div
+                          className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl border ${
+                            isSelected ? 'border-white/18 bg-white/10' : 'border-white/10 bg-white/5'
+                          }`}
+                        >
+                          <DifficultyIcon className={difficulty.iconClassName} size={22} />
+                        </div>
 
-              <p className="text-sm text-white/60">
-                Control layouts: WASD, Arrow Keys, IJKL, and Numpad.
-              </p>
-            </section>
-          )}
+                        {isSelected ? (
+                          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary-500 shadow-lg shadow-primary-500/30">
+                            <div className="h-2.5 w-2.5 rounded-full bg-white" />
+                          </div>
+                        ) : (
+                          <div className="h-7 w-7 rounded-full border border-white/15 bg-white/5" />
+                        )}
+                      </div>
 
-          {selectedMode.id === 'classic' && (
-            <Card variant="glass" className="overflow-hidden">
-              <div className="p-6 md:p-8">
-                <h3 className="mb-4 text-xl font-semibold text-white">Game Rules</h3>
-                <div className="space-y-4 text-white/70">
-                  {CLASSIC_RULES.map((rule) => (
-                    <div key={rule} className="flex items-start">
-                      <div className="mr-3 mt-2 h-2 w-2 flex-shrink-0 rounded-full bg-primary-500" />
-                      <p>{rule}</p>
+                      <div className="space-y-2">
+                        <h4 className={`text-[1.9rem] leading-none font-semibold ${difficulty.color}`}>
+                          {difficulty.name}
+                        </h4>
+                        <p className="text-base leading-relaxed text-white/72">
+                          {difficulty.description}
+                        </p>
+                      </div>
+
+                      <p className="text-sm font-medium text-primary-300">
+                        {difficulty.points}
+                      </p>
                     </div>
-                  ))}
-                </div>
-              </div>
-            </Card>
-          )}
-        </div>
+                  </motion.button>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
-        <aside className="space-y-6 lg:sticky lg:top-24">
-          {bonusFoodToggle(getBonusFoodDescription(selectedMode.id), 'mb-0')}
-
-          <Card variant="glass" className="overflow-hidden">
-            <div className="p-6 md:p-7">
-              <p className="text-[11px] uppercase tracking-[0.24em] text-white/45">Launch Summary</p>
-              <h3 className="mt-2 text-2xl font-semibold text-white">Ready To Start</h3>
-              <p className="mt-2 text-sm leading-relaxed text-white/65">
-                Review the selected setup and launch the match when you are ready.
+        {selectedMode.id === 'multiplayer' && (
+          <section className="space-y-5">
+            <div>
+              <h3 className="text-2xl font-semibold text-white">Number of Players</h3>
+              <p className="mt-2 text-white/65">
+                Choose how many players will share the screen. Each player uses a separate control layout.
               </p>
+            </div>
 
-              <div className="mt-6 space-y-3">
-                {launchSummary.map((item) => (
-                  <div
-                    key={item.label}
-                    className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3"
-                  >
-                    <span className="text-sm text-white/55">{item.label}</span>
-                    <span className="text-right text-sm font-medium text-white">{item.value}</span>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              {PLAYER_COUNTS.map((count) => (
+                <motion.button
+                  key={count}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => handlePlayerCountSelect?.(count)}
+                  className={`rounded-2xl border px-5 py-6 text-left transition-all duration-200 ${
+                    playerCount === count
+                      ? 'border-primary-500 bg-primary-500/15 text-white shadow-[0_12px_30px_rgba(249,115,22,0.18)]'
+                      : 'border-white/10 bg-white/5 text-white/70 hover:border-white/30'
+                  }`}
+                >
+                  <div className="text-3xl font-bold">{count}</div>
+                  <div className="mt-2 text-xs uppercase tracking-[0.18em] text-white/45">Players</div>
+                </motion.button>
+              ))}
+            </div>
+
+            <p className="text-sm text-white/60">
+              Control layouts: WASD, Arrow Keys, IJKL, and Numpad.
+            </p>
+          </section>
+        )}
+
+        {selectedMode.id === 'classic' && (
+          <Card variant="glass" className="overflow-hidden">
+            <div className="p-6 md:p-8">
+              <h3 className="mb-4 text-xl font-semibold text-white">Game Rules</h3>
+              <div className="space-y-4 text-white/70">
+                {CLASSIC_RULES.map((rule) => (
+                  <div key={rule} className="flex items-start">
+                    <div className="mr-3 mt-2 h-2 w-2 flex-shrink-0 rounded-full bg-primary-500" />
+                    <p>{rule}</p>
                   </div>
                 ))}
               </div>
-
-              <Button
-                variant="primary"
-                size="lg"
-                icon={<Play size={20} />}
-                onClick={onStartGame}
-                className="mt-6 w-full justify-center py-4 text-lg"
-              >
-                Start Game
-              </Button>
-
-              <p className="mt-3 text-center text-xs text-white/45">
-                You can still go back and adjust these settings before the match begins.
-              </p>
             </div>
           </Card>
-        </aside>
+        )}
+
+        <div className="pt-2 text-center">
+          <Button
+            variant="primary"
+            size="lg"
+            icon={<Play size={20} />}
+            onClick={onStartGame}
+            className="min-w-[260px] justify-center px-12 py-4 text-lg"
+          >
+            Start Game
+          </Button>
+        </div>
       </div>
     </motion.div>
   );

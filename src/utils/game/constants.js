@@ -82,10 +82,24 @@ export const BOARD_CONFIGS = {
 
 export const SPEED_CONFIGS = {
   INITIAL: 200,
-  INCREMENT: 3,
+  INCREMENT: 5,
   MIN_SPEED: 40,
   MAX_MULTIPLIER: 5,
-  FOOD_THRESHOLD: 2
+  FOOD_THRESHOLD: 5
+};
+
+export const SPEED_PROFILE_CONFIGS = {
+  solo: {
+    ...SPEED_CONFIGS,
+    FOOD_THRESHOLD: 3
+  },
+  competitive: {
+    INITIAL: 200,
+    INCREMENT: 6,
+    MIN_SPEED: 60,
+    MAX_MULTIPLIER: 3.4,
+    FOOD_THRESHOLD: 4
+  }
 };
 
 export const FOOD_TYPES = {
