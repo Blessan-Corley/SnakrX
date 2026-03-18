@@ -87,6 +87,9 @@ export const OverviewTab = ({ userStats, achievementStats, totalAchievementPoint
                   <div className="text-xs text-white/60">
                     {match.date.toLocaleDateString()}
                   </div>
+                  <div className="text-xs font-semibold text-amber-300">
+                    +{match.xpGained || 0} XP
+                  </div>
                 </div>
               </div>
             ))}

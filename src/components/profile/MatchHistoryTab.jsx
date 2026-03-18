@@ -37,6 +37,10 @@ export const MatchHistoryTab = ({ mockMatchHistory }) => {
                   <div className="font-bold text-white">{formatTime(match.time)}</div>
                   <div className="text-sm text-white/60">Time</div>
                 </div>
+                <div className="text-right">
+                  <div className="font-bold text-amber-300">+{match.xpGained || 0} XP</div>
+                  <div className="text-sm text-white/60">XP Gained</div>
+                </div>
                 <div className={`text-right font-medium ${
                   match.result === 'victory' ? 'text-green-400' :
                   match.result === 'defeat' ? 'text-red-400' :

@@ -53,6 +53,11 @@ export const SettingsTab = ({ userProfile, onSaveProfile }) => {
     try {
       await onSaveProfile({
         displayName: editForm.displayName,
+        settings: {
+          ...userProfile.settings,
+          soundEnabled,
+          soundVolume
+        },
         preferences: {
           ...userProfile.preferences,
           favoriteGameMode: editForm.favoriteGameMode,
