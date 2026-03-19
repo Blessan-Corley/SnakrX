@@ -20,6 +20,7 @@ import {
 import {
   getMuted,
   getVolume,
+  applyProfileSoundSettings,
   setMuted,
   setVolume,
   subscribeSoundSettings,
@@ -47,6 +48,7 @@ export {
   toggleMute,
   setVolume,
   getVolume,
+  applyProfileSoundSettings,
   subscribeSoundSettings
 };
 
@@ -68,5 +70,6 @@ export default {
   toggleMute,
   setVolume,
   getVolume,
+  applyProfileSoundSettings,
   subscribeSoundSettings
 };

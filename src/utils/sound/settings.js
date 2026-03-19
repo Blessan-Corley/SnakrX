@@ -12,8 +12,9 @@ const loadStoredSettings = () => {
       soundState.isMuted = storedMuted === 'true';
     }
 
-    const storedVolume = Number(window.localStorage.getItem(VOLUME_STORAGE_KEY));
-    if (Number.isFinite(storedVolume)) {
+    const storedVolumeRaw = window.localStorage.getItem(VOLUME_STORAGE_KEY);
+    const storedVolume = Number(storedVolumeRaw);
+    if (storedVolumeRaw !== null && Number.isFinite(storedVolume)) {
       soundState.globalVolume = Math.max(0, Math.min(1, storedVolume));
     }
   } catch {
@@ -84,5 +85,17 @@ export const setVolume = (volume) => {
 };
 
 export const getVolume = () => soundState.globalVolume;
+
+export const applyProfileSoundSettings = (settings) => {
+  if (!settings || typeof settings !== 'object') return;
+
+  if (Number.isFinite(Number(settings.soundVolume))) {
+    setVolume(Number(settings.soundVolume));
+  }
+
+  if (typeof settings.soundEnabled === 'boolean') {
+    setMuted(!settings.soundEnabled);
+  }
+};
 
 loadStoredSettings();
