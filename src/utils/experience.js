@@ -93,3 +93,39 @@ export const calculateGameXpGain = ({
     victoryBonus
   );
 };
+
+const normalizeStoredXpGain = (value) => {
+  if (value == null || value === '') return null;
+
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric < 0) return 0;
+  return Math.floor(numeric);
+};
+
+export const resolveGameXpGain = ({
+  xpGained,
+  mode = 'classic',
+  difficulty = null,
+  duration = 0,
+  foodEaten = 0,
+  score = 0,
+  result = 'completed',
+  victory
+} = {}) => {
+  const storedXpGain = normalizeStoredXpGain(xpGained);
+  if (storedXpGain !== null) {
+    return storedXpGain;
+  }
+
+  const normalizedResult = String(result || '').toLowerCase();
+  return calculateGameXpGain({
+    mode,
+    difficulty,
+    duration,
+    foodEaten,
+    score,
+    victory: typeof victory === 'boolean'
+      ? victory
+      : normalizedResult === 'won' || normalizedResult === 'victory'
+  });
+};

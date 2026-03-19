@@ -7,6 +7,7 @@ import {
   generateFoodPosition,
   generateLargeFoodPosition,
   getNextSpeedMilestone,
+  getSpeedProgressUnits,
   getOppositeDirection,
   getFoodCells,
   resolveVsAiWinner,
@@ -47,23 +48,23 @@ describe('Game Utilities - Classic Mode Mechanics', () => {
     });
 
     it('should not increase speed before threshold is reached', () => {
-      // Threshold is 2
+      // Threshold is 5
       const speed0 = calculateSpeed(0);
       const speed1 = calculateSpeed(1);
       expect(speed1).toBe(speed0);
     });
 
     it('should increase speed (decrease delay) when threshold is reached', () => {
-      // Threshold 2. At 2 food, level 1 increase.
-      const speed2 = calculateSpeed(2);
+      // Threshold 5. At 5 food, level 1 increase.
+      const speed2 = calculateSpeed(5);
       const expected = SPEED_CONFIGS.INITIAL - SPEED_CONFIGS.INCREMENT;
       expect(speed2).toBe(expected);
     });
 
     it('should increase speed progressively', () => {
-      // At 4 food, level 2 increase.
-      const speed4 = calculateSpeed(4);
-      const expected = SPEED_CONFIGS.INITIAL - (SPEED_CONFIGS.INCREMENT * 2);
+      // With the solo threshold at 3, 10 progress units means 3 increases.
+      const speed4 = calculateSpeed(10);
+      const expected = SPEED_CONFIGS.INITIAL - (SPEED_CONFIGS.INCREMENT * 3);
       expect(speed4).toBe(expected);
     });
 
@@ -71,6 +72,18 @@ describe('Game Utilities - Classic Mode Mechanics', () => {
       // Simulate eating a lot of food
       const speed = calculateSpeed(1000); 
       expect(speed).toBe(SPEED_CONFIGS.MIN_SPEED);
+    });
+
+    it('uses the tuned solo curve to ramp earlier than competitive for the same progress', () => {
+      const soloSpeed = calculateSpeed(12, { mode: GAME_MODES.CLASSIC });
+      const competitiveSpeed = calculateSpeed(12, { mode: GAME_MODES.VS_AI });
+
+      expect(soloSpeed).toBeLessThan(competitiveSpeed);
+    });
+
+    it('shares the same competitive curve between vs ai and multiplayer', () => {
+      expect(calculateSpeed(20, { mode: GAME_MODES.VS_AI }))
+        .toBe(calculateSpeed(20, { mode: GAME_MODES.MULTIPLAYER }));
     });
   });
 
@@ -144,9 +157,47 @@ describe('Game Utilities - Classic Mode Mechanics', () => {
 
   describe('Speed milestones', () => {
     it('should report remaining food to next speed increase', () => {
-      expect(getNextSpeedMilestone(0)).toBe(2);
-      expect(getNextSpeedMilestone(1)).toBe(1);
-      expect(getNextSpeedMilestone(2)).toBe(2);
+      expect(getNextSpeedMilestone(0)).toBe(3);
+      expect(getNextSpeedMilestone(1)).toBe(2);
+      expect(getNextSpeedMilestone(3)).toBe(3);
+    });
+
+    it('counts bonus food points as food-equivalent speed progress', () => {
+      expect(getSpeedProgressUnits({
+        mode: GAME_MODES.CLASSIC,
+        foodEaten: 50,
+        bonusFoodPoints: 10
+      })).toBe(52);
+    });
+
+    it('normalizes competitive food progress against score pace', () => {
+      expect(getSpeedProgressUnits({
+        mode: GAME_MODES.MULTIPLAYER,
+        foodEaten: 10,
+        bonusFoodPoints: 0
+      })).toBe(20);
+
+      expect(getSpeedProgressUnits({
+        mode: GAME_MODES.VS_AI,
+        difficulty: AI_DIFFICULTIES.IMPOSSIBLE,
+        foodEaten: 5,
+        bonusFoodPoints: 0
+      })).toBe(20);
+    });
+
+    it('uses mode-aware milestones', () => {
+      expect(getNextSpeedMilestone(20, { mode: GAME_MODES.CLASSIC })).toBe(1);
+      expect(getNextSpeedMilestone(20, { mode: GAME_MODES.MULTIPLAYER })).toBe(4);
+    });
+
+    it('uses the tuned solo threshold for classic modes', () => {
+      expect(getNextSpeedMilestone(0, { mode: GAME_MODES.CLASSIC })).toBe(3);
+      expect(getNextSpeedMilestone(2, { mode: GAME_MODES.CLASSIC })).toBe(1);
+      expect(getNextSpeedMilestone(3, { mode: GAME_MODES.CLASSIC })).toBe(3);
+      expect(calculateSpeed(3, { mode: GAME_MODES.CLASSIC }))
+        .toBe(SPEED_CONFIGS.INITIAL - SPEED_CONFIGS.INCREMENT);
+      expect(calculateSpeed(6, { mode: GAME_MODES.CLASSIC }))
+        .toBe(SPEED_CONFIGS.INITIAL - (SPEED_CONFIGS.INCREMENT * 2));
     });
   });
 
