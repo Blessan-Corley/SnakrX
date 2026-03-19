@@ -32,14 +32,38 @@ describe('publicProfileUtils', () => {
     expect(formatGameModeLabel('classic_transparent')).toBe('Classic Transparent');
 
     const history = mapGamesToHistory([
-      { id: 'g1', mode: 'multiplayer', score: 100, duration: 45, endedAt: 1700000000000 }
+      {
+        id: 'g1',
+        mode: 'multiplayer',
+        score: 100,
+        duration: 45,
+        result: 'won',
+        xpGained: 66,
+        endedAt: 1700000000000
+      },
+      {
+        id: 'g2',
+        mode: 'classic',
+        score: 200,
+        duration: 60,
+        foodEaten: 4,
+        result: 'completed',
+        endedAt: 1700001000000
+      }
     ]);
 
     expect(history[0]).toMatchObject({
       id: 'g1',
       mode: 'Multiplayer',
       score: 100,
-      time: 45
+      time: 45,
+      xpGained: 66,
+      result: 'victory'
+    });
+    expect(history[1]).toMatchObject({
+      id: 'g2',
+      xpGained: 25,
+      result: 'completed'
     });
   });
 

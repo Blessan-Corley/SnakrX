@@ -21,6 +21,7 @@ const PublicProfileRecentMatches = ({ history }) => (
             <div className="text-right">
               <p className="text-white font-bold">{formatScore(match.score)}</p>
               <p className="text-white/50 text-xs">{formatTime(match.time)}</p>
+              <p className="text-amber-300 text-xs font-semibold">+{match.xpGained || 0} XP</p>
             </div>
           </div>
         ))}

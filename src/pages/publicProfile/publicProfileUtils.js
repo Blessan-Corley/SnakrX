@@ -1,3 +1,5 @@
+import { resolveGameXpGain } from '@/utils/experience';
+
 export const toDate = (value) => {
   if (!value) return null;
   if (typeof value?.toDate === 'function') return value.toDate();
@@ -30,19 +32,30 @@ export const formatGameModeLabel = (mode, difficulty) => {
   return 'Classic';
 };
 
+export const normalizeHistoryResult = (mode, result) => {
+  const normalizedMode = String(mode || '').toLowerCase();
+  const normalizedResult = String(result || '').toLowerCase();
+  const isClassicSession = normalizedMode === 'classic' || normalizedMode === 'classic_transparent';
+
+  if (isClassicSession) return 'completed';
+  if (normalizedResult === 'won' || normalizedResult === 'victory') return 'victory';
+  if (normalizedResult === 'lost' || normalizedResult === 'defeat') return 'defeat';
+  return 'completed';
+};
+
 export const mapGamesToHistory = (games = []) => {
   return games.map((game) => {
-    const endedAt =
-      game.endedAt?.seconds ? new Date(game.endedAt.seconds * 1000) :
-      typeof game.endedAt === 'number' ? new Date(game.endedAt) :
-      new Date();
+    const endedAt = toDate(game.endedAt) || new Date();
 
     return {
       id: game.id,
       mode: formatGameModeLabel(game.mode, game.difficulty),
       score: game.score || 0,
       time: game.duration || 0,
-      date: endedAt
+      date: endedAt,
+      result: normalizeHistoryResult(game.mode, game.result),
+      xpGained: resolveGameXpGain(game),
+      achievements: Array.isArray(game.achievements) ? game.achievements : []
     };
   });
 };
