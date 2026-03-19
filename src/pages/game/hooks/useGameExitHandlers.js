@@ -25,7 +25,8 @@ export const useGameExitHandlers = ({
   }, [gameStatus, isPaused, pauseGame]);
 
   const handleQuit = useCallback(() => {
-    const shouldConfirmLeave = !bypassNavigationGuardRef.current && !isGameOver && !isVictory;
+    const hasStartedSession = gameStatus === GAME_STATES.PLAYING || isPaused;
+    const shouldConfirmLeave = !bypassNavigationGuardRef.current && !isGameOver && !isVictory && hasStartedSession;
     if (shouldConfirmLeave) {
       requestLeaveConfirmation('/');
       return;
@@ -40,7 +41,7 @@ export const useGameExitHandlers = ({
     setTimeout(() => {
       bypassNavigationGuardRef.current = false;
     }, 0);
-  }, [isGameOver, isVictory, navigate, onExitCleanup, quitToMenu, requestLeaveConfirmation]);
+  }, [gameStatus, isGameOver, isPaused, isVictory, navigate, onExitCleanup, quitToMenu, requestLeaveConfirmation]);
 
   const handleLeaveCancel = useCallback(() => {
     setLeaveConfirmState({ isOpen: false, targetPath: null });

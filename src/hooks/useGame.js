@@ -7,6 +7,7 @@ import { useContext, useMemo } from 'react';
 import {
   GAME_STATES,
   getNextSpeedMilestone,
+  getSpeedProgressUnits,
   getSpeedLevel,
   getSpeedMultiplier
 } from '../utils/gameUtils.js';
@@ -43,9 +44,15 @@ export const GameProvider = ({ children }) => {
   const isGameActive = gameState.gameState === GAME_STATES.PLAYING;
   const isGameOver = gameState.gameState === GAME_STATES.GAME_OVER;
   const isVictory = gameState.gameState === GAME_STATES.VICTORY;
+  const speedProgressUnits = getSpeedProgressUnits({
+    bonusFoodPoints: gameState.bonusFoodPoints,
+    difficulty: gameState.difficulty,
+    foodEaten: gameState.foodEaten,
+    mode: gameState.gameMode
+  });
   const speedMultiplier = getSpeedMultiplier(gameState.speed);
-  const speedLevel = getSpeedLevel(gameState.foodEaten);
-  const nextSpeedMilestone = getNextSpeedMilestone(gameState.foodEaten);
+  const speedLevel = getSpeedLevel(speedProgressUnits, { mode: gameState.gameMode });
+  const nextSpeedMilestone = getNextSpeedMilestone(speedProgressUnits, { mode: gameState.gameMode });
   const { updateGameRef } = useGameTickController({
     commitGameState,
     gameLoopRef,

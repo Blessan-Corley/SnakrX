@@ -91,4 +91,45 @@ describe('useGameExitHandlers', () => {
     });
     expect(props.navigate).toHaveBeenCalledWith('/');
   });
+
+  it('opens leave confirmation instead of quitting immediately during active play', () => {
+    const props = createProps({
+      gameStatus: GAME_STATES.PLAYING,
+      isPaused: false
+    });
+    const { result } = renderHook(() => useGameExitHandlers(props));
+
+    act(() => {
+      result.current.handleQuit();
+    });
+
+    expect(props.pauseGame).toHaveBeenCalledOnce();
+    expect(props.quitToMenu).not.toHaveBeenCalled();
+    expect(props.navigate).not.toHaveBeenCalled();
+    expect(result.current.leaveConfirmState).toEqual({
+      isOpen: true,
+      targetPath: '/'
+    });
+  });
+
+  it('quits directly from the ready state without opening a leave confirmation', () => {
+    const props = createProps({
+      gameStatus: GAME_STATES.READY
+    });
+    const { result } = renderHook(() => useGameExitHandlers(props));
+
+    act(() => {
+      result.current.handleQuit();
+      vi.runAllTimers();
+    });
+
+    expect(props.pauseGame).not.toHaveBeenCalled();
+    expect(props.onExitCleanup).toHaveBeenCalledOnce();
+    expect(props.quitToMenu).toHaveBeenCalledOnce();
+    expect(props.navigate).toHaveBeenCalledWith('/');
+    expect(result.current.leaveConfirmState).toEqual({
+      isOpen: false,
+      targetPath: null
+    });
+  });
 });
