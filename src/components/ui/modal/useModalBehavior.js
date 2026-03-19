@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { acquireBodyScrollLock, releaseBodyScrollLock } from '@/utils/bodyScrollLock.js';
 
 export const useModalBehavior = ({
   isOpen,
@@ -7,6 +8,8 @@ export const useModalBehavior = ({
   modalRef,
   previousFocusRef
 }) => {
+  const scrollLockOwner = modalRef;
+
   useEffect(() => {
     let focusFrameId = null;
     const focusableSelector = [
@@ -75,11 +78,9 @@ export const useModalBehavior = ({
 
   useEffect(() => {
     if (!isOpen) return undefined;
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    acquireBodyScrollLock(scrollLockOwner);
     return () => {
-      document.body.style.overflow = previousOverflow;
+      releaseBodyScrollLock(scrollLockOwner);
     };
-  }, [isOpen]);
+  }, [isOpen, scrollLockOwner]);
 };
