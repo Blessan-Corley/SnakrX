@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
-import { GAME_STATES } from '../../../utils/gameUtils.js';
+import { GAME_STATES, isMobile } from '../../../utils/gameUtils.js';
+import { acquireBodyScrollLock, releaseBodyScrollLock } from '../../../utils/bodyScrollLock.js';
 import {
   buildAchievementStorageKey,
   getLatestPendingAchievement,
@@ -11,7 +12,6 @@ export const useGameUiEffects = ({
   getSuccessRate,
   isHighLatency,
   lastShownAchievementRef,
-  quitToMenu,
   recentUnlocks,
   setInputWarning,
   setNewAchievement,
@@ -21,6 +21,8 @@ export const useGameUiEffects = ({
   setShowPerformanceMonitor,
   showPerformanceMonitor
 }) => {
+  const shouldLockBodyScroll = isMobile();
+
   useEffect(() => {
     if (gameStatus === GAME_STATES.GAME_OVER || gameStatus === GAME_STATES.VICTORY) {
       setShowCollisionHighlight(true);
@@ -34,10 +36,12 @@ export const useGameUiEffects = ({
   }, [gameStatus, setShowCollisionHighlight, setShowGameOverModal]);
 
   useEffect(() => {
-    const previousOverflow = document.body.style.overflow;
-    const previousTouchAction = document.body.style.touchAction;
-    document.body.style.overflow = 'hidden';
-    document.body.style.touchAction = 'none';
+    if (!shouldLockBodyScroll) {
+      return undefined;
+    }
+
+    const scrollLockOwner = 'game-ui-effects';
+    acquireBodyScrollLock(scrollLockOwner, { touchAction: 'none' });
 
     const preventTouch = (event) => {
       if (event.cancelable) {
@@ -47,15 +51,10 @@ export const useGameUiEffects = ({
     document.addEventListener('touchmove', preventTouch, { passive: false });
 
     return () => {
-      document.body.style.overflow = previousOverflow;
-      document.body.style.touchAction = previousTouchAction;
+      releaseBodyScrollLock(scrollLockOwner);
       document.removeEventListener('touchmove', preventTouch);
     };
-  }, []);
-
-  useEffect(() => () => {
-    quitToMenu();
-  }, [quitToMenu]);
+  }, [shouldLockBodyScroll]);
 
   useEffect(() => {
     if (!recentUnlocks?.length) return;

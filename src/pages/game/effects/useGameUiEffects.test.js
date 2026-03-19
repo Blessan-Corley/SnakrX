@@ -1,7 +1,16 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest';
-import { GAME_STATES } from '@/utils/gameUtils.js';
 import { useGameUiEffects } from './useGameUiEffects.js';
+import { GAME_STATES } from '@/utils/gameUtils.js';
+import { __private__ as bodyScrollLockPrivate } from '@/utils/bodyScrollLock.js';
+
+vi.mock('@/utils/gameUtils.js', async () => {
+  const actual = await vi.importActual('@/utils/gameUtils.js');
+  return {
+    ...actual,
+    isMobile: () => true
+  };
+});
 
 const buildAchievementStorageKeyMock = vi.fn();
 const getLatestPendingAchievementMock = vi.fn();
@@ -35,10 +44,12 @@ describe('useGameUiEffects', () => {
     buildAchievementStorageKeyMock.mockReset();
     getLatestPendingAchievementMock.mockReset();
     recordShownAchievementMock.mockReset();
+    bodyScrollLockPrivate.resetBodyScrollLocks();
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    bodyScrollLockPrivate.resetBodyScrollLocks();
   });
 
   it('shows collision and game-over modal sequence for end states', () => {
@@ -55,7 +66,7 @@ describe('useGameUiEffects', () => {
     expect(props.setShowCollisionHighlight).toHaveBeenCalledWith(false);
   });
 
-  it('manages body touch lock and calls quitToMenu on cleanup', () => {
+  it('manages body touch lock and restores it on cleanup without forcing another quit', () => {
     const props = createProps();
     const previousOverflow = document.body.style.overflow;
     const previousTouchAction = document.body.style.touchAction;
@@ -72,7 +83,7 @@ describe('useGameUiEffects', () => {
     expect(preventDefault).toHaveBeenCalled();
 
     unmount();
-    expect(props.quitToMenu).toHaveBeenCalled();
+    expect(props.quitToMenu).not.toHaveBeenCalled();
     expect(document.body.style.overflow).toBe(previousOverflow);
     expect(document.body.style.touchAction).toBe(previousTouchAction);
   });
