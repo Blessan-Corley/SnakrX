@@ -85,6 +85,44 @@ const calculateGameXpGain = ({
   );
 };
 
+const normalizeStoredXpGain = (value) => {
+  if (value == null || value === '') return null;
+
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric < 0) return 0;
+  return Math.floor(numeric);
+};
+
+const isVictoryResult = (result) => {
+  const normalizedResult = String(result || '').toLowerCase();
+  return normalizedResult === 'won' || normalizedResult === 'victory';
+};
+
+const resolveGameXpGain = ({
+  xpGained,
+  mode = GAME_MODES.CLASSIC,
+  difficulty = null,
+  duration = 0,
+  foodEaten = 0,
+  score = 0,
+  result = 'completed',
+  victory
+} = {}) => {
+  const storedXpGain = normalizeStoredXpGain(xpGained);
+  if (storedXpGain !== null) {
+    return storedXpGain;
+  }
+
+  return calculateGameXpGain({
+    mode,
+    difficulty,
+    duration,
+    foodEaten,
+    score,
+    victory: typeof victory === 'boolean' ? victory : isVictoryResult(result)
+  });
+};
+
 const getModeStatsKey = (mode) => {
   switch (mode) {
     case GAME_MODES.CLASSIC_TRANSPARENT:
@@ -199,12 +237,14 @@ const buildStatUpdatesFromSession = ({
   const reachedModeBest = sessionData.score > 0 && sessionData.score >= previousModeBestScore;
   const duration = Math.max(0, Math.floor(Number(sessionData.duration) || 0));
   const victory = sessionData.result === 'won' || sessionData.result === 'victory';
-  const xpGain = calculateGameXpGain({
+  const xpGain = resolveGameXpGain({
+    xpGained: sessionData.xpGained,
     mode: sessionData.mode,
     difficulty: sessionData.difficulty,
     duration,
     foodEaten: sessionData.foodEaten,
     score: sessionData.score,
+    result: sessionData.result,
     victory
   });
   const nextXp = (Number(previousStats.xp) || 0) + xpGain;
@@ -307,7 +347,8 @@ const buildStatUpdatesFromSession = ({
   return {
     statUpdates,
     nextStats,
-    victory
+    victory,
+    xpGain
   };
 };
 
@@ -316,5 +357,6 @@ module.exports = {
   buildStatUpdatesFromSession,
   calculateGameXpGain,
   getLevelFromXp,
-  getModeStatsKey
+  getModeStatsKey,
+  resolveGameXpGain
 };
