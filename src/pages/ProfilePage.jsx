@@ -16,6 +16,7 @@ import {
 } from '@/components/profile';
 import { gameOperations } from '@/services/firebase';
 import { getXpProgress } from '@/utils/experience';
+import { mapGamesToHistory } from './publicProfile/publicProfileUtils.js';
 
 /**
  * Profile Page Component
@@ -72,38 +73,7 @@ const ProfilePage = () => {
     if (!user?.uid) return;
     const loadHistory = async () => {
       const games = await gameOperations.getUserGames(user.uid, 10);
-      const mapped = games.map(game => {
-        const endedAt =
-          game.endedAt?.seconds ? new Date(game.endedAt.seconds * 1000) :
-          typeof game.endedAt === 'number' ? new Date(game.endedAt) :
-          new Date();
-        const modeLabel = game.mode === 'vsai'
-          ? `VS AI (${game.difficulty || 'Medium'})`
-          : game.mode === 'multiplayer'
-          ? 'Multiplayer'
-          : game.mode === 'classic_transparent'
-          ? 'Classic Transparent'
-          : 'Classic';
-        const isClassicSession = game.mode === 'classic' || game.mode === 'classic_transparent';
-        const normalizedResult = isClassicSession
-          ? 'completed'
-          : game.result === 'won'
-            ? 'victory'
-            : game.result === 'lost'
-              ? 'defeat'
-              : 'completed';
-
-        return {
-          id: game.id,
-          mode: modeLabel,
-          score: game.score || 0,
-          time: game.duration || 0,
-          result: normalizedResult,
-          date: endedAt,
-          achievements: []
-        };
-      });
-      setMatchHistory(mapped);
+      setMatchHistory(mapGamesToHistory(games));
     };
     loadHistory();
   }, [user]);

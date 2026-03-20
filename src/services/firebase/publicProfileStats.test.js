@@ -69,7 +69,10 @@ describe('projectPublicProfileStats', () => {
       displayName: 'Profile Name',
       avatar: 'profile-avatar.png',
       avatarPath: '/avatars/user-1.png',
-      isPrivateLeaderboard: true
+      isPrivateLeaderboard: true,
+      searchableUsername: 'player-one',
+      searchableDisplayName: 'profile name',
+      searchPrefixes: expect.arrayContaining(['pl', 'pla', 'pr', 'pro'])
     });
   });
 });

@@ -1,3 +1,5 @@
+import { buildFriendSearchFields } from './friendSearch.js';
+
 export const projectPublicProfileStats = (stats = {}) => ({
   totalGames: Number(stats.totalGames) || 0,
   totalWins: Number(stats.totalWins) || 0,
@@ -33,7 +35,11 @@ export const buildPublicProfileIdentity = (firebaseUser, profileData = {}) => {
     displayName: profileData?.displayName || firebaseUser?.displayName || fallbackName,
     avatar: profileData?.avatar || firebaseUser?.photoURL || null,
     avatarPath: profileData?.avatarPath || null,
-    isPrivateLeaderboard
+    isPrivateLeaderboard,
+    ...buildFriendSearchFields({
+      username: profileData?.username || fallbackName,
+      displayName: profileData?.displayName || firebaseUser?.displayName || fallbackName
+    })
   };
 };
 
