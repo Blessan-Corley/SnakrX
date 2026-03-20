@@ -1,16 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { requestEmailOtp, verifyEmailOtp } from './emailOtp.js';
 
-const mockFetchSignInMethodsForEmail = vi.fn();
 const mockRequestCallable = vi.fn();
 const mockVerifyCallable = vi.fn();
 
-vi.mock('firebase/auth', () => ({
-  fetchSignInMethodsForEmail: (...args) => mockFetchSignInMethodsForEmail(...args)
-}));
-
 vi.mock('./config.js', () => ({
-  auth: {},
   functions: {},
   httpsCallable: vi.fn((_, name) => {
     if (name === 'requestEmailOtp') return mockRequestCallable;
@@ -20,21 +13,26 @@ vi.mock('./config.js', () => ({
 }));
 
 describe('emailOtp service', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
+    vi.resetModules();
+    const module = await import('./emailOtp.js');
+    module.__private__.resetCallables();
   });
 
-  it('does not call cloud function when email already exists', async () => {
-    mockFetchSignInMethodsForEmail.mockResolvedValue(['password']);
+  it('maps backend already-exists errors for registered email addresses', async () => {
+    const { requestEmailOtp } = await import('./emailOtp.js');
+    mockRequestCallable.mockRejectedValue({
+      code: 'functions/already-exists'
+    });
 
     await expect(requestEmailOtp('Player@Example.com')).rejects.toMatchObject({
       code: 'already-exists'
     });
-    expect(mockRequestCallable).not.toHaveBeenCalled();
   });
 
   it('maps rate-limit errors with retryAfterMs', async () => {
-    mockFetchSignInMethodsForEmail.mockResolvedValue([]);
+    const { requestEmailOtp } = await import('./emailOtp.js');
     mockRequestCallable.mockRejectedValue({
       code: 'functions/resource-exhausted',
       details: { retryAfterMs: 45000 }
@@ -47,7 +45,7 @@ describe('emailOtp service', () => {
   });
 
   it('normalizes request payload email', async () => {
-    mockFetchSignInMethodsForEmail.mockResolvedValue([]);
+    const { requestEmailOtp } = await import('./emailOtp.js');
     mockRequestCallable.mockResolvedValue({ data: { expiresAt: Date.now() + 600000 } });
 
     await requestEmailOtp('  Test@Example.COM  ');
@@ -56,6 +54,7 @@ describe('emailOtp service', () => {
   });
 
   it('maps verification errors to user-friendly message', async () => {
+    const { verifyEmailOtp } = await import('./emailOtp.js');
     mockVerifyCallable.mockRejectedValue({
       code: 'functions/permission-denied'
     });
@@ -66,6 +65,7 @@ describe('emailOtp service', () => {
   });
 
   it('preserves backend precondition messages from OTP verification', async () => {
+    const { verifyEmailOtp } = await import('./emailOtp.js');
     mockVerifyCallable.mockRejectedValue({
       code: 'functions/failed-precondition',
       message: 'This verification code was already used. Please request a new code.'

@@ -88,10 +88,6 @@ export const completeEmailRegistration = async ({
     });
 
     const userCredential = await signInWithEmailAndPassword(auth, normalizedEmail, password);
-    if (typeof userCredential?.user?.getIdToken === 'function') {
-      await userCredential.user.getIdToken(true);
-    }
-
     return userCredential.user;
   } catch (error) {
     if (normalizeCallableCode(error?.code)) {

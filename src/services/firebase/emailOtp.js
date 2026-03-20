@@ -2,8 +2,10 @@
  * Email OTP Firebase Functions client
  */
 
-import { fetchSignInMethodsForEmail } from 'firebase/auth';
-import { auth, functions, httpsCallable } from './config.js';
+import { functions, httpsCallable } from './config.js';
+
+let requestEmailOtpCallable;
+let verifyEmailOtpCallable;
 
 const normalizeErrorCode = (code = '') => code.replace(/^functions\//, '').replace(/^auth\//, '');
 
@@ -63,32 +65,36 @@ export const requestEmailOtp = async (email) => {
   const normalizedEmail = String(email || '').trim().toLowerCase();
 
   try {
-    const existingMethods = await fetchSignInMethodsForEmail(auth, normalizedEmail);
-    if (existingMethods.length > 0) {
-      throw buildOtpError(
-        'Email is already registered. Please sign in or reset your password.',
-        'already-exists'
-      );
+    if (!requestEmailOtpCallable) {
+      requestEmailOtpCallable = httpsCallable(functions, 'requestEmailOtp');
     }
 
-    const callable = httpsCallable(functions, 'requestEmailOtp');
-    const response = await callable({ email: normalizedEmail });
+    const response = await requestEmailOtpCallable({ email: normalizedEmail });
     return response.data;
   } catch (error) {
-    if (error?.code === 'already-exists') {
-      throw error;
-    }
     throw mapOtpError(error, 'Unable to send verification code.');
   }
 };
 
 export const verifyEmailOtp = async (email, code) => {
-  const callable = httpsCallable(functions, 'verifyEmailOtp');
+  if (!verifyEmailOtpCallable) {
+    verifyEmailOtpCallable = httpsCallable(functions, 'verifyEmailOtp');
+  }
 
   try {
-    const response = await callable({ email: String(email || '').trim().toLowerCase(), code: String(code || '').trim() });
+    const response = await verifyEmailOtpCallable({
+      email: String(email || '').trim().toLowerCase(),
+      code: String(code || '').trim()
+    });
     return response.data;
   } catch (error) {
     throw mapOtpError(error, 'Verification failed. Please try again.');
+  }
+};
+
+export const __private__ = {
+  resetCallables() {
+    requestEmailOtpCallable = undefined;
+    verifyEmailOtpCallable = undefined;
   }
 };
