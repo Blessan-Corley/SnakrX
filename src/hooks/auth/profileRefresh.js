@@ -4,6 +4,7 @@ import {
   doc
 } from '../../services/firebase/config.js';
 import { firestoreOperations } from '../../services/firebase/firestore.js';
+import { applyProfileSoundSettings } from '../../utils/sound.js';
 import logger from '../../utils/logger.js';
 
 export const buildHydratedUserProfile = (firebaseUser, userData) => ({
@@ -12,6 +13,13 @@ export const buildHydratedUserProfile = (firebaseUser, userData) => ({
   ...userData,
   avatar: userData.avatar || firebaseUser.photoURL || null
 });
+
+export const hydrateUserProfileState = (firebaseUser, userData, setUserProfile) => {
+  const nextProfile = buildHydratedUserProfile(firebaseUser, userData);
+  applyProfileSoundSettings(userData?.settings);
+  setUserProfile(nextProfile);
+  return nextProfile;
+};
 
 export const refreshUserProfile = async (user, setUserProfile) => {
   if (!user) return null;
@@ -23,7 +31,7 @@ export const refreshUserProfile = async (user, setUserProfile) => {
     if (userDoc.exists()) {
       const userData = userDoc.data();
       logger.log('User profile refreshed:', userData?.stats);
-      setUserProfile(buildHydratedUserProfile(user, userData));
+      hydrateUserProfileState(user, userData, setUserProfile);
       return userData;
     }
   } catch (error) {
