@@ -58,7 +58,7 @@ describe('emailRegistration service', () => {
       'player@example.com',
       'StrongPass123'
     );
-    expect(mockGetIdToken).toHaveBeenCalledWith(true);
+    expect(mockGetIdToken).not.toHaveBeenCalled();
     expect(user).toMatchObject({ uid: 'user-1' });
   });
 
