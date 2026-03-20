@@ -25,7 +25,7 @@ import {
   handleAuthStateError,
   syncProfileActivityTimestamps
 } from './auth/authProviderHelpers.js';
-import { buildHydratedUserProfile, refreshUserProfile } from './auth/profileRefresh.js';
+import { hydrateUserProfileState, refreshUserProfile } from './auth/profileRefresh.js';
 import { useMountedState } from './auth/useMountedState.js';
 
 /**
@@ -88,7 +88,7 @@ export const AuthProvider = ({ children }) => {
               }
 
               setIfMounted(() => {
-                setUserProfile(buildHydratedUserProfile(firebaseUser, userData));
+                hydrateUserProfileState(firebaseUser, userData, setUserProfile);
               });
 
               const publicProfileRef = await ensurePublicProfileDocument(firebaseUser, userData);

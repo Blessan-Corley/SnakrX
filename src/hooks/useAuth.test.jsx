@@ -2,6 +2,7 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthProvider, useAuth } from './useAuth.js';
 
+const mockApplyProfileSoundSettings = vi.fn();
 const mockGetDocument = vi.fn();
 const mockSetDocument = vi.fn();
 const mockUpdateDocument = vi.fn();
@@ -63,6 +64,10 @@ vi.mock('react-hot-toast', () => ({
   }
 }));
 
+vi.mock('../utils/sound.js', () => ({
+  applyProfileSoundSettings: (...args) => mockApplyProfileSoundSettings(...args)
+}));
+
 const createDeferred = () => {
   let resolve;
   let reject;
@@ -113,6 +118,10 @@ describe('AuthProvider', () => {
         data: () => ({
           username: 'alpha',
           displayName: 'Alpha',
+          settings: {
+            soundEnabled: false,
+            soundVolume: 0.25
+          },
           stats: { bestScore: 25 }
         })
       })
@@ -133,6 +142,10 @@ describe('AuthProvider', () => {
 
     await waitFor(() => expect(screen.getByTestId('user')).toHaveTextContent('user-1'));
     expect(screen.getByTestId('profile')).toHaveTextContent(/alpha/i);
+    expect(mockApplyProfileSoundSettings).toHaveBeenCalledWith({
+      soundEnabled: false,
+      soundVolume: 0.25
+    });
     expect(screen.getByTestId('loading')).toHaveTextContent('false');
     expect(screen.getByTestId('initialized')).toHaveTextContent('true');
     expect(mockUpdateDocument).toHaveBeenCalledWith(

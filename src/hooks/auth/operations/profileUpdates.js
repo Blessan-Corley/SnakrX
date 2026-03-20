@@ -5,6 +5,7 @@ import {
   serverTimestamp
 } from '../../../services/firebase/index.js';
 import { firestoreOperations } from '../../../services/firebase/index.js';
+import { buildFriendSearchFields } from '../../../services/firebase/friendSearch.js';
 import { createProfileUpdatePayloads } from '../authOperationHelpers.js';
 
 export const updateUserProfileData = async ({
@@ -34,8 +35,25 @@ export const updateUserProfileData = async ({
 
   if (Object.keys(publicUpdates).length > 0) {
     const publicProfileRef = doc(db, COLLECTIONS.PUBLIC_PROFILES, auth.currentUser.uid);
+    const publicProfileSnap = await firestoreOperations.getDocument(publicProfileRef);
+    const currentPublicProfile = publicProfileSnap.exists()
+      ? publicProfileSnap.data() || {}
+      : {};
+    const nextDisplayName = publicUpdates.displayName ||
+      currentPublicProfile.displayName ||
+      auth.currentUser.displayName ||
+      auth.currentUser.email?.split('@')[0] ||
+      'player';
+    const nextUsername = currentPublicProfile.username ||
+      auth.currentUser.email?.split('@')[0] ||
+      'player';
+
     await firestoreOperations.updateDocument(publicProfileRef, {
       ...publicUpdates,
+      ...buildFriendSearchFields({
+        username: nextUsername,
+        displayName: nextDisplayName
+      }),
       updatedAt: serverTimestamp()
     });
   }
