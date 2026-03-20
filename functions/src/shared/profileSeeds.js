@@ -1,4 +1,5 @@
 const { admin } = require('../runtime');
+const { buildFriendSearchFields } = require('./friendSearch');
 
 const createDefaultUserStats = () => ({
   totalGames: 0,
@@ -153,6 +154,10 @@ const createDefaultPublicProfileData = ({
     uid,
     username,
     displayName,
+    ...buildFriendSearchFields({
+      username,
+      displayName
+    }),
     avatar,
     avatarPath: null,
     isPrivateLeaderboard: false,

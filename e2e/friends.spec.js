@@ -7,7 +7,7 @@ test.describe('Social Features', () => {
     await page.goto('/profile');
     await page.getByRole('button', { name: /friends/i }).click();
 
-    const searchInput = page.getByPlaceholder('Search by username...');
+  const searchInput = page.getByPlaceholder('Search by username or display name...');
     await expect(searchInput).toBeVisible();
     await searchInput.fill('testuser');
     await expect(searchInput).toHaveValue('testuser');
