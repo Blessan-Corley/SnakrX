@@ -32,10 +32,9 @@ export function getSignUpErrorMessage(err) {
 export function getSignInErrorMessage(err) {
   switch (err.code) {
     case 'auth/user-not-found':
-      return 'No account found with this email or username.';
     case 'auth/wrong-password':
     case 'auth/invalid-credential':
-      return 'Incorrect password. Please try again.';
+      return 'Invalid email or password. Please try again.';
     case 'auth/invalid-email':
       return 'Invalid email address format.';
     case 'auth/user-disabled':
@@ -46,7 +45,7 @@ export function getSignInErrorMessage(err) {
       return 'Network error. Please check your internet connection and try again.';
     default:
       if (err.message === 'User not found.') {
-        return 'No account found with this username.';
+        return 'Invalid email or password. Please try again.';
       }
       return err.message || 'An unknown error occurred.';
   }

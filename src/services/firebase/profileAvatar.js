@@ -1,5 +1,5 @@
 import { functions, httpsCallable } from './config.js';
-import { validateAvatarFile } from './avatarValidation.js';
+import { normalizeAvatarMimeType, validateAvatarFile } from './avatarValidation.js';
 
 let uploadAvatarCallable;
 let deleteAvatarCallable;
@@ -57,7 +57,7 @@ export const uploadUserAvatar = async ({ uid, file, previousAvatarPath = null })
   const callable = getUploadAvatarCallable();
   const response = await callable({
     fileName: file.name,
-    contentType: file.type,
+    contentType: normalizeAvatarMimeType(file.type),
     imageBase64,
     previousAvatarPath: previousAvatarPath || null
   });

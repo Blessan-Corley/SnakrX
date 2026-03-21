@@ -1,6 +1,7 @@
 import { Edit3, Save, Trash2, Upload, X } from 'lucide-react';
 import Button from '@/components/ui/Button.jsx';
 import UserAvatar from '@/components/ui/UserAvatar.jsx';
+import { AVATAR_INPUT_ACCEPT } from './avatarCropUtils.js';
 
 const formatProfileDate = (date, formatter) => {
   if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
@@ -75,7 +76,7 @@ const ProfileHeaderIdentity = ({
         <input
           ref={avatarInputRef}
           type="file"
-          accept="image/png,image/jpeg,image/webp"
+          accept={AVATAR_INPUT_ACCEPT}
           className="hidden"
           onChange={handleAvatarSelected}
         />

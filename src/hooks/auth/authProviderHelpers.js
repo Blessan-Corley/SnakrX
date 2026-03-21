@@ -7,10 +7,6 @@ import {
   serverTimestamp
 } from '../../services/firebase/config.js';
 import { firestoreOperations } from '../../services/firebase/firestore.js';
-import {
-  buildPublicProfileIdentity,
-  buildPublicProfilePreferences
-} from '../../services/firebase/publicProfileStats.js';
 import logger from '../../utils/logger.js';
 import { hydrateUserProfileState } from './profileRefresh.js';
 
@@ -20,6 +16,18 @@ export const ensureUsernameReservation = async (firebaseUser, username) => {
 
   try {
     const usernameRef = doc(db, COLLECTIONS.USERNAMES, normalizedUsername);
+    const usernameDoc = await firestoreOperations.getDocument(usernameRef);
+
+    if (usernameDoc.exists()) {
+      const reservedBy = usernameDoc.data()?.userId || null;
+      if (reservedBy && reservedBy !== firebaseUser.uid) {
+        logger.warn(
+          `Username reservation mismatch for ${normalizedUsername}. Reserved by another user, skipping client repair.`
+        );
+      }
+      return;
+    }
+
     await firestoreOperations.setDocument(usernameRef, {
       username: normalizedUsername,
       userId: firebaseUser.uid,
@@ -31,19 +39,15 @@ export const ensureUsernameReservation = async (firebaseUser, username) => {
   }
 };
 
-export const ensurePublicProfileDocument = async (firebaseUser, profileData) => {
+export const ensurePublicProfileDocument = async (firebaseUser, _profileData) => {
   const publicProfileRef = doc(db, COLLECTIONS.PUBLIC_PROFILES, firebaseUser.uid);
   const publicProfileDoc = await firestoreOperations.getDocument(publicProfileRef);
 
   if (!publicProfileDoc.exists()) {
-    const publicIdentity = buildPublicProfileIdentity(firebaseUser, profileData);
-    await firestoreOperations.setDocument(publicProfileRef, {
-      ...publicIdentity,
-      preferences: buildPublicProfilePreferences(profileData),
-      lastActiveAt: serverTimestamp(),
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp()
-    });
+    logger.warn(
+      `Public profile ${firebaseUser.uid} is missing. Skipping client-side recreation and relying on backend registration flow.`
+    );
+    return null;
   }
 
   return publicProfileRef;
@@ -55,10 +59,12 @@ export const syncProfileActivityTimestamps = (userDocRef, publicProfileRef) => {
     lastActiveAt: serverTimestamp()
   }).catch(logger.warn);
 
-  firestoreOperations.updateDocument(publicProfileRef, {
-    lastActiveAt: serverTimestamp(),
-    updatedAt: serverTimestamp()
-  }).catch(logger.warn);
+  if (publicProfileRef) {
+    firestoreOperations.updateDocument(publicProfileRef, {
+      lastActiveAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    }).catch(logger.warn);
+  }
 };
 
 export const bindRealtimeProfileSnapshot = ({

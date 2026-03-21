@@ -9,26 +9,59 @@ const {
   buildStorageDownloadUrl,
 } = require('./shared/utils');
 
-const hasValidAvatarSignature = (buffer, contentType) => {
+const detectAvatarContentType = (buffer) => {
   if (!Buffer.isBuffer(buffer) || buffer.length < 12) {
-    return false;
+    return null;
   }
 
-  if (contentType === 'image/png') {
-    return buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]));
+  if (buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]))) {
+    return 'image/png';
   }
 
-  if (contentType === 'image/jpeg') {
-    return buffer[0] === 0xFF && buffer[1] === 0xD8 && buffer[buffer.length - 2] === 0xFF && buffer[buffer.length - 1] === 0xD9;
+  if (
+    buffer[0] === 0xFF &&
+    buffer[1] === 0xD8 &&
+    buffer[buffer.length - 2] === 0xFF &&
+    buffer[buffer.length - 1] === 0xD9
+  ) {
+    return 'image/jpeg';
   }
 
-  if (contentType === 'image/webp') {
-    const riff = buffer.subarray(0, 4).toString('ascii');
-    const webp = buffer.subarray(8, 12).toString('ascii');
-    return riff === 'RIFF' && webp === 'WEBP';
+  const riff = buffer.subarray(0, 4).toString('ascii');
+  const webp = buffer.subarray(8, 12).toString('ascii');
+  if (riff === 'RIFF' && webp === 'WEBP') {
+    return 'image/webp';
   }
 
-  return false;
+  return null;
+};
+
+const normalizeAvatarContentType = (contentType = '') => {
+  const normalizedType = sanitizeText(contentType || '', 64).toLowerCase();
+
+  if (normalizedType === 'image/jpg' || normalizedType === 'image/pjpeg') {
+    return 'image/jpeg';
+  }
+
+  return normalizedType;
+};
+
+const hasValidAvatarSignature = (buffer, contentType) => (
+  detectAvatarContentType(buffer) === normalizeAvatarContentType(contentType)
+);
+
+const resolveAvatarContentType = (buffer, declaredContentType) => {
+  const detectedContentType = detectAvatarContentType(buffer);
+  if (!detectedContentType || !AVATAR_ALLOWED_TYPES.has(detectedContentType)) {
+    return null;
+  }
+
+  const normalizedDeclaredType = normalizeAvatarContentType(declaredContentType);
+  if (!normalizedDeclaredType || normalizedDeclaredType === detectedContentType) {
+    return detectedContentType;
+  }
+
+  return detectedContentType;
 };
 
 const uploadUserAvatar = functions.https.onCall(async (data, context) => {
@@ -37,8 +70,8 @@ const uploadUserAvatar = functions.https.onCall(async (data, context) => {
     throw new functions.https.HttpsError('unauthenticated', 'Authentication required.');
   }
 
-  const contentType = sanitizeText(data?.contentType || '', 64).toLowerCase();
-  if (!AVATAR_ALLOWED_TYPES.has(contentType)) {
+  const declaredContentType = normalizeAvatarContentType(data?.contentType || '');
+  if (!AVATAR_ALLOWED_TYPES.has(declaredContentType)) {
     throw new functions.https.HttpsError('invalid-argument', 'Unsupported avatar file type.');
   }
 
@@ -58,7 +91,8 @@ const uploadUserAvatar = functions.https.onCall(async (data, context) => {
     throw new functions.https.HttpsError('invalid-argument', 'Avatar image exceeds the allowed size.');
   }
 
-  if (!hasValidAvatarSignature(imageBuffer, contentType)) {
+  const contentType = resolveAvatarContentType(imageBuffer, declaredContentType);
+  if (!contentType) {
     throw new functions.https.HttpsError('invalid-argument', 'Avatar image content does not match the declared file type.');
   }
 
@@ -118,7 +152,10 @@ const deleteUserAvatar = functions.https.onCall(async (data, context) => {
 });
 
 const __private__ = {
-  hasValidAvatarSignature
+  detectAvatarContentType,
+  hasValidAvatarSignature,
+  normalizeAvatarContentType,
+  resolveAvatarContentType
 };
 
 module.exports = {

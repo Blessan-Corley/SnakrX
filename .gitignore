@@ -21,6 +21,7 @@ build/
 # Coverage and test artifacts
 coverage/
 .nyc_output/
+.tmp-vitest-report.json
 playwright-report/
 test-results/
 blob-report/

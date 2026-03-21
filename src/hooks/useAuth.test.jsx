@@ -127,6 +127,13 @@ describe('AuthProvider', () => {
       })
       .mockResolvedValueOnce({
         exists: () => true,
+        data: () => ({
+          username: 'alpha',
+          userId: 'user-1'
+        })
+      })
+      .mockResolvedValueOnce({
+        exists: () => true,
         data: () => ({})
       });
 
@@ -227,5 +234,112 @@ describe('AuthProvider', () => {
     expect(mockSignOut).toHaveBeenCalledWith({});
     expect(mockSetDocument).not.toHaveBeenCalled();
     expect(mockOnSnapshot).not.toHaveBeenCalled();
+  });
+
+  it('skips client-side public profile recreation when the server-owned document is missing', async () => {
+    const firebaseUser = {
+      uid: 'user-4',
+      email: 'delta@example.com',
+      photoURL: null
+    };
+
+    mockGetDocument
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({
+          username: 'delta',
+          displayName: 'Delta'
+        })
+      })
+      .mockResolvedValueOnce({
+        exists: () => false,
+        data: () => ({})
+      })
+      .mockResolvedValueOnce({
+        exists: () => false,
+        data: () => ({})
+      });
+
+    render(
+      <AuthProvider>
+        <Probe />
+      </AuthProvider>
+    );
+
+    await act(async () => {
+      await mockOnAuthStateChanged.callback(firebaseUser);
+    });
+
+    await waitFor(() => expect(screen.getByTestId('user')).toHaveTextContent('user-4'));
+    expect(screen.getByTestId('profile')).toHaveTextContent(/delta/i);
+    expect(mockSetDocument).toHaveBeenCalledWith(
+      { path: 'usernames/delta' },
+      expect.objectContaining({
+        username: 'delta',
+        userId: 'user-4'
+      }),
+      { merge: true }
+    );
+    expect(mockSetDocument).not.toHaveBeenCalledWith(
+      { path: 'publicProfiles/user-4' },
+      expect.anything(),
+      expect.anything()
+    );
+    expect(mockUpdateDocument).toHaveBeenCalledWith(
+      { path: 'users/user-4' },
+      expect.objectContaining({
+        lastLoginAt: { __serverTimestamp: true },
+        lastActiveAt: { __serverTimestamp: true }
+      })
+    );
+    expect(mockUpdateDocument).not.toHaveBeenCalledWith(
+      { path: 'publicProfiles/user-4' },
+      expect.anything()
+    );
+  });
+
+  it('does not rewrite an existing username reservation on sign-in', async () => {
+    const firebaseUser = {
+      uid: 'user-5',
+      email: 'echo@example.com',
+      photoURL: null
+    };
+
+    mockGetDocument
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({
+          username: 'echo',
+          displayName: 'Echo'
+        })
+      })
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({
+          username: 'echo',
+          userId: 'user-5'
+        })
+      })
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({})
+      });
+
+    render(
+      <AuthProvider>
+        <Probe />
+      </AuthProvider>
+    );
+
+    await act(async () => {
+      await mockOnAuthStateChanged.callback(firebaseUser);
+    });
+
+    await waitFor(() => expect(screen.getByTestId('user')).toHaveTextContent('user-5'));
+    expect(mockSetDocument).not.toHaveBeenCalledWith(
+      { path: 'usernames/echo' },
+      expect.anything(),
+      expect.anything()
+    );
   });
 });

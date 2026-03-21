@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { removeUserAvatar, uploadUserAvatar } from './profileAvatar.js';
-import { validateAvatarFile } from './avatarValidation.js';
+import { normalizeAvatarMimeType, validateAvatarFile } from './avatarValidation.js';
 
 const mockUploadCallable = vi.fn();
 const mockDeleteCallable = vi.fn();
@@ -42,6 +42,12 @@ describe('validateAvatarFile', () => {
     const result = validateAvatarFile(createFileLike({ type: 'image/webp', size: 1000 }));
     expect(result.valid).toBe(true);
   });
+
+  it('accepts common jpeg aliases', () => {
+    const result = validateAvatarFile(createFileLike({ type: 'image/jpg', size: 1000 }));
+    expect(result.valid).toBe(true);
+    expect(normalizeAvatarMimeType('image/pjpeg')).toBe('image/jpeg');
+  });
 });
 
 describe('profileAvatar service', () => {
@@ -73,6 +79,24 @@ describe('profileAvatar service', () => {
       avatar: 'https://example.com/avatar.webp',
       avatarPath: 'avatars/user-1/123_avatar.webp'
     });
+  });
+
+  it('normalizes jpeg aliases before calling the upload function', async () => {
+    mockUploadCallable.mockResolvedValue({
+      data: {
+        avatar: 'https://example.com/avatar.jpeg',
+        avatarPath: 'avatars/user-1/456_avatar.jpeg'
+      }
+    });
+
+    await uploadUserAvatar({
+      uid: 'user-1',
+      file: createFileLike({ name: 'avatar.jpg', type: 'image/jpg' })
+    });
+
+    expect(mockUploadCallable).toHaveBeenCalledWith(expect.objectContaining({
+      contentType: 'image/jpeg'
+    }));
   });
 
   it('requires a user id before upload', async () => {

@@ -106,7 +106,7 @@ describe('auth operation error mapping', () => {
 
   it('maps sign in errors', () => {
     expect(getSignInErrorMessage({ code: 'auth/invalid-credential' }))
-      .toMatch(/incorrect password/i);
+      .toMatch(/invalid email or password/i);
   });
 
   it('maps password reset errors', () => {

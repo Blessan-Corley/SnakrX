@@ -3,10 +3,12 @@ import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import Card from '@/components/ui/Card';
 import { removeUserAvatar, uploadUserAvatar } from '@/services/firebase/profileAvatar';
+import { validateAvatarFile } from '@/services/firebase/avatarValidation.js';
 import logger from '@/utils/logger.js';
 import { playClick } from '@/utils/sound';
 import ProfileHeaderIdentity from './profileHeader/ProfileHeaderIdentity.jsx';
 import ProfileHeaderLevelSummary from './profileHeader/ProfileHeaderLevelSummary.jsx';
+import AvatarCropModal from './profileHeader/AvatarCropModal.jsx';
 import { formatMembershipSummary, resolveProfileDate } from './profileHeader/profileDateUtils.js';
 
 /**
@@ -27,6 +29,7 @@ export const ProfileHeader = ({
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [pendingAvatarFile, setPendingAvatarFile] = useState(null);
   const avatarInputRef = useRef(null);
   const [editForm, setEditForm] = useState({
     displayName: userProfile.displayName || '',
@@ -75,6 +78,23 @@ export const ProfileHeader = ({
     event.target.value = '';
     if (!file || !userProfile?.uid) return;
 
+    const validation = validateAvatarFile(file);
+    if (!validation.valid) {
+      toast.error(validation.error);
+      return;
+    }
+
+    setPendingAvatarFile(file);
+  };
+
+  const handleCloseAvatarCrop = () => {
+    if (uploadingAvatar) return;
+    setPendingAvatarFile(null);
+  };
+
+  const handleConfirmAvatarCrop = async (file) => {
+    if (!file || !userProfile?.uid) return;
+
     setUploadingAvatar(true);
     let uploadedAvatarPath = null;
     try {
@@ -88,6 +108,7 @@ export const ProfileHeader = ({
       if (!result?.success) {
         throw new Error(result?.error || 'Failed to save avatar in profile.');
       }
+      setPendingAvatarFile(null);
       toast.success('Profile photo updated.');
     } catch (error) {
       logger.error('Failed to upload profile avatar:', error);
@@ -184,6 +205,14 @@ export const ProfileHeader = ({
           </motion.div>
         </div>
       </div>
+
+      <AvatarCropModal
+        file={pendingAvatarFile}
+        isOpen={!!pendingAvatarFile}
+        onClose={handleCloseAvatarCrop}
+        onConfirm={handleConfirmAvatarCrop}
+        submitting={uploadingAvatar}
+      />
     </Card>
   );
 };
