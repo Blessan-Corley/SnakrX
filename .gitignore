@@ -78,6 +78,7 @@ ui-debug.*.log
 
 # Editor and OS files
 .vscode/
+.VSCodeCounter/
 .vs/
 .idea/
 .history/
@@ -98,4 +99,9 @@ $RECYCLE.BIN/
 
 # Local tooling files
 .claude/
+
+# Local agent instructions and generated planning docs
+AGENTS.md
+**/AGENTS.md
+docs/superpowers/
 

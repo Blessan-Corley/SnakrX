@@ -24,7 +24,7 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage && node scripts/check-coverage.cjs",
+    "test:coverage": "node scripts/run-coverage.cjs",
     "test:e2e": "playwright test",
     "e2e:public": "playwright test e2e/public-pages.spec.js e2e/navigation.spec.js e2e/pwa-and-session.spec.js",
     "e2e:auth": "playwright test e2e/auth.spec.js e2e/friends.spec.js e2e/game-classic.spec.js e2e/game-modes.spec.js e2e/gameplay.spec.js e2e/navigation-auth.spec.js e2e/pwa-auth.spec.js"
