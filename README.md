@@ -1,222 +1,249 @@
 # SnakrX
 
-SnakrX is a product-style web application built around a multi-mode snake game.
+[![CI](https://github.com/Blessan-Corley/SnakrX/actions/workflows/ci.yml/badge.svg)](https://github.com/Blessan-Corley/SnakrX/actions/workflows/ci.yml)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-snakrx--23b0b.web.app-orange)](https://snakrx-23b0b.web.app/landing)
 
-It is not only a game screen. The project includes authentication, user profiles, public profiles, achievements, leaderboards, friends, support tickets, admin workflows, PWA support, automated tests, and CI.
+A browser-based snake game built as a full product — with authentication, user profiles, leaderboards, achievements, friends, support, and an admin panel.
 
-The gameplay runs in the browser, but the app also uses Firebase services and Cloud Functions for backend-owned workflows such as OTP verification, support operations, avatar handling, leaderboard updates, and persisted game-session finalization.
+**[Play it here](https://snakrx-23b0b.web.app/landing)**
 
-## What This Project Covers
+---
 
-### Gameplay
-- Classic mode
-- Transparent mode
-- VS AI with difficulty levels
-- Local multiplayer
-- Bonus food and game progression systems
+![Demo](docs/assets/demo.gif)
 
-### Product Features
-- Email/password authentication
-- OTP-based email verification
-- User profile and public profile pages
-- Match history and achievement tracking
-- Global and weekly leaderboards
+---
+
+## Game Modes
+
+| Mode | Description |
+|------|-------------|
+| Classic | Standard snake gameplay with progression and speed scaling |
+| Transparent | Walls are passable — snake wraps around the board |
+| VS AI | Play against an AI opponent with Easy, Hard, or Impossible difficulty |
+| Local Multiplayer | Two players on the same keyboard |
+
+---
+
+## Screenshots
+
+<table>
+  <tr>
+    <td><img src="docs/assets/gameplay-transparent.png" alt="Transparent Mode" /></td>
+    <td><img src="docs/assets/gameplay-vsai.png" alt="VS AI Impossible" /></td>
+  </tr>
+  <tr>
+    <td align="center">Transparent Mode</td>
+    <td align="center">VS AI — Impossible Difficulty</td>
+  </tr>
+</table>
+
+---
+
+## Product Features
+
+- Email/password authentication with OTP email verification
+- User profiles with avatar upload
+- Public profile pages
+- Match history
+- Achievement system with unlock tracking
+- Global and weekly leaderboards per game mode
 - Friends and social profile surfaces
-- Support ticket submission and ticket history
-- Admin tools for support workflows and moderation
-- PWA installability and cached assets
+- Support ticket submission with email notifications
+- Admin panel for support management and moderation
+- PWA support — installable with offline-cached assets
+
+---
 
 ## Tech Stack
 
 ### Frontend
-- React 18
-- Vite
-- React Router
-- Tailwind CSS
-- Framer Motion
+
+| Tool | Purpose |
+|------|---------|
+| React 18 | UI framework |
+| Vite 5 | Build tool and dev server |
+| React Router 6 | Client-side routing |
+| Tailwind CSS 3 | Styling |
+| Framer Motion | Animations and transitions |
 
 ### Backend and Infrastructure
-- Firebase Authentication
-- Cloud Firestore
-- Firebase Storage
-- Firebase Cloud Functions
-- Firebase Hosting
+
+| Service | Purpose |
+|---------|---------|
+| Firebase Authentication | Identity and session management |
+| Cloud Firestore | Primary database |
+| Firebase Cloud Functions | Backend logic (Node 20) |
+| Firebase Storage | Avatar file storage |
+| Firebase Hosting | Static hosting and CDN |
 
 ### Testing and Quality
-- Vitest
-- Testing Library
-- Playwright
-- ESLint
-- GitHub Actions
 
-## Architecture Summary
+| Tool | Purpose |
+|------|---------|
+| Vitest | Unit and integration tests |
+| Testing Library | Component and hook testing |
+| Playwright | End-to-end browser tests |
+| ESLint + Prettier | Code style enforcement |
+| GitHub Actions | CI pipeline |
 
-### Frontend responsibilities
-- Render the game and product UI
-- Run the game loop locally in the browser
-- Manage page state through hooks and feature modules
-- Call Firebase SDKs and callable Cloud Functions
+---
 
-### Backend responsibilities
-- Generate and verify OTP codes
-- Finalize trusted game-session writes and primary stat updates
-- Create and update leaderboard records
-- Handle avatar upload and deletion workflows
-- Process support ticket creation and admin ticket updates
-- Enforce access through Firestore and Storage rules
+## Architecture
 
-### Data model highlights
-Firestore stores:
-- users
-- publicProfiles
-- games
-- leaderboards
-- weeklyLeaderboards
-- supportTickets
-- friends and friend requests
+The browser handles the game loop, rendering, and local session state. Firebase manages identity, persistence, and file storage. Backend logic runs as Cloud Functions.
 
-## Why Firebase Was Used
+### Frontend
 
-Firebase was used as the backend platform, but this project is not frontend-only.
+- `src/pages` — Route-level pages (auth, game, leaderboard, profile, admin, achievements)
+- `src/components` — Reusable UI and feature components
+- `src/hooks` — Feature logic, game orchestration, and state management
+- `src/services/firebase` — Firebase SDK access and service wrappers
+- `src/utils` — Game mechanics, AI logic, sound, and shared utilities
 
-What I implemented on the backend side:
-- Cloud Functions for OTP email delivery and verification
-- Cloud Functions for support ticket submission and admin updates
-- Cloud Functions for avatar lifecycle and Storage coordination
-- Cloud Functions for leaderboard maintenance and weekly leaderboard generation
-- Cloud Functions for persisted game-session finalization and stat updates
-- Firestore rules and Storage rules to restrict direct client writes
-- Data shaping and validation logic for trusted backend flows
+### Cloud Functions
 
-What Firebase handled for me:
-- authentication infrastructure
-- managed database and storage
-- serverless function hosting
-- deployment plumbing
+| Module | Responsibility |
+|--------|---------------|
+| `otp.js` | Email OTP delivery and verification |
+| `games.js` | Game session finalization and stat updates |
+| `leaderboards.js` | Leaderboard upserts and weekly aggregation |
+| `achievements.js` | Achievement unlock logic |
+| `support.js` | Ticket creation, admin updates, email notifications |
+| `avatar.js` | Avatar upload and deletion |
+| `admin.js` | Ban/unban and admin operations |
+| `friends.js` | Friend request and edge management |
+| `registration.js` | User registration workflow |
+| `passwordReset.js` | Password reset email and verification |
 
-So the backend work here is real application-backend work, but it is platform-backed rather than a custom Node/Express server.
+### Data Model
 
-## What This Project Is and Is Not
+Firestore collections:
 
-This project is:
-- a full web product built around a game
-- a frontend-heavy full-stack project
-- a good example of product engineering with managed backend services
+- `users` — Account data, stats, and settings
+- `publicProfiles` — Public-facing user information
+- `games` — Per-session game records (server-written)
+- `leaderboards` — Per-mode global rankings
+- `weeklyLeaderboards` — Weekly snapshots (scheduled job)
+- `achievements` — Per-user unlock records
+- `supportTickets` — Support requests and admin responses
+- `emailOtps` — Short-lived OTP codes (server-written, client-read blocked)
 
-This project is not:
-- a server-authoritative multiplayer system
-- a low-level backend or distributed systems project
-- only a landing page plus one game component
+Security rules in `firestore.rules` and `storage.rules` restrict client writes on server-owned data and enforce field-level access control.
 
-## Repository Structure
-
-- `src/pages` route-level pages
-- `src/components` reusable UI and feature components
-- `src/hooks` stateful product logic
-- `src/services/firebase` Firebase client access and service helpers
-- `src/utils` gameplay and shared utility logic
-- `functions` Firebase Cloud Functions
-- `e2e` Playwright end-to-end tests
-- `docs` architecture and deployment notes
+---
 
 ## Local Setup
 
 ### Prerequisites
+
 - Node.js 20
 - npm
-- a Firebase project with web app credentials
+- A Firebase project with web app credentials
 
 ### Install
+
 ```bash
 npm install
 npm ci --prefix functions
 ```
 
 ### Environment
-1. Copy `.env.example` to `.env`
-2. Fill in the `VITE_FIREBASE_*` values
-3. If you need OTP or support email flows locally, copy `functions/.env.example` to `functions/.env`
 
-Optional for authenticated Playwright flows:
-- `E2E_EMAIL`
-- `E2E_PASSWORD`
-
-### Run locally
 ```bash
-npm run dev
+cp .env.example .env
+# Fill in the VITE_FIREBASE_* values
 ```
 
-Default local app URL:
-- `http://localhost:3000`
+For local email flows (OTP, support):
+
+```bash
+cp functions/.env.example functions/.env
+# Fill in EMAIL_USER, EMAIL_PASS, OTP_SALT, etc.
+```
+
+### Run
+
+```bash
+npm run dev
+# http://localhost:3000
+```
+
+---
 
 ## Commands
 
 ```bash
+# Development
 npm run dev
 npm run build
 npm run preview
+
+# Code quality
 npm run lint
-npm run test
-npm run test:run
-npm run test:coverage
-npm run test:e2e
-npm run e2e:public
-npm run e2e:auth
+npm run format
+
+# Tests
+npm run test:run          # Unit and integration tests
+npm run test:coverage     # With coverage thresholds
+npm run e2e:public        # Playwright — public flows
+npm run e2e:auth          # Playwright — authenticated flows
+
+# CI quality gate
 npm run ci:quality
+
+# Deployment
 npm run check:deploy-env
+npm run deploy:hosting
+npm run deploy:firebase
 ```
 
-## Quality Checks
+---
 
-Typical validation flow:
+## CI Pipeline
 
-```bash
-npm run lint
-npm run test:run
-npm run build
-```
+GitHub Actions runs on every push and pull request:
 
-Stricter validation:
+1. **Lint** — ESLint with zero warnings allowed
+2. **Unit tests** — Vitest with coverage thresholds (63% branches, 53% functions, 44% lines)
+3. **Build verification** — Production Vite build
+4. **E2E (public)** — Playwright against public pages and navigation
+5. **E2E (auth)** — Playwright against authenticated flows (runs when credentials are available)
+6. **CD artifact** — Production dist uploaded on main branch after all checks pass
 
-```bash
-npm run test:coverage
-npm run test:e2e
-```
+---
 
-## Deployment Notes
-
-Production deploy:
+## Deployment
 
 ```bash
 firebase deploy --project <your-project-id> --only firestore:rules,firestore:indexes,storage,functions,hosting
 ```
 
-Important notes:
-- keep `.firebaserc` local and use `.firebaserc.example` as a template
-- deploy Cloud Functions before expecting persisted game sessions, OTP, support, or leaderboard writes to work
-- Cloud Functions in production do not read your local `functions/.env`
-- configure `EMAIL_USER`, `EMAIL_PASS`, `EMAIL_FROM`, `SUPPORT_EMAIL_TO`, and `OTP_SALT` in the deployed Functions environment
+Notes:
+- Deploy Cloud Functions before expecting OTP, leaderboard, support, or game session persistence to work
+- Cloud Functions in production read from deployed environment config, not your local `functions/.env`
 
-## Testing and Project Health
+---
 
-This repository includes:
-- unit and integration tests for frontend behavior and Firebase client services
-- direct tests for backend helper logic in Cloud Functions
-- Playwright coverage for public and authenticated browser flows
-- CI for lint, tests, coverage, and build verification
+## Repository Structure
 
-## Known Tradeoffs
+```
+src/
+  pages/          Route-level pages
+  components/     Reusable UI and feature components
+  hooks/          State and feature logic
+  services/       Firebase SDK wrappers
+  utils/          Game mechanics and shared utilities
+functions/
+  src/            Cloud Function modules
+e2e/              Playwright test suites
+docs/             Architecture and deployment notes
+```
 
-- gameplay is client-executed, not fully server-authoritative
-- Firebase provides the backend platform, so this project emphasizes product delivery and application logic over custom infrastructure
-- the strongest engineering depth is in frontend architecture and product workflows, not backend systems design
+---
 
 ## Docs
 
-- `docs/architecture.md`
-- `docs/deployment-readiness.md`
-- `docs/production-deployment.md`
+- [Architecture](docs/architecture.md)
+- [Deployment Readiness](docs/deployment-readiness.md)
+- [Production Deployment](docs/production-deployment.md)
 
-## License
-
-MIT
