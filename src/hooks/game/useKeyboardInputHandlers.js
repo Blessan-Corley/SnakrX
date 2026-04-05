@@ -14,16 +14,17 @@ export const useKeyboardInputHandlers = ({
   keysDownRef,
   lastInputTimeRef,
   performanceRef,
-  playerCount
+  playerCount,
+  sharedSinglePlayerKeys = false
 }) => {
   const getPlayerForKey = useCallback((code, key) => {
-    if (playerCount === 1) {
+    if (playerCount === 1 || sharedSinglePlayerKeys) {
       return (ULTRA_KEY_MAP.has(code) || ULTRA_KEY_MAP.has(key)) ? 0 : -1;
     }
 
     const player = PLAYER_KEY_MAP.get(code) ?? PLAYER_KEY_MAP.get(key);
     return (player !== undefined && player < playerCount) ? player : -1;
-  }, [playerCount]);
+  }, [playerCount, sharedSinglePlayerKeys]);
 
   const handleKeyDown = useCallback((event) => {
     const startTime = performance.now();

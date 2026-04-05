@@ -15,13 +15,16 @@ export const buildGameSessionData = ({
   const isCompetitiveMode =
     gameState.gameMode === GAME_MODES.VS_AI || gameState.gameMode === GAME_MODES.MULTIPLAYER;
   const sessionResult = isCompetitiveMode ? (victory ? 'won' : 'lost') : 'completed';
+  const normalizedDifficulty = gameState.gameMode === GAME_MODES.VS_AI
+    ? (gameState.difficulty || null)
+    : null;
 
   return {
     gameId: gameState.gameId,
     userId: user.uid,
     username: getPreferredUsername({ user, userProfile }),
     mode: gameState.gameMode,
-    difficulty: gameState.difficulty || null,
+    difficulty: normalizedDifficulty,
     playerCount: gameState.playerCount || 1,
     score: gameState.score,
     aiScore: gameState.gameMode === GAME_MODES.VS_AI ? (gameState.snakes?.[1]?.score || 0) : null,

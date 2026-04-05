@@ -27,31 +27,43 @@ const registrationCore = createRegistrationCore({
   logCallableError
 });
 
-const completeEmailRegistration = functions.https.onCall(async (data) => {
+const completeEmailRegistrationHandler = async (data, services = {}) => {
+  const runtimeFunctions = services.functions || functions;
+  const runtimeAdmin = services.admin || admin;
+  const runtimeDb = services.db || db;
+  const runtimeSanitizeText = services.sanitizeText || sanitizeText;
+  const runtimeLogCallableError = services.logCallableError || logCallableError;
+  const runtimeRegistrationCore = services.registrationCore || registrationCore;
+
   try {
-    return await registrationCore.completeEmailRegistrationCore(data, {
-      admin,
-      db
+    return await runtimeRegistrationCore.completeEmailRegistrationCore(data, {
+      admin: runtimeAdmin,
+      db: runtimeDb
     });
   } catch (error) {
-    logCallableError('completeEmailRegistration', error, {
-      email: sanitizeText(data?.email || '', 160).toLowerCase()
+    runtimeLogCallableError('completeEmailRegistration', error, {
+      email: runtimeSanitizeText(data?.email || '', 160).toLowerCase()
     });
 
-    if (error instanceof functions.https.HttpsError) {
+    if (error instanceof runtimeFunctions.https.HttpsError) {
       throw error;
     }
 
-    throw new functions.https.HttpsError(
+    throw new runtimeFunctions.https.HttpsError(
       'internal',
       'Unable to complete signup right now. Please try again.'
     );
   }
-});
+};
+
+const completeEmailRegistration = functions.https.onCall(async (data) => (
+  completeEmailRegistrationHandler(data)
+));
 
 module.exports = {
   completeEmailRegistration,
   __private__: {
-    ...registrationCore
+    ...registrationCore,
+    completeEmailRegistrationHandler
   }
 };

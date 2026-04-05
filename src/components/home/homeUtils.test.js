@@ -12,8 +12,10 @@ describe('homeUtils', () => {
     const timestampObject = {
       toDate: () => new Date('2025-02-01T10:00:00Z')
     };
+    const nativeDate = new Date('2025-02-01T10:00:00Z');
 
     expect(resolveDateValue(timestampObject)?.toISOString()).toBe('2025-02-01T10:00:00.000Z');
+    expect(resolveDateValue(nativeDate)?.toISOString()).toBe('2025-02-01T10:00:00.000Z');
     expect(resolveDateValue({ seconds: 1738404000 })?.toISOString()).toBe('2025-02-01T10:00:00.000Z');
     expect(resolveDateValue(1738404000000)?.toISOString()).toBe('2025-02-01T10:00:00.000Z');
     expect(resolveDateValue(null)).toBeNull();

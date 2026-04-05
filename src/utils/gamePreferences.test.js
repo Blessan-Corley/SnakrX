@@ -9,6 +9,18 @@ import {
 } from './gamePreferences.js';
 
 describe('gamePreferences', () => {
+  it('defaults VS AI selection to impossible when difficulty is omitted', () => {
+    const selection = normalizeGameSelection({ mode: 'vsai' });
+    expect(selection).toEqual({
+      mode: 'vsai',
+      difficulty: 'impossible',
+      playerCount: 2,
+      bonusFoodEnabled: true
+    });
+    expect(getGameRouteFromSelection(selection)).toBe('/game/vsai/impossible');
+    expect(getSelectionLabel(selection)).toBe('VS AI (impossible)');
+  });
+
   it('normalizes VS AI selection with difficulty', () => {
     const selection = normalizeGameSelection({ mode: 'vsai', difficulty: 'impossible' });
     expect(selection).toEqual({

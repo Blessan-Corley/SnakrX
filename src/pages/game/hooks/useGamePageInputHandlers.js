@@ -29,6 +29,7 @@ export const useGamePageInputHandlers = ({
 
   const inputHandlers = useGameInput({
     playerCount: numPlayers,
+    sharedSinglePlayerKeys: !isMultiplayerMode,
     onDirectionChange: handleDirectionChange,
     onPlayerInput: (playerId, payload) => handleMultiplayerReadyInput(playerId, payload?.direction),
     onPauseToggle: togglePause,

@@ -4,7 +4,7 @@ export const SHOWN_ACHIEVEMENT_STORAGE_KEY = 'snakrx.shownAchievementUnlocks';
 
 export const resolveGameRouteState = ({ difficulty, mode, playerCount, search }) => {
   const resolvedMode = mode || 'classic';
-  const resolvedDifficulty = resolvedMode === 'vsai' ? (difficulty || 'medium') : null;
+  const resolvedDifficulty = resolvedMode === 'vsai' ? (difficulty || 'impossible') : null;
   const resolvedPlayerCount = resolvedMode === 'multiplayer'
     ? Math.max(2, Number(playerCount || difficulty) || 2)
     : resolvedMode === 'vsai'

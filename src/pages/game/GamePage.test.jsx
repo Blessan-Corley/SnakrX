@@ -94,13 +94,13 @@ describe('GamePage mode flows', () => {
     fireEvent.click(screen.getByRole('switch', { name: /toggle large bonus food/i }));
     fireEvent.click(screen.getByRole('button', { name: /start game/i }));
 
-    expect(navigateSpy).toHaveBeenCalledWith('/game/vsai/medium?bonusFood=off');
+    expect(navigateSpy).toHaveBeenCalledWith('/game/vsai/impossible?bonusFood=off');
   });
 
-  it('uses last played VS AI difficulty for quick start', async () => {
+  it('keeps bonus food preference and defaults VS AI difficulty selection to impossible', async () => {
     window.localStorage.setItem('snakrx:lastPlayedMode', JSON.stringify({
       mode: 'vsai',
-      difficulty: 'impossible',
+      difficulty: 'medium',
       playerCount: 2,
       bonusFoodEnabled: false
     }));

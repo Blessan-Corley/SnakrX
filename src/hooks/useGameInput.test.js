@@ -134,6 +134,22 @@ describe('useGameInput', () => {
     ]);
   });
 
+  it('maps arrow keys to the single human player when shared single-player keys are enabled', () => {
+    const { result } = renderHook(() => useGameInput({
+      playerCount: 2,
+      sharedSinglePlayerKeys: true
+    }));
+
+    expect(result.current.getPlayerForKey('KeyW', 'w')).toBe(0);
+    expect(result.current.getPlayerForKey('ArrowUp', 'ArrowUp')).toBe(0);
+
+    const mappings = result.current.getCurrentKeyMappings();
+    expect(mappings).toEqual([
+      expect.objectContaining({ playerId: 0, keys: 'WASD or Arrow Keys' }),
+      expect.objectContaining({ playerId: 1, keys: 'AI Controlled' })
+    ]);
+  });
+
   it('handles touch controls and swipe gestures with throttling', () => {
     const onDirectionChange = vi.fn();
     const { result } = renderHook(() => useGameInput({ onDirectionChange }));

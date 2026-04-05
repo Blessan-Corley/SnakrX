@@ -146,6 +146,18 @@ describe('gameOperations', () => {
     });
   });
 
+  it('strips stale difficulty values from non-vsai finalization payloads', async () => {
+    const { __private__ } = await import('./game.js');
+
+    expect(__private__.buildFinalizationPayload(
+      { mode: 'classic', difficulty: 'medium', score: 10 },
+      { mode: 'classic', difficulty: 'medium', score: 10 }
+    )).toMatchObject({
+      mode: 'classic',
+      difficulty: null
+    });
+  });
+
   it('saveGameSession remains compatible and returns the finalized document id', async () => {
     const { gameOperations } = await import('./game.js');
 

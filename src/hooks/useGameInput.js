@@ -10,6 +10,7 @@ import { useTouchInputHandlers } from './game/useTouchInputHandlers.js';
 
 export const useGameInput = ({
   playerCount = 1,
+  sharedSinglePlayerKeys = false,
   onDirectionChange = () => {},
   onPauseToggle = () => {},
   onRestart = () => {},
@@ -56,7 +57,8 @@ export const useGameInput = ({
     keysDownRef,
     lastInputTimeRef,
     performanceRef,
-    playerCount
+    playerCount,
+    sharedSinglePlayerKeys
   });
   const {
     handleTouchControl,
@@ -140,6 +142,25 @@ export const useGameInput = ({
   }, [handleKeyDown, handleKeyUp, handleTouchStart, handleTouchMove, handleTouchEnd]);
 
   const getCurrentKeyMappings = useCallback(() => {
+    if (sharedSinglePlayerKeys && playerCount === 2) {
+      return [
+        {
+          playerId: 0,
+          playerName: 'Player 1',
+          keys: 'WASD or Arrow Keys',
+          lastInputTime: lastInputTimeRef.current.get(0) || 0,
+          consecutiveInputs: consecutiveInputsRef.current.get(0) || 0
+        },
+        {
+          playerId: 1,
+          playerName: 'Player 2',
+          keys: 'AI Controlled',
+          lastInputTime: 0,
+          consecutiveInputs: 0
+        }
+      ];
+    }
+
     const mappings = [];
     for (let index = 0; index < playerCount; index += 1) {
       mappings.push({
@@ -159,7 +180,7 @@ export const useGameInput = ({
       });
     }
     return mappings;
-  }, [playerCount]);
+  }, [playerCount, sharedSinglePlayerKeys]);
 
   const getInputPerformance = useCallback(() => {
     const perf = performanceRef.current;

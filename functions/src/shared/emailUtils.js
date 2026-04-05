@@ -146,7 +146,7 @@ const buildSupportEmail = (ticket) => {
   ].join('\n');
 
   const safeTicketId = escapeHtml(ticket.id || '');
-  const safeCategory = escapeHtml(ticket.category || 'general');
+  const safeCategory = escapeHtml(ticket.category || 'other');
   const safeName = escapeHtml(ticket.displayName || 'Not provided');
   const safeUsername = escapeHtml(ticket.username || 'Not provided');
   const safeEmail = escapeHtml(ticket.email || 'Not provided');
@@ -214,7 +214,7 @@ const buildSupportUpdateEmail = (ticket, nextStatus, adminResponse) => {
   ].join('\n');
 
   const safeTicketId = escapeHtml(ticket.id || '');
-  const safeCategory = escapeHtml(ticket.category || 'general');
+  const safeCategory = escapeHtml(ticket.category || 'other');
   const safeStatus = escapeHtml(nextStatus || 'open');
   const safeResponseHtml = escapeHtml(safeResponse).replace(/\n/g, '<br />');
 

@@ -421,6 +421,19 @@ const processPreviousWeeklyLeaderboards = async ({ force = false } = {}) => {
   }
 };
 
+const assertLeaderboardUpsertPreconditions = (runtimeFunctions, preflightGameSnap, userId) => {
+  if (!preflightGameSnap?.exists) {
+    throw new runtimeFunctions.https.HttpsError('not-found', 'Game session was not found.');
+  }
+
+  const preflightGameData = preflightGameSnap.data() || {};
+  if ((preflightGameData.userId || null) !== userId) {
+    throw new runtimeFunctions.https.HttpsError('permission-denied', 'Cannot rank another user session.');
+  }
+
+  return preflightGameData;
+};
+
 const upsertLeaderboardEntryCore = createLeaderboardEntryCore({
   functions,
   admin,
@@ -436,14 +449,11 @@ const upsertLeaderboardEntryForGame = async ({ userId, gameDocId }) => {
 
   try {
     const preflightGameSnap = await gameRef.get();
-    if (!preflightGameSnap.exists) {
-      throw new functions.https.HttpsError('not-found', 'Game session was not found.');
-    }
-
-    const preflightGameData = preflightGameSnap.data() || {};
-    if ((preflightGameData.userId || null) !== userId) {
-      throw new functions.https.HttpsError('permission-denied', 'Cannot rank another user session.');
-    }
+    const preflightGameData = assertLeaderboardUpsertPreconditions(
+      functions,
+      preflightGameSnap,
+      userId
+    );
 
     sanitizePersistedGameForLeaderboard(functions, preflightGameData);
     return upsertLeaderboardEntryCore({ userId, gameDocId });
@@ -496,6 +506,7 @@ module.exports = {
     applyWeeklyUserStats,
     writeWeeklyLeaderboards,
     processPreviousWeeklyLeaderboards,
+    assertLeaderboardUpsertPreconditions,
     sanitizePersistedGameForLeaderboard,
     upsertLeaderboardEntryForGame
   }

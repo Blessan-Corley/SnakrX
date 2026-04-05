@@ -23,7 +23,7 @@ export const submitTicket = async (user, payload) => {
         name: payload?.name || '',
         email: payload?.email || '',
         username: payload?.username || '',
-        category: payload?.category || 'general',
+        category: payload?.category || 'other',
         title: payload?.title || 'Support request',
         description: payload?.description || '',
         device: payload?.device || '',

@@ -2,6 +2,7 @@ import { formatScore } from '@/utils/gameUtils';
 
 export const resolveDateValue = (value) => {
   if (!value) return null;
+  if (value instanceof Date) return value;
   if (typeof value?.toDate === 'function') return value.toDate();
   if (typeof value?.seconds === 'number') return new Date(value.seconds * 1000);
   if (typeof value === 'number' || typeof value === 'string') return new Date(value);

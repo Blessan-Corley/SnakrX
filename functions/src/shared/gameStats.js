@@ -405,7 +405,9 @@ const VALID_RESULTS = new Set(['completed', 'won', 'lost', 'quit', 'victory', 'd
 
 const sanitizeFinalizedSessionPayload = ({ session = {}, sanitizeText, functions, userId, username }) => {
   const mode = sanitizeText(session.mode || '', 64).toLowerCase();
-  const difficulty = session.difficulty == null ? null : sanitizeText(session.difficulty, 32).toLowerCase();
+  const difficulty = mode === GAME_MODES.VS_AI
+    ? (session.difficulty == null ? null : sanitizeText(session.difficulty, 32).toLowerCase())
+    : null;
   const gameId = sanitizeText(session.gameId || '', 128);
 
   if (!gameId) {

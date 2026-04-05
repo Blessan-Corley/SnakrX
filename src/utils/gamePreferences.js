@@ -22,7 +22,7 @@ export const normalizeGameSelection = (selection = {}) => {
   const bonusFoodEnabled = normalizeBonusFoodEnabled(selection.bonusFoodEnabled);
 
   if (mode === GAME_MODES.VS_AI) {
-    const difficulty = selection.difficulty || 'medium';
+    const difficulty = selection.difficulty || 'impossible';
     return { mode, difficulty, playerCount: 2, bonusFoodEnabled };
   }
 

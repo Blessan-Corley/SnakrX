@@ -131,7 +131,7 @@ const mapAdminSupportTicket = (docSnap) => {
     username: sanitizeText(data.username || '', 64) || null,
     displayName: sanitizeText(data.displayName || '', 120) || null,
     email: sanitizeText(data.email || '', 160) || null,
-    category: sanitizeText(data.category || '', 64) || 'general',
+    category: sanitizeText(data.category || '', 64) || 'other',
     title: sanitizeText(data.title || '', 140) || 'Support request',
     description: sanitizeText(data.description || '', 4000) || '',
     status: sanitizeText(data.status || 'open', 32) || 'open',

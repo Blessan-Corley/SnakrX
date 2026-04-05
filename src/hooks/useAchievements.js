@@ -87,6 +87,50 @@ const buildAchievementStateFromProfile = (userProfile) => {
   };
 };
 
+const mergePendingCollectedAchievements = ({
+  achievementState,
+  pendingCollectedSnapshots = new Map(),
+  pendingCollectedIds = []
+}) => {
+  if (!pendingCollectedIds.length) {
+    return achievementState;
+  }
+
+  const pendingCollectedIdSet = new Set(pendingCollectedIds);
+  const unlockedMap = new Map(
+    (achievementState.unlockedAchievements || []).map((achievement) => [achievement.id, achievement])
+  );
+
+  pendingCollectedIdSet.forEach((achievementId) => {
+    const existing = unlockedMap.get(achievementId);
+    const snapshot = pendingCollectedSnapshots.get(achievementId);
+    if (!existing && !snapshot) {
+      return;
+    }
+
+    unlockedMap.set(achievementId, {
+      ...(existing || {}),
+      ...(snapshot || {}),
+      collected: true
+    });
+  });
+
+  const unlockedAchievements = Array.from(unlockedMap.values())
+    .sort((left, right) => (right.timestamp || 0) - (left.timestamp || 0));
+  const uncollectedAchievements = unlockedAchievements
+    .filter((achievement) => !pendingCollectedIdSet.has(achievement.id))
+    .filter((achievement) => !achievement.collected);
+  const recentUnlocks = (achievementState.recentUnlocks || [])
+    .filter((achievement) => !pendingCollectedIdSet.has(achievement.id));
+
+  return {
+    ...achievementState,
+    recentUnlocks,
+    unlockedAchievements,
+    uncollectedAchievements
+  };
+};
+
 /**
  * Achievement Provider Component
  */
@@ -95,22 +139,32 @@ export const AchievementProvider = ({ children }) => {
   const [uncollectedAchievements, setUncollectedAchievements] = useState([]);
   const [achievementProgress, setAchievementProgress] = useState({});
   const [recentUnlocks, setRecentUnlocks] = useState([]);
+  const [pendingCollectedIds, setPendingCollectedIds] = useState([]);
   const [loading, setLoading] = useState(false);
 
   const { refreshProfile, userProfile } = useAuth();
   const lastSyncedMissingIdsRef = useRef('');
+  const pendingCollectedSnapshotsRef = useRef(new Map());
 
   const achievementState = useMemo(
     () => buildAchievementStateFromProfile(userProfile),
     [userProfile]
   );
+  const mergedAchievementState = useMemo(
+    () => mergePendingCollectedAchievements({
+      achievementState,
+      pendingCollectedSnapshots: pendingCollectedSnapshotsRef.current,
+      pendingCollectedIds
+    }),
+    [achievementState, pendingCollectedIds]
+  );
 
   // Update unlocked achievements when user profile changes
   useEffect(() => {
     if (userProfile) {
-      setUnlockedAchievements(achievementState.unlockedAchievements);
-      setUncollectedAchievements(achievementState.uncollectedAchievements);
-      setRecentUnlocks(achievementState.recentUnlocks);
+      setUnlockedAchievements(mergedAchievementState.unlockedAchievements);
+      setUncollectedAchievements(mergedAchievementState.uncollectedAchievements);
+      setRecentUnlocks(mergedAchievementState.recentUnlocks);
       return;
     }
 
@@ -118,7 +172,45 @@ export const AchievementProvider = ({ children }) => {
     setUncollectedAchievements([]);
     setAchievementProgress({});
     setRecentUnlocks([]);
-  }, [achievementState, userProfile]);
+    setPendingCollectedIds([]);
+  }, [mergedAchievementState, userProfile]);
+
+  useEffect(() => {
+    const nextSnapshots = new Map();
+
+    pendingCollectedIds.forEach((achievementId) => {
+      const snapshot = unlockedAchievements.find((achievement) => achievement?.id === achievementId);
+      if (snapshot) {
+        nextSnapshots.set(achievementId, snapshot);
+        return;
+      }
+
+      const previousSnapshot = pendingCollectedSnapshotsRef.current.get(achievementId);
+      if (previousSnapshot) {
+        nextSnapshots.set(achievementId, previousSnapshot);
+      }
+    });
+
+    pendingCollectedSnapshotsRef.current = nextSnapshots;
+  }, [pendingCollectedIds, unlockedAchievements]);
+
+  useEffect(() => {
+    if (!pendingCollectedIds.length) {
+      return;
+    }
+
+    const persistedCollectedIds = new Set(
+      (achievementState.unlockedAchievements || [])
+        .filter((achievement) => achievement?.id && achievement.collected)
+        .map((achievement) => achievement.id)
+    );
+
+    if (!persistedCollectedIds.size) {
+      return;
+    }
+
+    setPendingCollectedIds((current) => current.filter((achievementId) => !persistedCollectedIds.has(achievementId)));
+  }, [achievementState.unlockedAchievements, pendingCollectedIds.length]);
 
   useEffect(() => {
     const missingIds = achievementState.missingAchievementIds;
@@ -157,16 +249,58 @@ export const AchievementProvider = ({ children }) => {
     };
   }, [achievementState.missingAchievementIds, refreshProfile, userProfile?.uid]);
 
+  useEffect(() => {
+    if (!userProfile?.uid || !pendingCollectedIds.length) {
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    const timeoutId = window.setTimeout(async () => {
+      try {
+        const result = await achievementOperations.collectAchievements(pendingCollectedIds);
+
+        if (cancelled) return;
+
+        const collectedIds = Array.isArray(result?.collectedIds) ? result.collectedIds : [];
+        if (collectedIds.length > 0) {
+          const collectedIdSet = new Set(collectedIds);
+          setUnlockedAchievements((previous) => previous.map((achievement) => (
+            collectedIdSet.has(achievement.id) ? { ...achievement, collected: true } : achievement
+          )));
+          setUncollectedAchievements((previous) => previous.filter((achievement) => !collectedIdSet.has(achievement.id)));
+          setRecentUnlocks((previous) => previous.filter((achievement) => !collectedIdSet.has(achievement.id)));
+          setPendingCollectedIds((previous) => previous.filter((achievementId) => !collectedIdSet.has(achievementId)));
+        }
+
+        if (refreshProfile) {
+          await refreshProfile();
+        }
+      } catch (error) {
+        if (!cancelled) {
+          logger.warn('Retrying achievement collection in the background failed:', error);
+        }
+      }
+    }, 1500);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, [pendingCollectedIds, refreshProfile, userProfile?.uid]);
+
   const value = {
     unlockedAchievements,
     uncollectedAchievements,
     achievementProgress,
     recentUnlocks,
+    pendingCollectedIds,
     loading,
     setUnlockedAchievements,
     setUncollectedAchievements,
     setAchievementProgress,
     setRecentUnlocks,
+    setPendingCollectedIds,
     setLoading
   };
 
@@ -184,5 +318,6 @@ export { useAchievementOperations } from './achievements/operations.js';
 export const __private__ = {
   buildAchievementStateFromProfile,
   buildStoredAchievementRecords,
+  mergePendingCollectedAchievements,
   resolveAchievementTimestamp
 };

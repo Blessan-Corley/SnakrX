@@ -19,7 +19,7 @@ describe('gameSessionUtils', () => {
       search: ''
     })).toEqual({
       resolvedMode: 'vsai',
-      resolvedDifficulty: 'medium',
+      resolvedDifficulty: 'impossible',
       resolvedPlayerCount: 2,
       resolvedBonusFoodEnabled: true
     });

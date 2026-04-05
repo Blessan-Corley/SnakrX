@@ -46,6 +46,7 @@ const createDeferred = () => {
 
 const createProps = (overrides = {}) => ({
   refreshProfile: vi.fn().mockResolvedValue(undefined),
+  setPendingCollectedIds: vi.fn(),
   setRecentUnlocks: vi.fn(),
   setUncollectedAchievements: vi.fn(),
   setUnlockedAchievements: vi.fn(),
@@ -129,5 +130,92 @@ describe('useAchievementCollectionOperations', () => {
     ])).resolves.toBe(true);
     expect(props.refreshProfile).toHaveBeenCalledOnce();
     expect(toastSuccessMock).toHaveBeenCalledWith('Collected 2 achievements');
+  });
+
+  it('updates achievement state optimistically while single-collect confirmation is pending', async () => {
+    const deferred = createDeferred();
+    const props = createProps();
+    mockSyncCollectedAchievementsWithTransaction.mockImplementation(() => deferred.promise);
+
+    const { result } = renderHook(() => useAchievementCollectionOperations(props));
+
+    await act(async () => {
+      void result.current.collectAchievement('first_game');
+      await Promise.resolve();
+    });
+
+    expect(props.setUnlockedAchievements).toHaveBeenCalledWith([
+      { id: 'first_game', collected: true, isPersisted: true }
+    ]);
+    expect(props.setUncollectedAchievements).toHaveBeenCalledWith([]);
+
+    await act(async () => {
+      deferred.resolve({
+        success: true,
+        updated: [{ id: 'first_game', collected: true, isPersisted: true }],
+        collectedIds: ['first_game']
+      });
+      await Promise.resolve();
+    });
+  });
+
+  it('keeps the optimistic collected state when backend confirmation is delayed', async () => {
+    const props = createProps();
+    mockSyncCollectedAchievementsWithTransaction.mockResolvedValue({
+      success: false,
+      updated: [{ id: 'first_game', collected: false, isPersisted: true }],
+      collectedIds: [],
+      attemptedIds: ['first_game']
+    });
+
+    const { result } = renderHook(() => useAchievementCollectionOperations(props));
+
+    await act(async () => {
+      await expect(result.current.collectAchievement('first_game')).resolves.toBe(true);
+    });
+
+    expect(props.setUnlockedAchievements).toHaveBeenCalledWith([
+      { id: 'first_game', collected: true, isPersisted: true }
+    ]);
+    expect(props.setUncollectedAchievements).toHaveBeenCalledWith([]);
+    expect(props.setPendingCollectedIds).toHaveBeenCalled();
+    expect(props.refreshProfile).toHaveBeenCalledOnce();
+    expect(toastErrorMock).not.toHaveBeenCalled();
+  });
+
+  it('keeps collect-all optimistic when backend confirmation is delayed', async () => {
+    const props = createProps({
+      unlockedAchievements: [
+        { id: 'first_game', collected: false, isPersisted: true },
+        { id: 'first_win', collected: false, isPersisted: true }
+      ],
+      uncollectedAchievements: [
+        { id: 'first_game', collected: false, isPersisted: true },
+        { id: 'first_win', collected: false, isPersisted: true }
+      ]
+    });
+    mockSyncCollectedAchievementsWithTransaction.mockResolvedValue({
+      success: false,
+      updated: [
+        { id: 'first_game', collected: false, isPersisted: true },
+        { id: 'first_win', collected: false, isPersisted: true }
+      ],
+      collectedIds: [],
+      attemptedIds: ['first_game', 'first_win']
+    });
+
+    const { result } = renderHook(() => useAchievementCollectionOperations(props));
+
+    await act(async () => {
+      await expect(result.current.collectAllAchievements()).resolves.toBe(true);
+    });
+
+    expect(props.setUnlockedAchievements).toHaveBeenCalledWith([
+      { id: 'first_game', collected: true, isPersisted: true },
+      { id: 'first_win', collected: true, isPersisted: true }
+    ]);
+    expect(props.setUncollectedAchievements).toHaveBeenCalledWith([]);
+    expect(props.refreshProfile).toHaveBeenCalledOnce();
+    expect(toastErrorMock).not.toHaveBeenCalled();
   });
 });

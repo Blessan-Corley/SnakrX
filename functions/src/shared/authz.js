@@ -1,19 +1,27 @@
 const { functions, db } = require('../runtime');
 
-const assertAdminUser = async (context) => {
+const assertAdminUserCore = async (context, services = {}) => {
+  const runtimeFunctions = services.functions || functions;
+  const runtimeDb = services.db || db;
+
   if (!context.auth?.uid) {
-    throw new functions.https.HttpsError('unauthenticated', 'Authentication required.');
+    throw new runtimeFunctions.https.HttpsError('unauthenticated', 'Authentication required.');
   }
 
-  const userDoc = await db.collection('users').doc(context.auth.uid).get();
+  const userDoc = await runtimeDb.collection('users').doc(context.auth.uid).get();
   const userData = userDoc.exists ? userDoc.data() : null;
   const isAdmin = userData?.role === 'admin';
 
   if (!isAdmin) {
-    throw new functions.https.HttpsError('permission-denied', 'Admin access required.');
+    throw new runtimeFunctions.https.HttpsError('permission-denied', 'Admin access required.');
   }
 };
 
+const assertAdminUser = async (context) => assertAdminUserCore(context);
+
 module.exports = {
-  assertAdminUser
+  assertAdminUser,
+  __private__: {
+    assertAdminUserCore
+  }
 };

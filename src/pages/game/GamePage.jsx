@@ -26,9 +26,7 @@ const GamePage = () => {
   const preferredMode = searchParams.get('mode');
   const showClassicOptions = preferredMode === 'classic';
   const lastPlayed = getLastPlayedMode();
-  const [aiDifficulty, setAiDifficulty] = useState(
-    () => (lastPlayed?.mode === 'vsai' ? lastPlayed.difficulty || 'medium' : 'medium')
-  );
+  const [aiDifficulty, setAiDifficulty] = useState('impossible');
   const [playerCount, setPlayerCount] = useState(
     () => (lastPlayed?.mode === 'multiplayer' ? lastPlayed.playerCount || 2 : 2)
   );

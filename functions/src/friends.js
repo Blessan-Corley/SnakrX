@@ -3,14 +3,20 @@ const { sanitizeText } = require('./shared/utils');
 const { buildPublicProfilePayload } = require('./shared/publicProfilePayload');
 const { unlockEligibleAchievements } = require('./shared/achievementCatalog');
 
+const syncFriendStatsCore = async (data, context, services = {}) => {
+  const runtimeFunctions = services.functions || functions;
+  const runtimeAdmin = services.admin || admin;
+  const runtimeDb = services.db || db;
+  const sanitize = services.sanitizeText || sanitizeText;
+  const buildPayload = services.buildPublicProfilePayload || buildPublicProfilePayload;
+  const unlockAchievements = services.unlockEligibleAchievements || unlockEligibleAchievements;
 
-const syncFriendStats = functions.https.onCall(async (data, context) => {
   if (!context.auth?.uid) {
-    throw new functions.https.HttpsError('unauthenticated', 'Authentication required.');
+    throw new runtimeFunctions.https.HttpsError('unauthenticated', 'Authentication required.');
   }
 
   const userIds = Array.isArray(data?.userIds)
-    ? data.userIds.map((userId) => sanitizeText(userId || '', 128)).filter(Boolean).slice(0, 10)
+    ? data.userIds.map((userId) => sanitize(userId || '', 128)).filter(Boolean).slice(0, 10)
     : [];
 
   if (!userIds.length) {
@@ -21,14 +27,14 @@ const syncFriendStats = functions.https.onCall(async (data, context) => {
   const synced = [];
 
   for (const userId of uniqueUserIds) {
-    const friendsSnap = await db.collection('users').doc(userId).collection('friends')
+    const friendsSnap = await runtimeDb.collection('users').doc(userId).collection('friends')
       .where('status', '==', 'accepted')
       .get();
     const acceptedCount = friendsSnap.size;
 
-    const syncResult = await db.runTransaction(async (transaction) => {
-      const userRef = db.collection('users').doc(userId);
-      const publicProfileRef = db.collection('publicProfiles').doc(userId);
+    const syncResult = await runtimeDb.runTransaction(async (transaction) => {
+      const userRef = runtimeDb.collection('users').doc(userId);
+      const publicProfileRef = runtimeDb.collection('publicProfiles').doc(userId);
       const [userSnap, publicProfileSnap] = await Promise.all([
         transaction.get(userRef),
         transaction.get(publicProfileRef)
@@ -41,7 +47,7 @@ const syncFriendStats = functions.https.onCall(async (data, context) => {
       const userData = userSnap.data() || {};
       const publicProfileData = publicProfileSnap.exists ? publicProfileSnap.data() || {} : {};
       const currentStats = userData.stats || {};
-      const unlocked = unlockEligibleAchievements({
+      const unlocked = unlockAchievements({
         achievements: currentStats.achievements || [],
         sourceStats: {
           ...currentStats,
@@ -56,17 +62,17 @@ const syncFriendStats = functions.https.onCall(async (data, context) => {
 
       transaction.set(userRef, {
         stats: nextStats,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        lastActiveAt: admin.firestore.FieldValue.serverTimestamp()
+        updatedAt: runtimeAdmin.firestore.FieldValue.serverTimestamp(),
+        lastActiveAt: runtimeAdmin.firestore.FieldValue.serverTimestamp()
       }, { merge: true });
 
       transaction.set(
         publicProfileRef,
         {
-          ...buildPublicProfilePayload({ userId, userData, publicProfileData, nextStats }),
+          ...buildPayload({ userId, userData, publicProfileData, nextStats }),
           createdAt: publicProfileSnap.exists
-            ? (publicProfileData.createdAt || admin.firestore.FieldValue.serverTimestamp())
-            : admin.firestore.FieldValue.serverTimestamp()
+            ? (publicProfileData.createdAt || runtimeAdmin.firestore.FieldValue.serverTimestamp())
+            : runtimeAdmin.firestore.FieldValue.serverTimestamp()
         },
         { merge: true }
       );
@@ -84,10 +90,15 @@ const syncFriendStats = functions.https.onCall(async (data, context) => {
   }
 
   return { synced };
-});
-
-module.exports = {
-  syncFriendStats
 };
 
+const syncFriendStats = functions.https.onCall(async (data, context) => (
+  syncFriendStatsCore(data, context)
+));
 
+module.exports = {
+  syncFriendStats,
+  __private__: {
+    syncFriendStatsCore
+  }
+};

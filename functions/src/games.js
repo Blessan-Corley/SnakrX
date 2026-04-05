@@ -44,12 +44,21 @@ const normalizePlayerScores = (playerScores = []) => {
     .map((score) => Math.max(0, Math.floor(Number(score) || 0)));
 };
 
+const normalizeGameDifficulty = (mode, difficulty) => {
+  if (mode !== 'vsai') {
+    return null;
+  }
+
+  return difficulty;
+};
+
 const normalizeSessionPayload = (payload = {}, userId) => {
   const gameId = sanitizeText(payload.gameId || '', 128);
   const mode = sanitizeText(payload.mode || '', 64).toLowerCase();
-  const difficulty = payload.difficulty == null
+  const rawDifficulty = payload.difficulty == null
     ? null
     : sanitizeText(payload.difficulty || '', 32).toLowerCase();
+  const difficulty = normalizeGameDifficulty(mode, rawDifficulty);
   const result = sanitizeText(payload.result || 'completed', 32).toLowerCase();
   const duration = Math.max(0, Math.floor(Number(payload.duration) || 0));
   const score = Math.max(0, Math.floor(Number(payload.score) || 0));
@@ -414,6 +423,7 @@ const getPublicRecentGames = functions.https.onCall(async (data) => {
 const __private__ = {
   clampLimit,
   getGameDocumentId,
+  normalizeGameDifficulty,
   normalizeSessionPayload,
   mapPublicGame
 };

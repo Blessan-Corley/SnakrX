@@ -50,6 +50,128 @@ describe('completeEmailRegistrationCore', () => {
     vi.clearAllMocks();
   });
 
+  it('validates signup payload rules before touching auth or firestore', async () => {
+    const registrationCore = await createRegistrationCoreUnderTest();
+
+    expect(() => registrationCore.normalizeSignupPayload({
+      email: 'nope',
+      username: 'player_one',
+      password: 'StrongPass123'
+    })).toThrow(/valid email address/i);
+
+    expect(() => registrationCore.normalizeSignupPayload({
+      email: 'player@example.com',
+      username: 'ab',
+      password: 'StrongPass123'
+    })).toThrow(/Username must be 3-20 characters/i);
+
+    expect(() => registrationCore.normalizeSignupPayload({
+      email: 'player@example.com',
+      username: 'player-one',
+      password: 'StrongPass123'
+    })).toThrow(/Username must be 3-20 characters/i);
+
+    expect(() => registrationCore.normalizeSignupPayload({
+      email: 'player@example.com',
+      username: 'player_one',
+      password: 'short'
+    })).toThrow(/between 6 and 128 characters/i);
+
+    expect(() => registrationCore.normalizeSignupPayload({
+      email: 'player@example.com',
+      username: 'player_one',
+      password: 'alllowercase1'
+    })).toThrow(/uppercase, lowercase, and numeric/i);
+
+    expect(registrationCore.normalizeSignupPayload({
+      email: ' Player@Example.com ',
+      username: 'Player_One',
+      password: 'StrongPass123',
+      displayName: ' Player One '
+    })).toEqual({
+      email: 'player@example.com',
+      username: 'player_one',
+      password: 'StrongPass123',
+      displayName: 'Player One'
+    });
+  });
+
+  it('rejects OTP records that are missing, mismatched, unverified, consumed, stale, or expired', async () => {
+    const registrationCore = await createRegistrationCoreUnderTest();
+    const now = 1700000005000;
+
+    expect(() => registrationCore.assertOtpReadyForSignup({
+      otpData: null,
+      email: 'player@example.com',
+      now
+    })).toThrow(/Verify your email address/i);
+
+    expect(() => registrationCore.assertOtpReadyForSignup({
+      otpData: {
+        email: 'other@example.com',
+        verified: true,
+        verifiedAt: { toMillis: () => now },
+        expiresAt: { toMillis: () => now + 1000 }
+      },
+      email: 'player@example.com',
+      now
+    })).toThrow(/Verify your email address/i);
+
+    expect(() => registrationCore.assertOtpReadyForSignup({
+      otpData: {
+        email: 'player@example.com',
+        consumedAt: { toMillis: () => now - 1000 },
+        verified: true,
+        verifiedAt: { toMillis: () => now },
+        expiresAt: { toMillis: () => now + 1000 }
+      },
+      email: 'player@example.com',
+      now
+    })).toThrow(/already used/i);
+
+    expect(() => registrationCore.assertOtpReadyForSignup({
+      otpData: {
+        email: 'player@example.com',
+        verified: false
+      },
+      email: 'player@example.com',
+      now
+    })).toThrow(/Verify your email address/i);
+
+    expect(() => registrationCore.assertOtpReadyForSignup({
+      otpData: {
+        email: 'player@example.com',
+        verified: true,
+        verifiedAt: { toMillis: () => now - (11 * 60 * 1000) },
+        expiresAt: { toMillis: () => now + 1000 }
+      },
+      email: 'player@example.com',
+      now
+    })).toThrow(/verification expired/i);
+
+    expect(() => registrationCore.assertOtpReadyForSignup({
+      otpData: {
+        email: 'player@example.com',
+        verified: true,
+        verifiedAt: { toMillis: () => now - 1000 },
+        expiresAt: { toMillis: () => now - 1 }
+      },
+      email: 'player@example.com',
+      now
+    })).toThrow(/Verification code has expired/i);
+
+    expect(() => registrationCore.assertOtpReadyForSignup({
+      otpData: {
+        email: 'player@example.com',
+        verified: true,
+        verifiedAt: { toMillis: () => now - 1000 },
+        expiresAt: { toMillis: () => now + 1000 }
+      },
+      email: 'player@example.com',
+      now
+    })).not.toThrow();
+  });
+
   it('creates auth and profile records after a verified OTP', async () => {
     const otpRef = {
       get: vi.fn().mockResolvedValue({

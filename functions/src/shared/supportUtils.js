@@ -7,6 +7,12 @@ const {
 } = require('./constants');
 const { sanitizeText, stripBase64Prefix } = require('./coreUtils');
 
+const isValidBase64Payload = (value = '') => {
+  if (typeof value !== 'string' || !value) return false;
+  if (value.length % 4 !== 0) return false;
+  return /^[A-Za-z0-9+/]+={0,2}$/.test(value);
+};
+
 const sanitizeSupportAttachments = (attachments = []) => {
   if (!Array.isArray(attachments)) {
     throw new functions.https.HttpsError('invalid-argument', 'Invalid support attachment payload.');
@@ -37,6 +43,13 @@ const sanitizeSupportAttachments = (attachments = []) => {
       throw new functions.https.HttpsError(
         'invalid-argument',
         `Attachment "${attachmentName}" is missing file data.`
+      );
+    }
+
+    if (!isValidBase64Payload(dataBase64)) {
+      throw new functions.https.HttpsError(
+        'invalid-argument',
+        `Attachment "${attachmentName}" contains invalid file data.`
       );
     }
 
@@ -90,5 +103,6 @@ const sanitizeSupportAttachments = (attachments = []) => {
 };
 
 module.exports = {
+  isValidBase64Payload,
   sanitizeSupportAttachments
 };

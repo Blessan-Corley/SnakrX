@@ -78,7 +78,6 @@ describe('supportOperations', () => {
       {
         title: 'Need help',
         description: 'Something is wrong',
-        category: 'general',
         attachmentFiles: [createFileLike()]
       }
     );
@@ -112,7 +111,6 @@ describe('supportOperations', () => {
       {
         title: 'Need help',
         description: 'Something is wrong',
-        category: 'general',
         attachmentNames: ['proof.png'],
         attachmentFiles: [createFileLike()]
       }
@@ -121,6 +119,7 @@ describe('supportOperations', () => {
     const submitSupportTicket = mockHttpsCallable.mock.results.find((result) => typeof result.value === 'function')?.value;
     expect(submitSupportTicket).toHaveBeenCalledWith(expect.objectContaining({
       payload: expect.objectContaining({
+        category: 'other',
         attachmentNames: ['proof.png'],
         attachments: [
           {

@@ -71,6 +71,28 @@ describe('games helpers', () => {
     expect(session.endedAt.toMillis()).toBe(5000);
   });
 
+  it('coerces non-vsai difficulty values to null instead of rejecting the session', () => {
+    const session = gamesPrivate.normalizeSessionPayload({
+      gameId: 'game-2',
+      mode: 'classic',
+      difficulty: 'medium',
+      result: 'completed',
+      duration: 20,
+      score: 100,
+      foodEaten: 3,
+      speedReached: 1.4,
+      playerCount: 1,
+      maxLength: 7,
+      startedAt: 1000,
+      endedAt: 3000
+    }, 'user-2');
+
+    expect(session).toMatchObject({
+      mode: 'classic',
+      difficulty: null
+    });
+  });
+
   it('rejects invalid modes and timestamps', () => {
     expect(() => gamesPrivate.normalizeSessionPayload({
       gameId: 'game-1',

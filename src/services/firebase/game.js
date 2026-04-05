@@ -35,10 +35,14 @@ const getGetPublicRecentGamesCallable = () => {
   return getPublicRecentGamesCallable;
 };
 
+const normalizeFinalizationDifficulty = (mode, difficulty) => (
+  mode === 'vsai' ? (difficulty ?? null) : null
+);
+
 const buildFinalizationPayload = (gameData, validationData) => ({
   ...gameData,
   mode: validationData.mode,
-  difficulty: validationData.difficulty ?? null,
+  difficulty: normalizeFinalizationDifficulty(validationData.mode, validationData.difficulty),
   score: validationData.score
 });
 
@@ -173,5 +177,6 @@ export const __private__ = {
     finalizeGameSessionCallable = undefined;
     getPublicRecentGamesCallable = undefined;
   },
-  buildFinalizationPayload
+  buildFinalizationPayload,
+  normalizeFinalizationDifficulty
 };

@@ -20,6 +20,7 @@ build/
 
 # Coverage and test artifacts
 coverage/
+coverage-functions/
 .nyc_output/
 .tmp-vitest-report.json
 playwright-report/

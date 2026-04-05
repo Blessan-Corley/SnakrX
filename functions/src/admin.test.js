@@ -228,4 +228,134 @@ describe('admin helpers', () => {
       updatedAt: Date.UTC(2026, 2, 15)
     }, filters, Date.UTC(2026, 2, 19))).toBe(false);
   });
+
+  it('maps support tickets with stable defaults and summarizes inbox state', () => {
+    const mapped = adminPrivate.mapAdminSupportTicket(createDocSnap('ticket-1', {
+      email: 'player@example.com',
+      title: 'Need help',
+      customerUnreadUpdate: true,
+      createdAt: { toMillis: () => 1000 },
+      updatedAt: { toMillis: () => 2000 }
+    }));
+
+    expect(mapped).toMatchObject({
+      id: 'ticket-1',
+      email: 'player@example.com',
+      category: 'other',
+      status: 'open',
+      priority: 'normal',
+      customerUnreadUpdate: true,
+      customerUnreadUpdateCount: 0,
+      createdAt: 1000,
+      updatedAt: 2000
+    });
+
+    expect(adminPrivate.buildSupportTicketSummary([
+      mapped,
+      {
+        status: 'in_progress',
+        customerUnreadUpdate: false
+      },
+      {
+        status: 'resolved',
+        customerUnreadUpdate: true
+      },
+      {
+        status: 'closed',
+        customerUnreadUpdate: false
+      }
+    ])).toEqual({
+      open: 2,
+      needsReply: 2,
+      resolved: 2
+    });
+  });
+
+  it('builds overview metrics from mixed active, banned, and new users', () => {
+    const now = Date.now;
+    Date.now = () => Date.UTC(2026, 2, 19, 12, 0, 0);
+
+    try {
+      const overview = adminPrivate.buildAdminOverview([
+        createDocSnap('user-1', {
+          createdAt: { toMillis: () => Date.UTC(2026, 2, 19, 8, 0, 0) },
+          lastActiveAt: { toMillis: () => Date.UTC(2026, 2, 19, 10, 0, 0) },
+          stats: {
+            totalGames: 10,
+            totalScore: 2000,
+            achievementsCompleted: 4
+          }
+        }),
+        createDocSnap('user-2', {
+          banned: true,
+          createdAt: { toMillis: () => Date.UTC(2026, 1, 1, 8, 0, 0) },
+          lastActiveAt: { toMillis: () => Date.UTC(2026, 2, 18, 9, 0, 0) },
+          stats: {
+            totalGames: 5,
+            totalScore: 500,
+            achievements: [{ id: 'a' }, { id: 'b' }]
+          }
+        }),
+        createDocSnap('user-3', {
+          createdAt: { toMillis: () => Date.UTC(2026, 1, 15, 8, 0, 0) },
+          lastActiveAt: { toMillis: () => Date.UTC(2026, 2, 13, 9, 0, 0) },
+          stats: {
+            totalGames: 5,
+            totalScore: 1500,
+            achievementsCompleted: 1
+          }
+        })
+      ]);
+
+      expect(overview).toEqual({
+        totalUsers: 3,
+        activeUsers: 1,
+        weeklyActiveUsers: 2,
+        bannedUsers: 1,
+        totalGames: 20,
+        totalScore: 4000,
+        totalAchievements: 7,
+        newUsersToday: 1,
+        averageScore: 200,
+        retentionRate: 67
+      });
+    } finally {
+      Date.now = now;
+    }
+  });
+
+  it('sorts support tickets by priority and recency with deterministic tie-breakers', () => {
+    const tickets = [
+      {
+        id: 'ticket-c',
+        priority: 'normal',
+        createdAt: 100,
+        updatedAt: 300
+      },
+      {
+        id: 'ticket-a',
+        priority: 'urgent',
+        createdAt: 150,
+        updatedAt: 200
+      },
+      {
+        id: 'ticket-b',
+        priority: 'urgent',
+        createdAt: 125,
+        updatedAt: 250
+      }
+    ];
+
+    expect(adminPrivate.sortSupportTickets(tickets, 'priority_desc').map((ticket) => ticket.id)).toEqual([
+      'ticket-b',
+      'ticket-a',
+      'ticket-c'
+    ]);
+
+    expect(adminPrivate.sortSupportTickets(tickets, 'createdAt_desc').map((ticket) => ticket.id)).toEqual([
+      'ticket-a',
+      'ticket-b',
+      'ticket-c'
+    ]);
+  });
 });

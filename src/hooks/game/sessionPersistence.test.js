@@ -100,6 +100,43 @@ describe('sessionPersistence helpers', () => {
     expect(result.stats.efficiency).toBe(0);
   });
 
+  it('removes stale difficulty values from non-vsai persisted sessions', () => {
+    const result = buildGameSessionData({
+      gameState: {
+        gameId: 'classic-2',
+        gameMode: GAME_MODES.CLASSIC,
+        difficulty: AI_DIFFICULTIES.MEDIUM,
+        playerCount: 1,
+        score: 25,
+        snakes: [{ score: 25 }],
+        gameTime: 12,
+        foodEaten: 2,
+        speed: 180,
+        moves: 8,
+        wallHits: 0,
+        selfHits: 0,
+        closeCalls: 0,
+        fastEats: 0,
+        bonusFoodsSpawned: 0,
+        bonusFoodsCollected: 0,
+        bonusFoodPoints: 0,
+        timeToFirstFood: 4,
+        timeToMaxLength: 11,
+        startTime: 100
+      },
+      trackedMaxLength: 4,
+      user: { uid: 'user-3', email: 'classic@example.com' },
+      userProfile: { username: 'classic-player' },
+      victory: false,
+      endedAt: 300
+    });
+
+    expect(result).toMatchObject({
+      mode: GAME_MODES.CLASSIC,
+      difficulty: null
+    });
+  });
+
   it('builds competitive stat updates with streaks and special multiplayer tracking', () => {
     const shouldRecordQuickDeath = vi.fn().mockReturnValue(false);
     const gameState = {

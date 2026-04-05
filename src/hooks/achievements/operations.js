@@ -28,7 +28,8 @@ export const useAchievementOperations = () => {
     uncollectedAchievements,
     setUnlockedAchievements,
     setUncollectedAchievements,
-    setRecentUnlocks
+    setRecentUnlocks,
+    setPendingCollectedIds
   } = useAchievements();
 
   const { checkAndUnlockAchievements } = useAchievementUnlockOperations({
@@ -41,6 +42,7 @@ export const useAchievementOperations = () => {
   const { collectAchievement, collectAllAchievements } = useAchievementCollectionOperations({
     refreshProfile,
     setRecentUnlocks,
+    setPendingCollectedIds,
     setUncollectedAchievements,
     setUnlockedAchievements,
     unlockedAchievements,
